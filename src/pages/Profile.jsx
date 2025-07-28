@@ -97,17 +97,25 @@ export default function Profile() {
     e.preventDefault();
     if (!supabase) return;
     if (phoneNumber && phoneNumber.length !== 10) {
-        setMessage("Please enter a valid 10-digit mobile number.");
-        return;
+      setMessage("Please enter a valid 10-digit mobile number.");
+      return;
     }
     setSaving(true);
     setMessage('');
     try {
-      const updates = { id: user.id, full_name: fullName, phone_number: phoneNumber, updated_at: new Date() };
-      const { error } = await supabase.from('profiles').upsert(updates);
+      // NOT NULL fields ki value bhi bhejein agar zarurat ho (jaise wallet_balance)
+      const updates = {
+        full_name: fullName,
+        phone_number: phoneNumber,
+        updated_at: new Date(),
+        // wallet_balance: profile?.wallet_balance ?? 0, // Uncomment if needed
+      };
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', user.id);
       if (error) throw error;
       setMessage('Profile updated successfully!');
-      // Set a timer to clear the success message after 3 seconds
       setTimeout(() => setMessage(''), 3000);
     } catch (error) {
       setMessage(`Error updating profile: ${error.message}`);
