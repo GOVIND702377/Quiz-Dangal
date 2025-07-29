@@ -16,6 +16,9 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
@@ -73,6 +76,60 @@ const Login = () => {
     );
   }
 
+  if (showForgot) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-md w-full shadow-xl text-center"
+        >
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">Forgot Password</h2>
+          <p className="text-gray-600 mb-4">Enter your email to receive a password reset link.</p>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setForgotLoading(true);
+              try {
+                const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, { redirectTo: window.location.origin });
+                if (error) throw error;
+                toast({
+                  title: "Reset Email Sent!",
+                  description: `Check your inbox (${forgotEmail}) for a password reset link.`,
+                });
+                setShowForgot(false);
+              } catch (error) {
+                toast({
+                  title: "Reset Failed",
+                  description: error.message || "Please try again.",
+                  variant: "destructive"
+                });
+              }
+              setForgotLoading(false);
+            }}
+            className="space-y-4"
+          >
+            <Input
+              id="forgot-email"
+              type="email"
+              value={forgotEmail}
+              onChange={e => setForgotEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+              className="mb-2"
+            />
+            <Button type="submit" disabled={forgotLoading} className="w-full">
+              {forgotLoading ? "Sending..." : "Send Reset Link"}
+            </Button>
+            <Button type="button" variant="outline" className="w-full" onClick={() => setShowForgot(false)}>
+              Back to Login
+            </Button>
+          </form>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
       <motion.div
@@ -112,6 +169,15 @@ const Login = () => {
           <div>
             <Label htmlFor="password">Password</Label>
             <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+            {!isSignUp && (
+              <button
+                type="button"
+                className="text-xs text-indigo-600 hover:underline mt-1 float-right"
+                onClick={() => setShowForgot(true)}
+              >
+                Forgot Password?
+              </button>
+            )}
           </div>
           <Button type="submit" disabled={isLoading || isGoogleLoading} className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold py-3 rounded-lg shadow-lg">
             {isLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
