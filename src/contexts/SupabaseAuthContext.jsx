@@ -85,7 +85,9 @@ export const AuthProvider = ({ children }) => {
                                 full_name: '',
                                 phone_number: ''
                             }
-                        ]);
+                        ]).then(() => {
+                            refreshUserProfile(user);
+                        });
                     }
                 });
         }
