@@ -68,6 +68,29 @@ export const AuthProvider = ({ children }) => {
         };
     }, []);
 
+    // Auto-create profile row for new users if not exists
+    useEffect(() => {
+        if (user && !loading) {
+            supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', user.id)
+                .single()
+                .then(({ data, error }) => {
+                    if (!data) {
+                        supabase.from('profiles').insert([
+                            {
+                                id: user.id,
+                                email: user.email,
+                                full_name: '',
+                                phone_number: ''
+                            }
+                        ]);
+                    }
+                });
+        }
+    }, [user, loading]);
+
     // SIGN UP FUNCTION (EMAIL)
     const signUp = async (email, password) => {
         return await supabase.auth.signUp({ email, password });
