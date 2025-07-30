@@ -12,6 +12,7 @@ const Login = () => {
   const auth = useAuth();
   console.log('AUTH CONTEXT:', auth);
   const { signUp, signIn } = auth;
+  console.log('signUp:', signUp, 'signIn:', signIn);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

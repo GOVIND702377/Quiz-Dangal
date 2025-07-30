@@ -9,6 +9,7 @@ import Home from '@/pages/Home';
 import MyQuizzes from '@/pages/MyQuizzes';
 import Wallet from '@/pages/Wallet';
 import Profile from '@/pages/Profile';
+import ProfileUpdate from '@/pages/ProfileUpdate';
 import Login from '@/pages/Login';
 import AboutUs from '@/pages/AboutUs';
 import ContactUs from '@/pages/ContactUs';
@@ -27,7 +28,7 @@ const UnconfirmedEmail = () => (
 );
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, userProfile, loading } = useAuth();
 
   if (loading) {
     return (
@@ -67,6 +68,19 @@ function App() {
     );
   }
 
+  // Force profile update if name or phone is missing
+  if (user && userProfile && (!userProfile.full_name || !userProfile.phone_number)) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/profile-update" element={<ProfileUpdate />} />
+          <Route path="*" element={<Navigate to="/profile-update" replace />} />
+        </Routes>
+        <Toaster />
+      </Router>
+    );
+  }
+
   return (
     <Router>
       <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-800">
@@ -74,12 +88,10 @@ function App() {
           <title>Quiz Dangal - Opinion Based Quiz App</title>
           <meta name="description" content="Join Quiz Dangal for exciting opinion-based quizzes with real prizes!" />
         </Helmet>
-        
         <Routes>
            <Route path="/quiz/:id" element={<Quiz />} />
            <Route path="/*" element={<MainLayout />} />
         </Routes>
-        
         <Toaster />
       </div>
     </Router>
@@ -127,4 +139,3 @@ const MainLayout = () => {
 };
 
 export default App;
-console.log("Govind's upload working ✅");
