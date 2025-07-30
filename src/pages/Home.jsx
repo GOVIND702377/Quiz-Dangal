@@ -50,15 +50,28 @@ const Home = () => {
   const [participantCounts, setParticipantCounts] = useState({});
 
   const fetchQuizzesAndCounts = useCallback(async () => {
-    const { data: scheduleData, error: scheduleError } = await supabase
-      .from('quiz_schedule')
-      .select('*')
-      .gte('start_time', new Date().toISOString())
-      .order('start_time', { ascending: true });
-
+    let scheduleData = [];
+    let scheduleError = null;
+    try {
+      const res = await supabase
+        .from('quiz_schedule')
+        .select('*')
+        .gte('start_time', new Date().toISOString())
+        .order('start_time', { ascending: true });
+      scheduleData = res.data || [];
+      scheduleError = res.error;
+    } catch (err) {
+      scheduleError = err;
+      scheduleData = [];
+    }
     if (scheduleError) {
-      console.error('Error fetching quizzes:', scheduleError);
-      toast({ title: "Error", description: "Could not fetch quizzes.", variant: "destructive" });
+      if (scheduleError.code === '42P01' || (scheduleError.message && scheduleError.message.includes('quiz_schedule'))) {
+        // Table does not exist
+        setQuizzes([]);
+      } else {
+        console.error('Error fetching quizzes:', scheduleError);
+        toast({ title: "Error", description: "Could not fetch quizzes.", variant: "destructive" });
+      }
     } else {
       setQuizzes(scheduleData);
     }

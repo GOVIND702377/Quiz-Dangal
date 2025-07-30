@@ -9,7 +9,9 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const Login = () => {
   const { toast } = useToast();
-  const { signUp, signIn } = useAuth();
+  const auth = useAuth();
+  console.log('AUTH CONTEXT:', auth);
+  const { signUp, signIn } = auth;
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,8 +49,15 @@ const Login = () => {
     setEmailSent(false);
 
     if (isSignUp) {
-      const { error } = await signUp(email, password);
-      if (!error) {
+      const { error, data } = await signUp(email, password);
+      console.log('SIGNUP RESULT:', { error, data });
+      if (error) {
+        toast({
+          title: "Sign Up Failed",
+          description: error.message,
+          variant: "destructive"
+        });
+      } else {
         setEmailSent(true);
         toast({
           title: "Confirmation email sent!",
@@ -56,7 +65,15 @@ const Login = () => {
         });
       }
     } else {
-      await signIn(email, password);
+      const { error, data } = await signIn(email, password);
+      console.log('SIGNIN RESULT:', { error, data });
+      if (error) {
+        toast({
+          title: "Sign In Failed",
+          description: error.message,
+          variant: "destructive"
+        });
+      }
     }
     setIsLoading(false);
   };

@@ -68,11 +68,23 @@ export const AuthProvider = ({ children }) => {
         };
     }, []);
 
+    // SIGN UP FUNCTION (EMAIL)
+    const signUp = async (email, password) => {
+        return await supabase.auth.signUp({ email, password });
+    };
+
+    // SIGN IN FUNCTION (EMAIL)
+    const signIn = async (email, password) => {
+        return await supabase.auth.signInWithPassword({ email, password });
+    };
+
     const value = {
         supabase,
         user,
         userProfile,
         loading,
+        signUp,
+        signIn,
         signOut: () => supabase.auth.signOut(),
         refreshUserProfile: () => refreshUserProfile(user),
     };

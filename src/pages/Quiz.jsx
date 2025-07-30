@@ -52,14 +52,26 @@ const Quiz = () => {
         return;
     }
 
-    const { data: scheduleData, error: scheduleError } = await supabase
-      .from('quiz_schedule')
-      .select('*')
-      .eq('quiz_id', quizId)
-      .single();
-
+    let scheduleData = null;
+    let scheduleError = null;
+    try {
+      const res = await supabase
+        .from('quiz_schedule')
+        .select('*')
+        .eq('quiz_id', quizId)
+        .single();
+      scheduleData = res.data;
+      scheduleError = res.error;
+    } catch (err) {
+      scheduleError = err;
+      scheduleData = null;
+    }
     if (scheduleError || !scheduleData) {
-      toast({ title: "Error", description: "Quiz not found.", variant: "destructive" });
+      if (scheduleError && (scheduleError.code === '42P01' || (scheduleError.message && scheduleError.message.includes('quiz_schedule')))) {
+        toast({ title: "Error", description: "Quiz not found (table missing).", variant: "destructive" });
+      } else {
+        toast({ title: "Error", description: "Quiz not found.", variant: "destructive" });
+      }
       navigate('/');
       return;
     }

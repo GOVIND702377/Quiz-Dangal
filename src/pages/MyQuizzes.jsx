@@ -73,16 +73,30 @@ const MyQuizzes = () => {
         return;
     }
 
-    const { data: scheduleData, error: sError } = await supabase
-      .from('quiz_schedule')
-      .select('*')
-      .in('quiz_id', quizIds)
-      .order('start_time', { ascending: false });
-
+    let scheduleData = [];
+    let sError = null;
+    try {
+      const res = await supabase
+        .from('quiz_schedule')
+        .select('*')
+        .in('quiz_id', quizIds)
+        .order('start_time', { ascending: false });
+      scheduleData = res.data || [];
+      sError = res.error;
+    } catch (err) {
+      sError = err;
+      scheduleData = [];
+    }
     if (sError) {
-      console.error(sError);
-      setLoading(false);
-      return;
+      if (sError.code === '42P01' || (sError.message && sError.message.includes('quiz_schedule'))) {
+        setQuizzes([]);
+        setLoading(false);
+        return;
+      } else {
+        console.error(sError);
+        setLoading(false);
+        return;
+      }
     }
     
     const { data: resultsData, error: rError } = await supabase
