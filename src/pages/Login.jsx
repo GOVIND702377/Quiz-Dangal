@@ -59,6 +59,17 @@ const Login = () => {
           variant: "destructive"
         });
       } else {
+        // Profile row insert logic
+        if (data?.user) {
+          await supabase.from('profiles').insert([
+            {
+              id: data.user.id,
+              email: data.user.email,
+              full_name: '', // Optionally, user input
+              phone_number: '' // Optionally, user input
+            }
+          ]);
+        }
         setEmailSent(true);
         toast({
           title: "Confirmation email sent!",
