@@ -77,6 +77,11 @@ export default function ProfileUpdate() {
     setSaving(true);
     setMessage('');
     try {
+      if (!user || !user.id) {
+        setMessage('Error: User not logged in. Please login again.');
+        setSaving(false);
+        return;
+      }
       const updates = {
         full_name: fullName,
         phone_number: phoneNumber,
