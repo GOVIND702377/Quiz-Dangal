@@ -37,7 +37,7 @@ export default function LoginPage() {
       setMessage('Signup failed: No user returned.');
       return;
     }
-    // Insert profile with full_name
+    // Insert profile with full_name and wallet_balance
     const { error: profileError } = await supabase
       .from('profiles')
       .insert([
@@ -45,7 +45,8 @@ export default function LoginPage() {
           id: user.id,
           full_name: fullName,
           email: email,
-          phone_number: phoneNumber
+          phone_number: phoneNumber,
+          wallet_balance: 0
         }
       ]);
     if (profileError) {
