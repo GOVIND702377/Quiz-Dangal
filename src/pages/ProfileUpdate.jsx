@@ -1,7 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
-
+export default function ProfileUpdate() {
   const { user, supabase, userProfile, loading, refreshUserProfile } = useAuth();
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState('');
