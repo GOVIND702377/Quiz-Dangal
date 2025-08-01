@@ -74,8 +74,8 @@ export default function ProfileUpdate() {
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     if (!supabase) return;
-    // Null check for user and user.id
-    if (!user || !user.id) {
+    // Extra null check for user and user.id
+    if (!user || typeof user !== 'object' || !('id' in user) || !user.id) {
       setMessage('Error: User not logged in. Please login again.');
       return;
     }
