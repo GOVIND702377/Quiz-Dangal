@@ -44,8 +44,13 @@ export default function ProfileUpdate() {
   }, [supabase]);
 
   useEffect(() => {
-    if (!user || !supabase) return;
+    if (!supabase) return;
     const fetchProfile = async () => {
+      if (!user || !user.id) {
+        setMessage('Error: User not logged in. Please login again.');
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
