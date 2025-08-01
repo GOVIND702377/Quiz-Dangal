@@ -74,7 +74,8 @@ export default function ProfileUpdate() {
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     if (!supabase) return;
-    // Extra null check for user and user.id
+    // Debug: log user object
+    console.log('[ProfileUpdate] handleProfileUpdate user:', user);
     if (!user || typeof user !== 'object' || !('id' in user) || !user.id) {
       setMessage('Error: User not logged in. Please login again.');
       return;
@@ -90,6 +91,12 @@ export default function ProfileUpdate() {
     setSaving(true);
     setMessage('');
     try {
+      // Defensive: check user.id again before update
+      if (!user.id) {
+        setMessage('Error: User ID missing. Please login again.');
+        setSaving(false);
+        return;
+      }
       const updates = {
         full_name: fullName,
         phone_number: phoneNumber,
@@ -107,6 +114,7 @@ export default function ProfileUpdate() {
       }, 1500);
     } catch (error) {
       setMessage(`Error updating profile: ${error.message}`);
+      console.error('[ProfileUpdate] Update error:', error, 'user:', user);
     } finally {
       setSaving(false);
     }
