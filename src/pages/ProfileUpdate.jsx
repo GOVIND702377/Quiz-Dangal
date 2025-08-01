@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 
-export default function ProfileUpdate() {
-  const [supabase, setSupabase] = useState(null);
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user, supabase, userProfile, loading, refreshUserProfile } = useAuth();
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -12,71 +10,15 @@ export default function ProfileUpdate() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const scriptId = 'supabase-js-sdk';
-    if (document.getElementById(scriptId)) {
-      if (window.supabase) {
-        const client = window.supabase.createClient('https://wgaunhqkundxxfjguoin.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndnYXVuaHFrdW5keHhmamd1b2luIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyNzQ0NDYsImV4cCI6MjA2ODg1MDQ0Nn0.C5hKQQbm1fDw8mVgQaFvZz5Ok6rrpA1Jmkau7gkuJJU');
-        setSupabase(client);
-      }
-      return;
+    if (userProfile) {
+      setFullName(userProfile.full_name || '');
+      setPhoneNumber(userProfile.phone_number || '');
     }
-    const script = document.createElement('script');
-    script.id = scriptId;
-    script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js';
-    script.async = true;
-    script.onload = () => {
-      if (window.supabase) {
-        const client = window.supabase.createClient('https://wgaunhqkundxxfjguoin.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndnYXVuaHFrdW5keHhmamd1b2luIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyNzQ0NDYsImV4cCI6MjA2ODg1MDQ0Nn0.C5hKQQbm1fDw8mVgQaFvZz5Ok6rrpA1Jmkau7gkuJJU');
-        setSupabase(client);
-      }
-    };
-    document.head.appendChild(script);
-  }, []);
-
-  useEffect(() => {
-    if (!supabase) return;
-    const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) setUser(session.user);
-      setLoading(false);
-    };
-    getSession();
-  }, [supabase]);
-
-  useEffect(() => {
-    if (!supabase) return;
-    const fetchProfile = async () => {
-      // Null check for user and user.id
-      if (!user || !user.id) {
-        setMessage('Error: User not logged in. Please login again.');
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      try {
-        const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        if (error && error.message !== 'JSON object requested, multiple (or no) rows returned') throw error;
-        if (data) {
-          setFullName(data.full_name || '');
-          setPhoneNumber(data.phone_number || '');
-        } else {
-          setMessage('No profile data found for this user.');
-        }
-      } catch (error) {
-        setMessage(`Error fetching profile: ${error.message}`);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchProfile();
-  }, [user, supabase]);
+  }, [userProfile]);
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
-    if (!supabase) return;
-    // Debug: log user object
-    console.log('[ProfileUpdate] handleProfileUpdate user:', user);
-    if (!user || typeof user !== 'object' || !('id' in user) || !user.id) {
+    if (!user || !user.id || !supabase) {
       setMessage('Error: User not logged in. Please login again.');
       return;
     }
@@ -91,12 +33,6 @@ export default function ProfileUpdate() {
     setSaving(true);
     setMessage('');
     try {
-      // Defensive: check user.id again before update
-      if (!user.id) {
-        setMessage('Error: User ID missing. Please login again.');
-        setSaving(false);
-        return;
-      }
       const updates = {
         full_name: fullName,
         phone_number: phoneNumber,
@@ -108,13 +44,13 @@ export default function ProfileUpdate() {
         .eq('id', user.id);
       if (error) throw error;
       setMessage('Profile updated successfully!');
+      refreshUserProfile();
       setTimeout(() => {
         setMessage('');
         navigate('/profile');
       }, 1500);
     } catch (error) {
       setMessage(`Error updating profile: ${error.message}`);
-      console.error('[ProfileUpdate] Update error:', error, 'user:', user);
     } finally {
       setSaving(false);
     }
