@@ -46,6 +46,7 @@ export default function ProfileUpdate() {
   useEffect(() => {
     if (!supabase) return;
     const fetchProfile = async () => {
+      // Null check for user and user.id
       if (!user || !user.id) {
         setMessage('Error: User not logged in. Please login again.');
         setLoading(false);
@@ -58,6 +59,8 @@ export default function ProfileUpdate() {
         if (data) {
           setFullName(data.full_name || '');
           setPhoneNumber(data.phone_number || '');
+        } else {
+          setMessage('No profile data found for this user.');
         }
       } catch (error) {
         setMessage(`Error fetching profile: ${error.message}`);
@@ -71,6 +74,11 @@ export default function ProfileUpdate() {
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     if (!supabase) return;
+    // Null check for user and user.id
+    if (!user || !user.id) {
+      setMessage('Error: User not logged in. Please login again.');
+      return;
+    }
     if (!fullName.trim()) {
       setMessage('Name is required.');
       return;
@@ -82,11 +90,6 @@ export default function ProfileUpdate() {
     setSaving(true);
     setMessage('');
     try {
-      if (!user || !user.id) {
-        setMessage('Error: User not logged in. Please login again.');
-        setSaving(false);
-        return;
-      }
       const updates = {
         full_name: fullName,
         phone_number: phoneNumber,
