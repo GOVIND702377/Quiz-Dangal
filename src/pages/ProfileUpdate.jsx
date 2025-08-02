@@ -50,7 +50,12 @@ export default function ProfileUpdate() {
     setMessage('');
     
     try {
-      console.log('Updating profile for user ID:', user.id);
+      console.log('=== PROFILE UPDATE DEBUG ===');
+      console.log('User object:', user);
+      console.log('User ID:', user?.id);
+      console.log('Supabase client:', supabase);
+      console.log('Full name:', fullName);
+      console.log('Phone number:', phoneNumber);
       
       const updates = {
         full_name: fullName.trim(),
@@ -58,14 +63,20 @@ export default function ProfileUpdate() {
         updated_at: new Date().toISOString(),
       };
       
+      console.log('Updates object:', updates);
+      console.log('About to call supabase update...');
+      
       const { data, error } = await supabase
         .from('profiles')
         .update(updates)
         .eq('id', user.id)
         .select();
       
+      console.log('Supabase response - data:', data);
+      console.log('Supabase response - error:', error);
+      
       if (error) {
-        console.error('Supabase update error:', error);
+        console.error('Supabase update error details:', error);
         throw error;
       }
       
@@ -73,6 +84,7 @@ export default function ProfileUpdate() {
       setMessage('Profile updated successfully!');
       
       // Refresh user profile
+      console.log('Refreshing user profile...');
       await refreshUserProfile();
       
       setTimeout(() => {
@@ -81,7 +93,10 @@ export default function ProfileUpdate() {
       }, 1500);
       
     } catch (error) {
-      console.error('Profile update error:', error);
+      console.error('=== PROFILE UPDATE ERROR ===');
+      console.error('Error object:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
       setMessage(`Error updating profile: ${error.message || 'Unknown error occurred'}`);
     } finally {
       setSaving(false);
