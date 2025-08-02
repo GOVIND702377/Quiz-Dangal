@@ -111,7 +111,7 @@ export const AuthProvider = ({ children }) => {
         signUp,
         signIn,
         signOut: () => supabase.auth.signOut(),
-        refreshUserProfile: () => refreshUserProfile(user),
+        refreshUserProfile,
     };
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

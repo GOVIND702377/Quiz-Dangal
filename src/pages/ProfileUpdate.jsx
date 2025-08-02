@@ -11,6 +11,13 @@ export default function ProfileUpdate() {
   const [message, setMessage] = useState('');
   const navigate = useNavigate();
 
+  // STEP 4: Protect /profile-update route
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login');
+    }
+  }, [user, loading, navigate]);
+
   useEffect(() => {
     if (userProfile) {
       setFullName(userProfile.full_name || '');
@@ -21,15 +28,15 @@ export default function ProfileUpdate() {
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     
-    // Enhanced null checks
-    if (!user) {
-      setMessage('Error: User session not found. Please refresh the page and try again.');
-      return;
-    }
-    
-    if (!user.id) {
-      setMessage('Error: User ID not available. Please logout and login again.');
-      return;
+    // STEP 3: Improve user fetching with fallback
+    let currentUser = user;
+    if (!currentUser) {
+      const { data, error } = await supabase.auth.getUser();
+      currentUser = data?.user;
+      if (!currentUser) {
+        setMessage('Error: User not logged in. Please login again.');
+        return;
+      }
     }
     
     if (!supabase) {
@@ -52,8 +59,8 @@ export default function ProfileUpdate() {
     
     try {
       console.log('=== PROFILE UPDATE DEBUG ===');
-      console.log('User object:', user);
-      console.log('User ID:', user?.id);
+      console.log('Current user object:', currentUser);
+      console.log('Current user ID:', currentUser?.id);
       console.log('Supabase client:', supabase);
       console.log('Full name:', fullName);
       console.log('Phone number:', phoneNumber);
@@ -63,7 +70,7 @@ export default function ProfileUpdate() {
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', currentUser.id)
         .single();
       
       console.log('Existing profile check - data:', existingProfile);
@@ -84,8 +91,8 @@ export default function ProfileUpdate() {
         result = await supabase
           .from('profiles')
           .insert([{
-            id: user.id,
-            email: user.email,
+            id: currentUser.id,
+            email: currentUser.email,
             ...updates
           }])
           .select();
@@ -95,7 +102,7 @@ export default function ProfileUpdate() {
         result = await supabase
           .from('profiles')
           .update(updates)
-          .eq('id', user.id)
+          .eq('id', currentUser.id)
           .select();
       }
       
@@ -110,9 +117,9 @@ export default function ProfileUpdate() {
         console.log('Error message:', error.message);
         console.log('Error details:', error.details);
         console.log('Error hint:', error.hint);
-        console.log('Current user auth:', user);
-        console.log('User metadata:', user?.user_metadata);
-        console.log('User app metadata:', user?.app_metadata);
+        console.log('Current user auth:', currentUser);
+        console.log('User metadata:', currentUser?.user_metadata);
+        console.log('User app metadata:', currentUser?.app_metadata);
         console.error('Supabase operation error details:', error);
         throw error;
       }
@@ -120,13 +127,13 @@ export default function ProfileUpdate() {
       console.log('Profile updated successfully:', data);
       setMessage('Profile updated successfully!');
       
-      // Refresh user profile
+      // STEP 2: Fix refreshUserProfile call with user argument
       console.log('Refreshing user profile...');
-      await refreshUserProfile();
+      await refreshUserProfile(currentUser);
       
       setTimeout(() => {
         setMessage('');
-        navigate('/');
+        navigate('/profile');
       }, 1500);
       
     } catch (error) {
