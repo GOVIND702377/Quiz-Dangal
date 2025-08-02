@@ -57,6 +57,17 @@ export default function ProfileUpdate() {
       console.log('Full name:', fullName);
       console.log('Phone number:', phoneNumber);
       
+      // First check if profile exists
+      console.log('Checking if profile exists...');
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      console.log('Existing profile check - data:', existingProfile);
+      console.log('Existing profile check - error:', checkError);
+      
       const updates = {
         full_name: fullName.trim(),
         phone_number: phoneNumber,
@@ -64,19 +75,44 @@ export default function ProfileUpdate() {
       };
       
       console.log('Updates object:', updates);
-      console.log('About to call supabase update...');
       
-      const { data, error } = await supabase
-        .from('profiles')
-        .update(updates)
-        .eq('id', user.id)
-        .select();
+      let result;
+      if (!existingProfile) {
+        // Profile doesn't exist, create it
+        console.log('Profile not found, creating new profile...');
+        result = await supabase
+          .from('profiles')
+          .insert([{
+            id: user.id,
+            email: user.email,
+            ...updates
+          }])
+          .select();
+      } else {
+        // Profile exists, update it
+        console.log('Profile found, updating existing profile...');
+        result = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('id', user.id)
+          .select();
+      }
       
-      console.log('Supabase response - data:', data);
-      console.log('Supabase response - error:', error);
+      const { data, error } = result;
+      console.log('Supabase operation result - data:', data);
+      console.log('Supabase operation result - error:', error);
       
+      // Additional RLS debugging
       if (error) {
-        console.error('Supabase update error details:', error);
+        console.log('=== RLS DEBUG INFO ===');
+        console.log('Error code:', error.code);
+        console.log('Error message:', error.message);
+        console.log('Error details:', error.details);
+        console.log('Error hint:', error.hint);
+        console.log('Current user auth:', user);
+        console.log('User metadata:', user?.user_metadata);
+        console.log('User app metadata:', user?.app_metadata);
+        console.error('Supabase operation error details:', error);
         throw error;
       }
       
