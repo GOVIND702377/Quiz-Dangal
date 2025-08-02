@@ -1,3 +1,7 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
+
 export default function ProfileUpdate() {
   const { user, supabase, userProfile, loading, refreshUserProfile } = useAuth();
   const [saving, setSaving] = useState(false);
@@ -15,46 +19,77 @@ export default function ProfileUpdate() {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
-    if (!user || !user.id || !supabase) {
-      setMessage('Error: User not logged in. Please login again.');
+    
+    // Enhanced null checks
+    if (!user) {
+      setMessage('Error: User session not found. Please refresh the page and try again.');
       return;
     }
+    
+    if (!user.id) {
+      setMessage('Error: User ID not available. Please logout and login again.');
+      return;
+    }
+    
+    if (!supabase) {
+      setMessage('Error: Database connection not available. Please refresh the page.');
+      return;
+    }
+    
     if (!fullName.trim()) {
       setMessage('Name is required.');
       return;
     }
+    
     if (!phoneNumber || phoneNumber.length !== 10) {
       setMessage('Please enter a valid 10-digit mobile number.');
       return;
     }
+    
     setSaving(true);
     setMessage('');
+    
     try {
+      console.log('Updating profile for user ID:', user.id);
+      
       const updates = {
-        full_name: fullName,
+        full_name: fullName.trim(),
         phone_number: phoneNumber,
-        updated_at: new Date(),
+        updated_at: new Date().toISOString(),
       };
-      const { error } = await supabase
+      
+      const { data, error } = await supabase
         .from('profiles')
         .update(updates)
-        .eq('id', user.id);
-      if (error) throw error;
+        .eq('id', user.id)
+        .select();
+      
+      if (error) {
+        console.error('Supabase update error:', error);
+        throw error;
+      }
+      
+      console.log('Profile updated successfully:', data);
       setMessage('Profile updated successfully!');
-      refreshUserProfile();
+      
+      // Refresh user profile
+      await refreshUserProfile();
+      
       setTimeout(() => {
         setMessage('');
-        navigate('/profile');
+        navigate('/');
       }, 1500);
+      
     } catch (error) {
-      setMessage(`Error updating profile: ${error.message}`);
+      console.error('Profile update error:', error);
+      setMessage(`Error updating profile: ${error.message || 'Unknown error occurred'}`);
     } finally {
       setSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="flex justify-center items-center h-screen"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg></div>;
+    return <div className="flex justify-center items-center h-screen"><Spinner className="h-12 w-12 text-indigo-500" /></div>;
   }
 
   return (
@@ -72,7 +107,7 @@ export default function ProfileUpdate() {
           </div>
           {message && <div className={`border px-4 py-3 rounded-lg relative ${message.startsWith('Error') ? 'bg-red-100 border-red-400 text-red-700' : 'bg-green-100 border-green-400 text-green-700'} mt-4`} role="alert">{message}</div>}
           <button type="submit" disabled={saving} className="w-full flex items-center justify-center bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold py-2 rounded-lg shadow-md disabled:opacity-50">
-            {saving ? <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg> : 'Save Details'}
+            {saving ? <Spinner className="h-5 w-5" /> : 'Save Details'}
           </button>
         </form>
       </div>
