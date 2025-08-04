@@ -3,7 +3,7 @@
 import fs from 'fs';
 import path from 'path';
 import { parse } from '@babel/parser';
-import traverse from '@babel/traverse';
+import * as babelTraverse from '@babel/traverse';
 
 function extractRoutes(appJsxPath) {
   if (!fs.existsSync(appJsxPath)) return new Map();
@@ -16,7 +16,7 @@ function extractRoutes(appJsxPath) {
       plugins: ['jsx']
     });
 
-    traverse(ast, {
+    (babelTraverse.default || babelTraverse.traverse)(ast, {
       JSXOpeningElement(path) {
         if (path.node.name.name === 'Route') {
           let routePath = '/';
@@ -76,7 +76,7 @@ function extractHelmetData(content, filePath, routes) {
       plugins: ['jsx']
     });
 
-    traverse(ast, {
+    (babelTraverse.default || babelTraverse.traverse)(ast, {
       JSXOpeningElement(path) {
         if (path.node.name.name === 'Helmet') {
           path.parent.children.forEach(child => {
