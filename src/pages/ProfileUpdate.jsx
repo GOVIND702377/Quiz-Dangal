@@ -60,7 +60,15 @@ export default function ProfileUpdate() {
     try {
       console.log('=== PROFILE UPDATE DEBUG ===');
       console.log('Current user object:', currentUser);
-      console.log('Current user ID:', currentUser?.id);
+      
+      if (!currentUser || !currentUser.id) {
+        console.error("Critical Error: User ID is not available. Aborting update.");
+        setMessage("Error: Your session seems to be invalid. Please log out and log in again.");
+        setSaving(false);
+        return;
+      }
+
+      console.log('Current user ID:', currentUser.id);
       console.log('Supabase client:', supabase);
       console.log('Full name:', fullName);
       console.log('Phone number:', phoneNumber);

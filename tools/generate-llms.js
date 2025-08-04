@@ -2,50 +2,8 @@
 
 import fs from 'fs';
 import path from 'path';
-
-const CLEAN_CONTENT_REGEX = {
-  comments: /\/\*[\s\S]*?\*\/|\/\/.*$/gm,
-  templateLiterals: /`[\s\S]*?`/g,
-  strings: /'[^']*'|"[^"]*"/g,
-  jsxExpressions: /\{.*?\}/g,
-  htmlEntities: {
-    quot: /&quot;/g,
-    amp: /&amp;/g,
-    lt: /&lt;/g,
-    gt: /&gt;/g,
-    apos: /&apos;/g
-  }
-};
-
-const EXTRACTION_REGEX = {
-  route: /<Route\s+[^>]*>/g,
-  path: /path=["']([^"']+)["']/,
-  element: /element=\{<(\w+)[^}]*\/?\s*>\}/,
-  helmet: /<Helmet[^>]*?>([\s\S]*?)<\/Helmet>/i,
-  helmetTest: /<Helmet[\s\S]*?<\/Helmet>/i,
-  title: /<title[^>]*?>\s*(.*?)\s*<\/title>/i,
-  description: /<meta\s+name=["']description["']\s+content=["'](.*?)["']/i
-};
-
-function cleanContent(content) {
-  return content
-    .replace(CLEAN_CONTENT_REGEX.comments, '')
-    .replace(CLEAN_CONTENT_REGEX.templateLiterals, '""')
-    .replace(CLEAN_CONTENT_REGEX.strings, '""');
-}
-
-function cleanText(text) {
-  if (!text) return text;
-  
-  return text
-    .replace(CLEAN_CONTENT_REGEX.jsxExpressions, '')
-    .replace(CLEAN_CONTENT_REGEX.htmlEntities.quot, '"')
-    .replace(CLEAN_CONTENT_REGEX.htmlEntities.amp, '&')
-    .replace(CLEAN_CONTENT_REGEX.htmlEntities.lt, '<')
-    .replace(CLEAN_CONTENT_REGEX.htmlEntities.gt, '>')
-    .replace(CLEAN_CONTENT_REGEX.htmlEntities.apos, "'")
-    .trim();
-}
+import { parse } from '@babel/parser';
+import traverse from '@babel/traverse';
 
 function extractRoutes(appJsxPath) {
   if (!fs.existsSync(appJsxPath)) return new Map();
@@ -53,30 +11,53 @@ function extractRoutes(appJsxPath) {
   try {
     const content = fs.readFileSync(appJsxPath, 'utf8');
     const routes = new Map();
-    const routeMatches = [...content.matchAll(EXTRACTION_REGEX.route)];
-    
-    for (const match of routeMatches) {
-      const routeTag = match[0];
-      const pathMatch = routeTag.match(EXTRACTION_REGEX.path);
-      const elementMatch = routeTag.match(EXTRACTION_REGEX.element);
-      const isIndex = routeTag.includes('index');
-      
-      if (elementMatch) {
-        const componentName = elementMatch[1];
-        let routePath;
-        
-        if (isIndex) {
-          routePath = '/';
-        } else if (pathMatch) {
-          routePath = pathMatch[1].startsWith('/') ? pathMatch[1] : `/${pathMatch[1]}`;
+    const ast = parse(content, {
+      sourceType: 'module',
+      plugins: ['jsx']
+    });
+
+    traverse(ast, {
+      JSXOpeningElement(path) {
+        if (path.node.name.name === 'Route') {
+          let routePath = '/';
+          let componentName = '';
+
+          const isIndex = path.node.attributes.some(
+            (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'index'
+          );
+
+          const pathAttribute = path.node.attributes.find(
+            (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'path'
+          );
+
+          if (pathAttribute) {
+            routePath = pathAttribute.value.value;
+            if (!routePath.startsWith('/')) {
+              routePath = `/${routePath}`;
+            }
+          }
+
+          const elementAttribute = path.node.attributes.find(
+            (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'element'
+          );
+
+          if (elementAttribute && elementAttribute.value.type === 'JSXExpressionContainer') {
+            const element = elementAttribute.value.expression;
+            if (element.type === 'JSXElement') {
+              componentName = element.openingElement.name.name;
+            }
+          }
+
+          if (componentName) {
+            routes.set(componentName, isIndex ? '/' : routePath);
+          }
         }
-        
-        routes.set(componentName, routePath);
       }
-    }
+    });
 
     return routes;
   } catch (error) {
+    console.error(`Error parsing routes from ${appJsxPath}:`, error);
     return new Map();
   }
 }
@@ -86,22 +67,40 @@ function findReactFiles(dir) {
 }
 
 function extractHelmetData(content, filePath, routes) {
-  const cleanedContent = cleanContent(content);
-  
-  if (!EXTRACTION_REGEX.helmetTest.test(cleanedContent)) {
-    return null;
+  let title = 'Untitled Page';
+  let description = 'No description available';
+
+  try {
+    const ast = parse(content, {
+      sourceType: 'module',
+      plugins: ['jsx']
+    });
+
+    traverse(ast, {
+      JSXOpeningElement(path) {
+        if (path.node.name.name === 'Helmet') {
+          path.parent.children.forEach(child => {
+            if (child.type === 'JSXElement' && child.openingElement.name.name === 'title') {
+              child.children.forEach(titleChild => {
+                if (titleChild.type === 'JSXText') {
+                  title = titleChild.value.trim();
+                }
+              });
+            } else if (child.type === 'JSXElement' && child.openingElement.name.name === 'meta') {
+              const nameAttribute = child.openingElement.attributes.find(attr => attr.name.name === 'name');
+              const contentAttribute = child.openingElement.attributes.find(attr => attr.name.name === 'content');
+              if (nameAttribute && nameAttribute.value.value === 'description' && contentAttribute) {
+                description = contentAttribute.value.value;
+              }
+            }
+          });
+        }
+      }
+    });
+  } catch (error) {
+    console.error(`Error parsing helmet data from ${filePath}:`, error);
   }
-  
-  const helmetMatch = content.match(EXTRACTION_REGEX.helmet);
-  if (!helmetMatch) return null;
-  
-  const helmetContent = helmetMatch[1];
-  const titleMatch = helmetContent.match(EXTRACTION_REGEX.title);
-  const descMatch = helmetContent.match(EXTRACTION_REGEX.description);
-  
-  const title = cleanText(titleMatch?.[1]);
-  const description = cleanText(descMatch?.[1]);
-  
+
   const fileName = path.basename(filePath, path.extname(filePath));
   const url = routes.length && routes.has(fileName) 
     ? routes.get(fileName) 
@@ -109,8 +108,8 @@ function extractHelmetData(content, filePath, routes) {
   
   return {
     url,
-    title: title || 'Untitled Page',
-    description: description || 'No description available'
+    title,
+    description
   };
 }
 
