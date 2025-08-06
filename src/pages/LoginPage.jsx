@@ -1,11 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  'https://gcheopiqayyptfxowulv.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdjaGVvcGlxYXl5cHRmeG93dWx2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTMyNzQ0NDYsImV4cCI6MjA2ODg1MDQ0Nn0.mVI7HJOEOoMNMRdh6uonCub5G2ggfbGYtIti0x4aAAM'
-);
+import { supabase } from '@/lib/customSupabaseClient';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');

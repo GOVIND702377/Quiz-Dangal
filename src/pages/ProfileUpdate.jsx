@@ -58,31 +58,18 @@ export default function ProfileUpdate() {
     setMessage('');
     
     try {
-      console.log('=== PROFILE UPDATE DEBUG ===');
-      console.log('Current user object:', currentUser);
-      
       if (!currentUser || !currentUser.id) {
-        console.error("Critical Error: User ID is not available. Aborting update.");
         setMessage("Error: Your session seems to be invalid. Please log out and log in again.");
         setSaving(false);
         return;
       }
-
-      console.log('Current user ID:', currentUser.id);
-      console.log('Supabase client:', supabase);
-      console.log('Full name:', fullName);
-      console.log('Phone number:', phoneNumber);
       
       // First check if profile exists
-      console.log('Checking if profile exists...');
       const { data: existingProfile, error: checkError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', currentUser.id)
         .single();
-      
-      console.log('Existing profile check - data:', existingProfile);
-      console.log('Existing profile check - error:', checkError);
       
       const updates = {
         full_name: fullName.trim(),
@@ -90,12 +77,9 @@ export default function ProfileUpdate() {
         updated_at: new Date().toISOString(),
       };
       
-      console.log('Updates object:', updates);
-      
       let result;
       if (!existingProfile) {
         // Profile doesn't exist, create it
-        console.log('Profile not found, creating new profile...');
         result = await supabase
           .from('profiles')
           .insert([{
@@ -106,7 +90,6 @@ export default function ProfileUpdate() {
           .select();
       } else {
         // Profile exists, update it
-        console.log('Profile found, updating existing profile...');
         result = await supabase
           .from('profiles')
           .update(updates)
@@ -115,28 +98,14 @@ export default function ProfileUpdate() {
       }
       
       const { data, error } = result;
-      console.log('Supabase operation result - data:', data);
-      console.log('Supabase operation result - error:', error);
       
-      // Additional RLS debugging
       if (error) {
-        console.log('=== RLS DEBUG INFO ===');
-        console.log('Error code:', error.code);
-        console.log('Error message:', error.message);
-        console.log('Error details:', error.details);
-        console.log('Error hint:', error.hint);
-        console.log('Current user auth:', currentUser);
-        console.log('User metadata:', currentUser?.user_metadata);
-        console.log('User app metadata:', currentUser?.app_metadata);
-        console.error('Supabase operation error details:', error);
         throw error;
       }
       
-      console.log('Profile updated successfully:', data);
       setMessage('Profile updated successfully!');
       
       // STEP 2: Fix refreshUserProfile call with user argument
-      console.log('Refreshing user profile...');
       await refreshUserProfile(currentUser);
       
       setTimeout(() => {
@@ -145,10 +114,6 @@ export default function ProfileUpdate() {
       }, 1500);
       
     } catch (error) {
-      console.error('=== PROFILE UPDATE ERROR ===');
-      console.error('Error object:', error);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
       setMessage(`Error updating profile: ${error.message || 'Unknown error occurred'}`);
     } finally {
       setSaving(false);

@@ -10,9 +10,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 const Login = () => {
   const { toast } = useToast();
   const auth = useAuth();
-  console.log('AUTH CONTEXT:', auth);
   const { signUp, signIn } = auth;
-  console.log('signUp:', signUp, 'signIn:', signIn);
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,7 +32,6 @@ const Login = () => {
       });
       if (error) throw error;
     } catch (error) {
-      console.error('Google Login error:', error);
       toast({
         title: "Google Login Failed",
         description: error.message || "Please try again.",
@@ -51,7 +48,6 @@ const Login = () => {
 
     if (isSignUp) {
       const { error, data } = await signUp(email, password);
-      console.log('SIGNUP RESULT:', { error, data });
       if (error) {
         toast({
           title: "Sign Up Failed",
@@ -78,7 +74,6 @@ const Login = () => {
       }
     } else {
       const { error, data } = await signIn(email, password);
-      console.log('SIGNIN RESULT:', { error, data });
       if (error) {
         toast({
           title: "Sign In Failed",

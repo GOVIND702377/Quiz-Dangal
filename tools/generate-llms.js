@@ -41,7 +41,11 @@ function extractRoutes(appJsxPath) {
             (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'element'
           );
 
-          if (elementAttribute && elementAttribute.value.type === 'JSXExpressionContainer') {
+          if (
+            elementAttribute &&
+            elementAttribute.value &&
+            elementAttribute.value.type === 'JSXExpressionContainer'
+          ) {
             const element = elementAttribute.value.expression;
             if (element.type === 'JSXElement') {
               componentName = element.openingElement.name.name;

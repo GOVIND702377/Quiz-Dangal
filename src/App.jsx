@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Helmet } from 'react-helmet';
 import { Toaster } from '@/components/ui/toaster';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import Home from '@/pages/Home';
@@ -91,26 +92,27 @@ function App() {
   }
 
   return (
-    <Router>
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-800">
-        <Helmet>
-          <title>Quiz Dangal - Opinion Based Quiz App</title>
-          <meta name="description" content="Join Quiz Dangal for exciting opinion-based quizzes with real prizes!" />
-        </Helmet>
-        <Routes>
-           <Route path="/quiz/:id" element={<Quiz />} />
-           <Route path="/*" element={<MainLayout />} />
-        </Routes>
-        <Toaster />
-      </div>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-800">
+          <Helmet>
+            <title>Quiz Dangal - Opinion Based Quiz App</title>
+            <meta name="description" content="Join Quiz Dangal for exciting opinion-based quizzes with real prizes!" />
+          </Helmet>
+          <Routes>
+             <Route path="/quiz/:id" element={<Quiz />} />
+             <Route path="/*" element={<MainLayout />} />
+          </Routes>
+          <Toaster />
+        </div>
+      </Router>
+    </ErrorBoundary>
   );
 }
 
 // AdminRoute: sirf admin users ke liye
 function AdminRoute({ children }) {
   const { userProfile, loading } = useAuth();
-  console.log('AdminRoute:', { userProfile, loading });
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
