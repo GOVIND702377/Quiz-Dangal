@@ -3,7 +3,8 @@
 import fs from 'fs';
 import path from 'path';
 import { parse } from '@babel/parser';
-import traverse from '@babel/traverse';
+import pkg from '@babel/traverse';
+const { traverse } = pkg;
 
 function extractRoutes(appJsxPath) {
   if (!fs.existsSync(appJsxPath)) return new Map();
