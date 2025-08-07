@@ -57,48 +57,30 @@ export default function ProfileUpdate() {
         return;
       }
       
-      // First check if profile exists
-      const { data: existingProfile, error: checkError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', currentUser.id)
-        .single();
-      
       const updates = {
         full_name: fullName.trim(),
         phone_number: phoneNumber,
         updated_at: new Date().toISOString(),
       };
       
-      let result;
-      if (!existingProfile) {
-        // Profile doesn't exist, create it
-        result = await supabase
-          .from('profiles')
-          .insert([{
-            id: currentUser.id,
-            email: currentUser.email,
-            ...updates
-          }])
-          .select();
-      } else {
-        // Profile exists, update it
-        result = await supabase
-          .from('profiles')
-          .update(updates)
-          .eq('id', currentUser.id)
-          .select();
-      }
-      
-      const { data, error } = result;
+      // Use upsert to handle both insert and update
+      const { data, error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: currentUser.id,
+          email: currentUser.email,
+          ...updates
+        })
+        .select();
       
       if (error) {
+        console.error('Profile update error:', error);
         throw error;
       }
       
       setMessage('Profile updated successfully!');
       
-      // STEP 2: Fix refreshUserProfile call with user argument
+      // Refresh user profile
       await refreshUserProfile(currentUser);
       
       setTimeout(() => {
