@@ -22,7 +22,6 @@ export const AuthProvider = ({ children }) => {
                 if (error && error.code !== 'PGRST116') throw error; 
                 setUserProfile(data || null);
             } catch (error) {
-                console.error("Error refreshing user profile:", error);
                 setUserProfile(null);
             }
         }

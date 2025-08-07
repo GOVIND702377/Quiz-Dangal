@@ -28,22 +28,6 @@ export default function ProfileUpdate() {
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     
-    // STEP 3: Improve user fetching with fallback
-    let currentUser = user;
-    if (!currentUser) {
-      const { data, error } = await supabase.auth.getUser();
-      currentUser = data?.user;
-      if (!currentUser) {
-        setMessage('Error: User not logged in. Please login again.');
-        return;
-      }
-    }
-    
-    if (!supabase) {
-      setMessage('Error: Database connection not available. Please refresh the page.');
-      return;
-    }
-    
     if (!fullName.trim()) {
       setMessage('Name is required.');
       return;
@@ -58,8 +42,17 @@ export default function ProfileUpdate() {
     setMessage('');
     
     try {
-      if (!currentUser || !currentUser.id) {
-        setMessage("Error: Your session seems to be invalid. Please log out and log in again.");
+      // Get current user from auth
+      const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !currentUser) {
+        setMessage("Error: User not authenticated. Please login again.");
+        setSaving(false);
+        return;
+      }
+      
+      if (!currentUser.id) {
+        setMessage("Error: Invalid user session. Please login again.");
         setSaving(false);
         return;
       }
