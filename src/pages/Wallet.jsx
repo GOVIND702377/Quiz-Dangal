@@ -18,7 +18,7 @@ const Wallet = () => {
 
       try {
         const { data, error } = await supabase
-          .from('wallet_transactions')
+          .from('transactions')
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })

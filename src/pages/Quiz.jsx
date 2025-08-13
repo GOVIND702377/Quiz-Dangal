@@ -56,7 +56,7 @@ const Quiz = () => {
     let scheduleError = null;
     try {
       const res = await supabase
-        .from('quiz_schedule')
+  .from('quizzes')
         .select('*')
         .eq('quiz_id', quizId)
         .single();

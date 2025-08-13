@@ -77,7 +77,7 @@ const MyQuizzes = () => {
     let sError = null;
     try {
       const res = await supabase
-        .from('quiz_schedule')
+  .from('quizzes')
         .select('*')
         .in('quiz_id', quizIds)
         .order('start_time', { ascending: false });

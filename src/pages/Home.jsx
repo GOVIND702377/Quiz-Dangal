@@ -54,7 +54,7 @@ const Home = () => {
     let scheduleError = null;
     try {
       const res = await supabase
-        .from('quiz_schedule')
+  .from('quizzes')
         .select('*')
         .gte('start_time', new Date().toISOString())
         .order('start_time', { ascending: true });
