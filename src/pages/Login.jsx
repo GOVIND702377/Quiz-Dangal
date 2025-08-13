@@ -192,7 +192,7 @@ const Login = () => {
           </div>
           <div>
             <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
+            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required autoComplete={isSignUp ? "new-password" : "current-password"} />
             {!isSignUp && (
               <button
                 type="button"
