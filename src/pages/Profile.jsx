@@ -213,18 +213,10 @@ function Profile() {
       <div className="space-y-6">
         {/* Profile Card */}
         <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 text-center shadow-lg">
-          <div className="flex flex-col items-center justify-center py-6">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 flex items-center justify-center mb-4">
-              <UserIcon />
-            </div>
-            <div className="bg-white/90 rounded-xl px-6 py-4 shadow text-center">
-              <h2 className="text-lg font-semibold text-gray-800 mb-2">
-                Your Email
-              </h2>
-              <p className="text-base text-indigo-600 font-mono break-all">
-                {user.email}
-              </p>
-            </div>
+          <div className="bg-white/90 rounded-xl px-6 py-4 shadow text-center">
+            <p className="text-lg text-indigo-600 font-semibold break-all">
+              {user.email}
+            </p>
           </div>
         </div>
 

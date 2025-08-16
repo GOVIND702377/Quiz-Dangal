@@ -180,7 +180,7 @@ const Home = () => {
       >
         <div className="flex justify-center mb-4">
           <img 
-            src="https://storage.googleapis.com/hostinger-horizons-assets-prod/5488b9ed-1bea-40f9-941a-7b157fc28add/82043de3b2eaa04823b974b1189a1f37.png" 
+            src="/android-chrome-512x512.png" 
             alt="Quiz Dangal Logo" 
             className="w-16 h-16 rounded-full shadow-lg"
           />
