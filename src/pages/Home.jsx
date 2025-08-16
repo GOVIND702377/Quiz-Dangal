@@ -50,32 +50,22 @@ const Home = () => {
   const [participantCounts, setParticipantCounts] = useState({});
 
   const fetchQuizzesAndCounts = useCallback(async () => {
-    let scheduleData = [];
-    let scheduleError = null;
     try {
-      const res = await supabase
-  .from('quizzes')
+      const { data: quizzesData, error } = await supabase
+        .from('quizzes')
         .select('*')
         .gte('start_time', new Date().toISOString())
         .order('start_time', { ascending: true });
-      scheduleData = res.data || [];
-      scheduleError = res.error;
-    } catch (err) {
-      scheduleError = err;
-      scheduleData = [];
+
+      if (error) throw error;
+      setQuizzes(quizzesData || []);
+    } catch (error) {
+      console.error('Error fetching quizzes:', error);
+      toast({ title: "Error", description: "Could not fetch quizzes.", variant: "destructive" });
+      setQuizzes([]);
+    } finally {
+      setLoading(false);
     }
-    if (scheduleError) {
-      if (scheduleError.code === '42P01' || (scheduleError.message && scheduleError.message.includes('quiz_schedule'))) {
-        // Table does not exist
-        setQuizzes([]);
-      } else {
-        console.error('Error fetching quizzes:', scheduleError);
-        toast({ title: "Error", description: "Could not fetch quizzes.", variant: "destructive" });
-      }
-    } else {
-      setQuizzes(scheduleData);
-    }
-    setLoading(false);
   }, [toast]);
 
   useEffect(() => {
@@ -117,7 +107,7 @@ const Home = () => {
 
   useEffect(() => {
       if(quizzes.length > 0) {
-          quizzes.forEach(q => updateParticipantCount(q.quiz_id));
+          quizzes.forEach(q => updateParticipantCount(q.id));
       }
   }, [quizzes]);
 
@@ -133,7 +123,7 @@ const Home = () => {
       const { data: existingParticipant, error: checkError } = await supabase
         .from('quiz_participants')
         .select('quiz_id')
-        .eq('quiz_id', quiz.quiz_id)
+        .eq('quiz_id', quiz.id)
         .eq('user_id', user.id)
         .maybeSingle(); // Use maybeSingle() to avoid error when no rows are found
       
@@ -146,13 +136,13 @@ const Home = () => {
             title: "Already Joined!",
             description: "Redirecting you to the quiz.",
           });
-          navigate(`/quiz/${quiz.quiz_id}`);
+          navigate(`/quiz/${quiz.id}`);
           return;
       }
 
       const { error } = await supabase
         .from('quiz_participants')
-        .insert([{ quiz_id: quiz.quiz_id, user_id: user.id, status: 'joined' }]);
+        .insert([{ quiz_id: quiz.id, user_id: user.id, status: 'joined' }]);
 
       if (error) {
         throw error;
@@ -162,7 +152,7 @@ const Home = () => {
         title: "Free Entry Granted!",
         description: "Aapko ek baar ke liye free entry mili hai. Agli baar se entry fee lagegi.",
       });
-      navigate(`/quiz/${quiz.quiz_id}`);
+      navigate(`/quiz/${quiz.id}`);
 
     } catch(err) {
       console.error("Error joining quiz:", err);
@@ -207,7 +197,7 @@ const Home = () => {
 
             return (
               <motion.div
-                key={quiz.quiz_id}
+                key={quiz.id}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.5, delay: index * 0.1 }}
@@ -222,7 +212,7 @@ const Home = () => {
                   </div>
                   <div className="flex items-center text-gray-600 text-sm">
                     <Users size={16} className="mr-1" />
-                    {participantCounts[quiz.quiz_id] || 0} joined
+                    {participantCounts[quiz.id] || 0} joined
                   </div>
                 </div>
 

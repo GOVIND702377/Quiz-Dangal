@@ -1,21 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle, Clock } from 'lucide-react';
-
-const QuizStatus = ({ status, time }) => {
-    return (
-        <div className="text-center p-8 bg-white/80 rounded-2xl shadow-xl">
-            <Clock className="mx-auto h-16 w-16 text-indigo-500 mb-4" />
-            <h2 className="text-2xl font-bold mb-2 text-gray-800">{status}</h2>
-            {time && <p className="text-gray-600">{new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>}
-        </div>
-    )
-}
+import { Loader2, CheckCircle, Clock, Users, Trophy } from 'lucide-react';
 
 const Quiz = () => {
   const { id: quizId } = useParams();
@@ -23,117 +13,103 @@ const Quiz = () => {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
-  const [quizSchedule, setQuizSchedule] = useState(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState({});
-  const [quizState, setQuizState] = useState('loading'); // loading, waiting, active, finished
+  const [quizState, setQuizState] = useState('loading'); // loading, waiting, active, finished, completed
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [participantCount, setParticipantCount] = useState(0);
 
   const fetchQuizData = useCallback(async () => {
-    // First, check if user is a participant
-    const { data: participant, error: pError } = await supabase
+    try {
+      // Check if user is a participant
+      const { data: participant, error: pError } = await supabase
         .from('quiz_participants')
         .select('*')
         .eq('user_id', user.id)
         .eq('quiz_id', quizId)
         .single();
 
-    if (pError || !participant) {
+      if (pError || !participant) {
         toast({ title: "Not Joined", description: "You have not joined this quiz.", variant: "destructive" });
         navigate('/');
         return;
-    }
-    
-    if (participant.status === 'completed') {
-        toast({ title: "Quiz Completed", description: "You have already submitted your answers.", variant: "default" });
-        navigate('/my-quizzes');
-        return;
-    }
-
-    let scheduleData = null;
-    let scheduleError = null;
-    try {
-      const res = await supabase
-  .from('quizzes')
-        .select('*')
-        .eq('quiz_id', quizId)
-        .single();
-      scheduleData = res.data;
-      scheduleError = res.error;
-    } catch (err) {
-      scheduleError = err;
-      scheduleData = null;
-    }
-    if (scheduleError || !scheduleData) {
-      if (scheduleError && (scheduleError.code === '42P01' || (scheduleError.message && scheduleError.message.includes('quiz_schedule')))) {
-        toast({ title: "Error", description: "Quiz not found (table missing).", variant: "destructive" });
-      } else {
-        toast({ title: "Error", description: "Quiz not found.", variant: "destructive" });
       }
+
+      if (participant.status === 'completed') {
+        setQuizState('completed');
+        return;
+      }
+
+      // Get quiz details
+      const { data: quizData, error: quizError } = await supabase
+        .from('quizzes')
+        .select('*')
+        .eq('id', quizId)
+        .single();
+
+      if (quizError || !quizData) {
+        toast({ title: "Error", description: "Quiz not found.", variant: "destructive" });
+        navigate('/');
+        return;
+      }
+      setQuiz(quizData);
+
+      // Get questions with options
+      const { data: questionsData, error: questionsError } = await supabase
+        .from('questions')
+        .select(`
+          id,
+          question_text,
+          options (
+            id,
+            option_text
+          )
+        `)
+        .eq('quiz_id', quizId)
+        .order('id');
+
+      if (questionsError || !questionsData || questionsData.length === 0) {
+        toast({ title: "Error", description: "Could not load questions.", variant: "destructive" });
+        navigate('/');
+        return;
+      }
+      setQuestions(questionsData);
+
+      // Get participant count
+      const { count } = await supabase
+        .from('quiz_participants')
+        .select('*', { count: 'exact', head: true })
+        .eq('quiz_id', quizId)
+        .eq('status', 'joined');
+      
+      setParticipantCount(count || 0);
+
+    } catch (error) {
+      console.error('Error fetching quiz data:', error);
+      toast({ title: "Error", description: "Failed to load quiz.", variant: "destructive" });
       navigate('/');
-      return;
     }
-    setQuizSchedule(scheduleData);
-
-    // Determine quiz_id for questions (could be date based or from schedule)
-    const questionQuizId = scheduleData.question_set_id || quizId;
-
-    const { data: questionsData, error: questionsError } = await supabase
-      .from('quiz_questions')
-      .select('*')
-      .eq('quiz_id', questionQuizId)
-      .order('question_order', { ascending: true });
-
-    if (questionsError || questionsData.length === 0) {
-      toast({ title: "Error", description: `Could not load questions for quiz ${questionQuizId}.`, variant: "destructive" });
-      navigate('/');
-      return;
-    }
-    setQuestions(questionsData);
-    setQuizState('waiting'); // Move to waiting state after successful load
-  }, [quizId, navigate, toast, user.id]);
+  }, [quizId, user.id, navigate, toast]);
 
   useEffect(() => {
     fetchQuizData();
   }, [fetchQuizData]);
 
-  const handleSubmit = useCallback(async (finalAnswers) => {
-    if(submitting) return;
-    setSubmitting(true);
-    try {
-      const { error } = await supabase
-        .from('quiz_participants')
-        .update({ answers: finalAnswers, status: 'completed' })
-        .eq('user_id', user.id)
-        .eq('quiz_id', quizId);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Quiz Finished!",
-        description: "Your answers are submitted. Results will be out soon!",
-      });
-      navigate('/my-quizzes');
-    } catch (err) {
-      console.error('Submission error:', err);
-      toast({ title: "Submission Failed", description: "Could not save your answers.", variant: "destructive" });
-    } finally {
-        setSubmitting(false);
-    }
-  }, [quizId, user, navigate, toast, submitting]);
-  
+  // Timer logic
   useEffect(() => {
-    if (!quizSchedule || quizState === 'loading') return;
+    if (!quiz || quizState === 'loading' || quizState === 'completed') return;
 
     const timer = setInterval(() => {
       const now = new Date();
-      const startTime = new Date(quizSchedule.start_time);
-      const endTime = new Date(quizSchedule.end_time);
+      const startTime = new Date(quiz.start_time);
+      const endTime = new Date(quiz.end_time);
 
       if (now < startTime) {
         setQuizState('waiting');
+        setTimeLeft(Math.round((startTime - now) / 1000));
       } else if (now >= startTime && now < endTime) {
         setQuizState('active');
         setTimeLeft(Math.round((endTime - now) / 1000));
@@ -144,116 +120,286 @@ const Quiz = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [quizSchedule, quizState]);
+  }, [quiz, quizState]);
 
+  // Auto-submit when quiz ends
   useEffect(() => {
     if (quizState === 'finished' && Object.keys(answers).length > 0 && !submitting) {
-        handleSubmit(answers);
+      handleSubmit();
     }
-  }, [quizState, handleSubmit, answers, submitting]);
+  }, [quizState]);
 
-  const handleAnswerSelect = (questionId, optionKey) => {
-    const newAnswers = { ...answers, [questionId]: optionKey };
-    setAnswers(newAnswers);
-    
-    if (currentQuestionIndex < questions.length - 1) {
-      setTimeout(() => {
-        setCurrentQuestionIndex(prev => prev + 1);
-      }, 300);
+  const handleAnswerSelect = async (questionId, optionId) => {
+    try {
+      // Save answer to database immediately
+      const { error } = await supabase
+        .from('user_answers')
+        .upsert({
+          user_id: user.id,
+          question_id: questionId,
+          selected_option_id: optionId
+        });
+
+      if (error) throw error;
+
+      // Update local state
+      setAnswers(prev => ({ ...prev, [questionId]: optionId }));
+
+      // Move to next question after a short delay
+      if (currentQuestionIndex < questions.length - 1) {
+        setTimeout(() => {
+          setCurrentQuestionIndex(prev => prev + 1);
+        }, 500);
+      }
+
+      toast({
+        title: "Answer Saved",
+        description: "Your answer has been recorded.",
+      });
+
+    } catch (error) {
+      console.error('Error saving answer:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save answer. Please try again.",
+        variant: "destructive"
+      });
     }
   };
-  
+
+  const handleSubmit = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+
+    try {
+      // Update participant status
+      const { error } = await supabase
+        .from('quiz_participants')
+        .update({ status: 'completed' })
+        .eq('user_id', user.id)
+        .eq('quiz_id', quizId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Quiz Completed!",
+        description: "Your answers have been submitted. Results will be announced soon!",
+      });
+
+      setQuizState('completed');
+      
+      // Redirect after 3 seconds
+      setTimeout(() => {
+        navigate('/my-quizzes');
+      }, 3000);
+
+    } catch (error) {
+      console.error('Error submitting quiz:', error);
+      toast({
+        title: "Submission Failed",
+        description: "Could not submit your answers. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const content = useMemo(() => {
-    if (quizState === 'loading' || !quizSchedule || questions.length === 0) {
-      return <div className="min-h-screen flex items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-indigo-500" /></div>;
-    }
+  if (quizState === 'loading' || !quiz) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <Loader2 className="h-16 w-16 animate-spin text-indigo-500 mx-auto mb-4" />
+          <p className="text-gray-600">Loading quiz...</p>
+        </div>
+      </div>
+    );
+  }
 
-    if (quizState === 'waiting') {
-        return <QuizStatus status="Quiz starts soon" time={quizSchedule.start_time} />;
-    }
-    
-    if (quizState === 'finished') {
-        return <QuizStatus status="Quiz has ended" time={quizSchedule.end_time} />;
-    }
+  if (quizState === 'completed') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-8 shadow-xl text-center max-w-md"
+        >
+          <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Completed!</h2>
+          <p className="text-gray-600 mb-4">You have already submitted your answers for this quiz.</p>
+          <Button onClick={() => navigate('/my-quizzes')} className="w-full">
+            View My Quizzes
+          </Button>
+        </motion.div>
+      </div>
+    );
+  }
 
-    if (quizState === 'active') {
-        const currentQuestion = questions[currentQuestionIndex];
-        const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
-        return (
-             <div className="w-full bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg">
-                <div className="flex justify-between items-center mb-4">
-                  <div className="font-bold text-lg text-gray-700">Question {currentQuestionIndex + 1}/{questions.length}</div>
-                  <div className="font-bold text-lg bg-gradient-to-r from-pink-500 to-violet-500 text-white px-4 py-1 rounded-full shadow-md">
-                    {formatTime(timeLeft)}
-                  </div>
-                </div>
-
-                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-6">
-                  <motion.div
-                    className="bg-gradient-to-r from-indigo-500 to-purple-600 h-2.5 rounded-full"
-                    style={{ width: `${progress}%` }}
-                    transition={{ duration: 0.5 }}
-                  ></motion.div>
-                </div>
-
-                <AnimatePresence mode="wait">
-                  <motion.div
-                    key={currentQuestion.id}
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -50 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <h2 className="text-2xl font-bold text-center text-gray-800 mb-6 min-h-[80px]">
-                      {currentQuestion.question_text}
-                    </h2>
-                    <div className="grid grid-cols-1 gap-4">
-                      {Object.entries(currentQuestion.options).map(([key, value]) => (
-                        <motion.button
-                          key={key}
-                          onClick={() => handleAnswerSelect(currentQuestion.id, key)}
-                          whileHover={{ scale: 1.03 }}
-                          whileTap={{ scale: 0.97 }}
-                          className={`w-full p-4 rounded-lg text-left font-semibold text-gray-700 transition-all duration-200 shadow-md border-2
-                            ${answers[currentQuestion.id] === key
-                              ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white border-green-600'
-                              : 'bg-white/80 hover:bg-indigo-50 border-transparent'}`
-                          }
-                        >
-                          <span className="font-bold mr-2">{key.toUpperCase()}.</span> {value}
-                        </motion.button>
-                      ))}
-                    </div>
-                  </motion.div>
-                </AnimatePresence>
-
-                 {currentQuestionIndex === questions.length - 1 && (
-                    <motion.div initial={{opacity: 0, y: 20}} animate={{opacity: 1, y: 0}} transition={{delay: 0.5}} className="mt-6 w-full">
-                        <Button
-                        onClick={() => handleSubmit(answers)}
-                        disabled={submitting}
-                        className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold py-4 rounded-lg shadow-xl text-lg"
-                        >
-                        {submitting ? <Loader2 className="mr-2 h-6 w-6 animate-spin" /> : <CheckCircle className="mr-2 h-6 w-6" />}
-                        Finish & Submit
-                        </Button>
-                    </motion.div>
-                )}
+  if (quizState === 'waiting') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-8 shadow-xl text-center max-w-md"
+        >
+          <Clock className="h-16 w-16 text-indigo-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">{quiz.title}</h2>
+          <p className="text-gray-600 mb-4">Quiz starts in:</p>
+          <div className="text-4xl font-bold text-indigo-600 mb-4">
+            {formatTime(timeLeft)}
+          </div>
+          <div className="flex items-center justify-center space-x-4 text-sm text-gray-600">
+            <div className="flex items-center">
+              <Users className="h-4 w-4 mr-1" />
+              {participantCount} joined
             </div>
-        )
-    }
-  }, [quizSchedule, questions, quizState, timeLeft, currentQuestionIndex, answers, handleSubmit, submitting]);
+            <div className="flex items-center">
+              <Trophy className="h-4 w-4 mr-1" />
+              ₹{quiz.prize_pool} prize pool
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (quizState === 'finished') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-8 shadow-xl text-center max-w-md"
+        >
+          <Clock className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Ended</h2>
+          <p className="text-gray-600 mb-4">The quiz has ended. Results will be announced soon!</p>
+          {submitting && (
+            <div className="flex items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin mr-2" />
+              <span>Submitting your answers...</span>
+            </div>
+          )}
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Active quiz state
+  if (questions.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="text-center">
+          <p className="text-gray-600">No questions available for this quiz.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const currentQuestion = questions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
   return (
-    <div className="min-h-screen flex flex-col p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto w-full">
-        {content}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg mb-6"
+        >
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-lg font-bold text-gray-800">{quiz.title}</h1>
+              <p className="text-sm text-gray-600">Question {currentQuestionIndex + 1} of {questions.length}</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-red-600">{formatTime(timeLeft)}</div>
+              <div className="text-xs text-gray-600">Time Left</div>
+            </div>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
+            <motion.div
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 h-2 rounded-full"
+              style={{ width: `${progress}%` }}
+              transition={{ duration: 0.5 }}
+            />
+          </div>
+        </motion.div>
+
+        {/* Question */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentQuestion.id}
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+            className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg"
+          >
+            <h2 className="text-xl font-bold text-center text-gray-800 mb-8">
+              {currentQuestion.question_text}
+            </h2>
+
+            <div className="space-y-4">
+              {currentQuestion.options?.map((option, index) => (
+                <motion.button
+                  key={option.id}
+                  onClick={() => handleAnswerSelect(currentQuestion.id, option.id)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`w-full p-4 rounded-xl text-left font-medium transition-all duration-200 shadow-md border-2 ${
+                    answers[currentQuestion.id] === option.id
+                      ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white border-green-600'
+                      : 'bg-white hover:bg-indigo-50 border-gray-200 text-gray-700'
+                  }`}
+                >
+                  <span className="font-bold mr-3 text-indigo-600">
+                    {String.fromCharCode(65 + index)}.
+                  </span>
+                  {option.option_text}
+                </motion.button>
+              ))}
+            </div>
+
+            {/* Submit Button (only on last question) */}
+            {currentQuestionIndex === questions.length - 1 && Object.keys(answers).length === questions.length && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="mt-8"
+              >
+                <Button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-4 text-lg"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="mr-2 h-6 w-6" />
+                      Submit Quiz
+                    </>
+                  )}
+                </Button>
+              </motion.div>
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
