@@ -18,6 +18,8 @@ import TermsConditions from '@/pages/TermsConditions';
 import Legality from '@/pages/Legality';
 import Quiz from '@/pages/Quiz';
 import Admin from '@/pages/Admin';
+import AdminTest from '@/pages/AdminTest';
+import Results from '@/pages/Results';
 
 const UnconfirmedEmail = () => (
   <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -101,6 +103,7 @@ function App() {
           </Helmet>
           <Routes>
              <Route path="/quiz/:id" element={<Quiz />} />
+             <Route path="/results/:id" element={<Results />} />
              <Route path="/*" element={<MainLayout />} />
           </Routes>
           <Toaster />
@@ -140,7 +143,9 @@ const MainLayout = () => {
           <Route path="/contact-us" element={<ContactUs />} />
           <Route path="/terms-conditions" element={<TermsConditions />} />
           <Route path="/legality" element={<Legality />} />
-          <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin-test" element={<AdminTest />} />
+          <Route path="/test" element={<div style={{padding: '20px', color: 'red', fontSize: '24px'}}>TEST PAGE WORKING!</div>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>

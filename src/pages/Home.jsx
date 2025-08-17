@@ -36,7 +36,7 @@ const CountdownTimer = ({ targetTime, onEnd, label }) => {
 
   return (
     <span className="font-mono">
-      {label}: {String(timeLeft.minutes).padStart(2, '0')}:{String(timeLeft.seconds).padStart(2, '0')}
+  {label}: {String(timeLeft.minutes ?? 0).padStart(2, '0')}:{String(timeLeft.seconds ?? 0).padStart(2, '0')}
     </span>
   );
 };
@@ -50,15 +50,21 @@ const Home = () => {
   const [participantCounts, setParticipantCounts] = useState({});
 
   const fetchQuizzesAndCounts = useCallback(async () => {
+    console.log('Fetching quizzes...');
     try {
       const { data: quizzesData, error } = await supabase
         .from('quizzes')
         .select('*')
-        .gte('start_time', new Date().toISOString())
+        // For testing - show all quizzes regardless of time
+        // .gte('start_time', new Date().toISOString())
         .order('start_time', { ascending: true });
+
+      console.log('Quiz data received:', quizzesData);
+      console.log('Quiz error:', error);
 
       if (error) throw error;
       setQuizzes(quizzesData || []);
+      console.log('Quizzes set to state:', quizzesData?.length || 0);
     } catch (error) {
       console.error('Error fetching quizzes:', error);
       toast({ title: "Error", description: "Could not fetch quizzes.", variant: "destructive" });
@@ -112,11 +118,12 @@ const Home = () => {
   }, [quizzes]);
 
   const handleJoinQuiz = async (quiz) => {
-    const now = new Date();
-    if (now >= new Date(quiz.start_time)) {
-      toast({ title: "Quiz already started", description: "You can no longer join this quiz.", variant: "destructive" });
-      return;
-    }
+    // For testing - allow joining anytime
+    // const now = new Date();
+    // if (now >= new Date(quiz.start_time)) {
+    //   toast({ title: "Quiz already started", description: "You can no longer join this quiz.", variant: "destructive" });
+    //   return;
+    // }
 
     try {
       // Check if user has already joined
@@ -182,18 +189,31 @@ const Home = () => {
       {loading ? (
         <div className="text-center py-8 flex justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
+          <p className="ml-2">Loading quizzes...</p>
         </div>
       ) : quizzes.length === 0 ? (
         <div className="text-center py-8 bg-white/50 rounded-2xl shadow-md p-6">
-          <h3 className="text-xl font-semibold text-gray-800">No upcoming quizzes</h3>
-          <p className="text-gray-600 mt-2">Please check back later for new quizzes!</p>
+          <h3 className="text-xl font-semibold text-gray-800">No quizzes available</h3>
+          <p className="text-gray-600 mt-2">Create a quiz from admin panel to get started!</p>
+          <button 
+            onClick={fetchQuizzesAndCounts}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Refresh Quizzes
+          </button>
         </div>
       ) : (
         <div className="space-y-6">
+          <div className="text-center py-4 bg-yellow-100 rounded-lg">
+            <p className="text-sm">Debug: Found {quizzes.length} quizzes</p>
+          </div>
           {quizzes.map((quiz, index) => {
-            const now = new Date();
-            const startTime = new Date(quiz.start_time);
-            const canJoin = now < startTime;
+            console.log('Rendering quiz:', quiz.title);
+            // For testing - always allow joining
+            const canJoin = true;
+            // const now = new Date();
+            // const startTime = new Date(quiz.start_time);
+            // const canJoin = now < startTime;
 
             return (
               <motion.div
@@ -247,7 +267,7 @@ const Home = () => {
                   disabled={!canJoin}
                   className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold py-3 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50"
                 >
-                  {canJoin ? <><Play className="mr-2" />Join For FREE</> : 'Quiz Started'}
+                  <><Play className="mr-2" />Join For FREE (Testing)</>
                 </Button>
               </motion.div>
             )

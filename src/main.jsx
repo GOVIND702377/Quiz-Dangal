@@ -4,7 +4,13 @@ import { AuthProvider } from '@/contexts/SupabaseAuthContext';
 import App from '@/App';
 import '@/index.css';
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const rootEl = document.getElementById('root');
+if (!rootEl) {
+  // eslint-disable-next-line no-console
+  console.error('Root element #root not found in index.html');
+}
+
+ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <AuthProvider>
       <App />

@@ -107,16 +107,21 @@ const Quiz = () => {
       const startTime = new Date(quiz.start_time);
       const endTime = new Date(quiz.end_time);
 
-      if (now < startTime) {
-        setQuizState('waiting');
-        setTimeLeft(Math.round((startTime - now) / 1000));
-      } else if (now >= startTime && now < endTime) {
-        setQuizState('active');
-        setTimeLeft(Math.round((endTime - now) / 1000));
-      } else {
-        setQuizState('finished');
-        clearInterval(timer);
-      }
+      // For testing - always set as active with 10 minutes
+      setQuizState('active');
+      setTimeLeft(600); // 10 minutes for testing
+      
+      // Original logic (commented for testing)
+      // if (now < startTime) {
+      //   setQuizState('waiting');
+      //   setTimeLeft(Math.round((startTime - now) / 1000));
+      // } else if (now >= startTime && now < endTime) {
+      //   setQuizState('active');
+      //   setTimeLeft(Math.round((endTime - now) / 1000));
+      // } else {
+      //   setQuizState('finished');
+      //   clearInterval(timer);
+      // }
     }, 1000);
 
     return () => clearInterval(timer);
