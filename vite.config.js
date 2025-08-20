@@ -189,6 +189,8 @@ export default defineConfig({
 		react(),
 		addTransformIndexHtml
 	],
+	// GitHub Pages base path must match the repository name
+	base: '/Quiz-Dangal/',
 	server: {
 		cors: true,
 		headers: {

@@ -3,10 +3,14 @@
   "type": "module",
   "version": "0.0.0",
   "private": true,
+  "homepage": "https://GOVIND702377.github.io/Quiz-Dangal",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "postbuild": "node scripts/copy-404.cjs",
+    "preview": "vite preview",
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "^1.2.1",
@@ -44,6 +48,7 @@
     "autoprefixer": "^10.4.16",
     "eslint": "^8.57.1",
     "eslint-config-react-app": "^7.0.1",
+    "gh-pages": "^6.3.0",
     "postcss": "^8.4.31",
     "tailwindcss": "^3.3.3",
     "terser": "^5.39.0",
