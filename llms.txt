@@ -1,0 +1,14 @@
+/aboutus	Untitled Page	No description available
+/admin	Untitled Page	No description available
+/contactus	Untitled Page	No description available
+/home	Untitled Page	No description available
+/legality	Untitled Page	No description available
+/login	Untitled Page	No description available
+/loginpage	Untitled Page	No description available
+/myquizzes	Untitled Page	No description available
+/profile	Untitled Page	No description available
+/profileupdate	Untitled Page	No description available
+/quiz	Untitled Page	No description available
+/termsconditions	Untitled Page	No description available
+/usersetup	Untitled Page	No description available
+/wallet	Untitled Page	No description available
