@@ -71,16 +71,7 @@ function App() {
     );
   }
 
-  // Force profile update if name or phone is missing
-  if (user && !loading && !userProfile) {
-    // Jab tak userProfile load nahi ho jata, ek loading spinner dikhao
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-indigo-500"></div>
-      </div>
-    );
-  }
-
+  
   if (user && userProfile && (!userProfile.full_name || !userProfile.phone_number)) {
     return (
       <Router>

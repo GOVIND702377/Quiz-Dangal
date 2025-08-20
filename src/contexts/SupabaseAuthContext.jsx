@@ -45,25 +45,27 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
     useEffect(() => {
         setLoading(true);
         // Pehli baar session check karne ke liye
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
             const currentUser = session?.user;
             setUser(currentUser ?? null);
-            if (currentUser) {
-                await refreshUserProfile(currentUser);
-            }
             setLoading(false);
-        });
-
-        // Login ya logout hone par changes ko sunne ke liye
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            const currentUser = session?.user;
-            setUser(currentUser ?? null);
             if (currentUser) {
-                await refreshUserProfile(currentUser);
+                refreshUserProfile(currentUser);
             } else {
                 setUserProfile(null);
             }
+        });
+
+        // Login ya logout hone par changes ko sunne ke liye
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            const currentUser = session?.user;
+            setUser(currentUser ?? null);
             setLoading(false);
+            if (currentUser) {
+                refreshUserProfile(currentUser);
+            } else {
+                setUserProfile(null);
+            }
         });
 
         return () => {
