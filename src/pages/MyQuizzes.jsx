@@ -79,7 +79,7 @@ const MyQuizzes = () => {
       const res = await supabase
   .from('quizzes')
         .select('*')
-        .in('quiz_id', quizIds)
+        .in('id', quizIds)
         .order('start_time', { ascending: false });
       scheduleData = res.data || [];
       sError = res.error;
@@ -116,7 +116,7 @@ const MyQuizzes = () => {
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
     const combinedData = scheduleData.map(s => {
-        const result = resultsMap[s.quiz_id];
+        const result = resultsMap[s.id];
         // Hide result if it's older than 1 hour
         if (result && new Date(result.result_shown_at) < oneHourAgo) {
             return { ...s, result: null, resultExpired: true };
@@ -185,7 +185,7 @@ const MyQuizzes = () => {
             const userRank = isResultOut ? quiz.result.leaderboard.find(p => p.user_id === user.id) : null;
             
             return(
-              <motion.div key={quiz.quiz_id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.1 }}
+              <motion.div key={quiz.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.1 }}
                 className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg">
                 <div className="flex items-center justify-between mb-4">
                    <h3 className="text-xl font-semibold text-gray-800">{quiz.title}</h3>

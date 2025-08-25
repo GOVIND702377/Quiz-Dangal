@@ -13,6 +13,24 @@ export const AuthProvider = ({ children }) => {
     const [userProfile, setUserProfile] = useState(null);
     const [loading, setLoading] = useState(true);
 
+    // Dev bypass: allow running app without Supabase for local UI testing
+    const _bypass = String(import.meta.env.VITE_BYPASS_AUTH || '').toLowerCase();
+    const devBypass = _bypass === '1' || _bypass === 'true' || _bypass === 'yes';
+
+    if (devBypass) {
+        const value = {
+            supabase: null,
+            user: null,
+            userProfile: null,
+            loading: false,
+            signUp: async () => { throw new Error('Auth disabled in dev bypass'); },
+            signIn: async () => { throw new Error('Auth disabled in dev bypass'); },
+            signOut: async () => {},
+            refreshUserProfile: () => {},
+        };
+        return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    }
+
         // If Supabase config is missing, show a friendly message and skip auth wiring
         if (!hasSupabaseConfig) {
                 return (
@@ -73,30 +91,62 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
         };
     }, []);
 
-    // Auto-create profile row for new users if not exists
+    // Auto-create/upsert profile row for new users if not exists + referral attribution
     useEffect(() => {
-    if (user && !loading) {
+        if (!user || loading) return;
+
+        const params = new URLSearchParams(window.location.search);
+        const refParam = params.get('ref');
+
+        const payload = {
+            id: user.id,
+            email: user.email,
+            full_name: user.user_metadata?.full_name || '',
+            phone_number: ''
+        };
+
+        // First time insert: include referred_by if present and not self
+        if (!userProfile && refParam && refParam !== user.id) {
+            payload.referred_by = refParam;
+        }
+
+        supabase
+            .from('profiles')
+            .upsert([payload], { onConflict: 'id' })
+            .then(async () => {
+                // Existing profile without referral: set it once (no-op if already set)
+                if (userProfile && !userProfile.referred_by && refParam && refParam !== user.id) {
+                    await supabase
+                        .from('profiles')
+                        .update({ referred_by: refParam })
+                        .eq('id', user.id);
+                }
+            })
+            .catch(() => {
+                // Ignore upsert/update errors here; UI can still function and retries will happen on next auth state change
+            })
+            .finally(() => {
+                // Refresh local profile state so navbar and UI update immediately
+                refreshUserProfile(user);
+            });
+    }, [user, loading, userProfile]);
+
+    // Ensure referral_code exists for sharing
+    useEffect(() => {
+        if (userProfile && !userProfile.referral_code && user) {
+            const code = (user.id || '').replace(/-/g, '').slice(0, 8);
             supabase
                 .from('profiles')
-                .select('*')
+                .update({ referral_code: code })
                 .eq('id', user.id)
-                .single()
-                .then(({ data, error }) => {
-                    if (!data) {
-                        supabase.from('profiles').insert([
-                            {
-                                id: user.id,
-                                email: user.email,
-                                full_name: '',
-                                phone_number: ''
-                            }
-                        ]).then(() => {
-                            refreshUserProfile(user);
-                        });
-                    }
+                .then(() => {
+                    refreshUserProfile(user);
+                })
+                .catch(() => {
+                    // ignore
                 });
         }
-    }, [user, loading]);
+    }, [userProfile, user]);
 
     // SIGN UP FUNCTION (EMAIL)
     const signUp = async (email, password) => {

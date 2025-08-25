@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Clock, Users, Star, Gift, Loader2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
@@ -118,50 +118,38 @@ const Home = () => {
   }, [quizzes]);
 
   const handleJoinQuiz = async (quiz) => {
-    // For testing - allow joining anytime
-    // const now = new Date();
-    // if (now >= new Date(quiz.start_time)) {
-    //   toast({ title: "Quiz already started", description: "You can no longer join this quiz.", variant: "destructive" });
-    //   return;
-    // }
-
     try {
-      // Check if user has already joined
-      const { data: existingParticipant, error: checkError } = await supabase
-        .from('quiz_participants')
-        .select('quiz_id')
-        .eq('quiz_id', quiz.id)
-        .eq('user_id', user.id)
-        .maybeSingle(); // Use maybeSingle() to avoid error when no rows are found
-      
-      if (checkError) {
-          throw checkError;
-      }
-      
-      if (existingParticipant) {
-          toast({
-            title: "Already Joined!",
-            description: "Redirecting you to the quiz.",
-          });
-          navigate(`/quiz/${quiz.id}`);
-          return;
+      // 1) Try server-side RPC for atomic/idempotent join (if configured in DB)
+      const tries = [
+        () => supabase.rpc('join_quiz', { p_quiz_id: quiz.id, p_user_id: user.id }),
+        () => supabase.rpc('join_quiz', { quiz_id: quiz.id, user_id: user.id }),
+      ];
+      let rpcJoined = false;
+      for (const t of tries) {
+        const { error } = await t();
+        if (!error) { rpcJoined = true; break; }
       }
 
-      const { error } = await supabase
-        .from('quiz_participants')
-        .insert([{ quiz_id: quiz.id, user_id: user.id, status: 'joined' }]);
-
-      if (error) {
-        throw error;
+      // 2) Fallback: client-side idempotent join
+      if (!rpcJoined) {
+        const { data: existingParticipant, error: checkError } = await supabase
+          .from('quiz_participants')
+          .select('quiz_id')
+          .eq('quiz_id', quiz.id)
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (checkError) throw checkError;
+        if (!existingParticipant) {
+          const { error: insError } = await supabase
+            .from('quiz_participants')
+            .insert([{ quiz_id: quiz.id, user_id: user.id, status: 'joined' }]);
+          if (insError) throw insError;
+        }
       }
 
-      toast({
-        title: "Free Entry Granted!",
-        description: "Aapko ek baar ke liye free entry mili hai. Agli baar se entry fee lagegi.",
-      });
+      toast({ title: "Joined!", description: "Redirecting you to the quiz." });
       navigate(`/quiz/${quiz.id}`);
-
-    } catch(err) {
+    } catch (err) {
       console.error("Error joining quiz:", err);
       toast({ title: "Error", description: err.message || "Could not join quiz.", variant: "destructive" });
     }
@@ -184,6 +172,14 @@ const Home = () => {
         </div>
         <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Today's Quizzes</h1>
         <p className="text-gray-600">Join opinion-based quizzes and win amazing prizes!</p>
+        <div className="mt-4">
+          <Link
+            to="/leaderboards"
+            className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow"
+          >
+            <Play className="w-4 h-4 mr-2" /> View Leaderboards
+          </Link>
+        </div>
       </motion.div>
 
       {loading ? (
@@ -204,10 +200,7 @@ const Home = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="text-center py-4 bg-yellow-100 rounded-lg">
-            <p className="text-sm">Debug: Found {quizzes.length} quizzes</p>
-          </div>
-          {quizzes.map((quiz, index) => {
+                    {quizzes.map((quiz, index) => {
             console.log('Rendering quiz:', quiz.title);
             // For testing - always allow joining
             const canJoin = true;

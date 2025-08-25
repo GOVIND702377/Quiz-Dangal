@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import { Trophy, Medal, Award, Users, Clock } from 'lucide-react';
 
 const Results = () => {
   const { id: quizId } = useParams();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const { user } = useAuth();
   const [quiz, setQuiz] = useState(null);
   const [results, setResults] = useState([]);
@@ -81,6 +85,23 @@ const Results = () => {
           <p className="text-gray-600">{quiz?.title}</p>
         </motion.div>
 
+        <div className="flex justify-center gap-3 mb-8">
+          <Button variant="outline" onClick={() => navigate('/my-quizzes')}>Back to My Quizzes</Button>
+          <Button onClick={async () => {
+            try {
+              const url = window.location.href;
+              if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(url);
+                toast({ title: 'Link copied', description: 'Result link copied to clipboard' });
+              } else {
+                window.prompt('Copy result link:', url);
+              }
+            } catch (e) {
+              toast({ title: 'Copy failed', description: e.message, variant: 'destructive' });
+            }
+          }}>Share Result</Button>
+        </div>
+
         {/* User's Result */}
         {userRank && (
           <motion.div
@@ -122,6 +143,27 @@ const Results = () => {
             </div>
           </motion.div>
         )}
+
+        {/* Prize Distribution */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg mb-6"
+        >
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Prize Distribution</h2>
+          {Array.isArray(quiz?.prizes) && quiz.prizes.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {quiz.prizes.map((amount, idx) => (
+                <div key={idx} className="p-4 rounded-lg bg-gray-50 flex items-center justify-between">
+                  <div className="font-medium text-gray-700">{idx === 0 ? '1st' : idx === 1 ? '2nd' : idx === 2 ? '3rd' : `#${idx+1}`}</div>
+                  <div className="text-indigo-600 font-bold">₹{amount}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-sm text-gray-500">No prize data available</div>
+          )}
+        </motion.div>
 
         {/* Leaderboard */}
         <motion.div

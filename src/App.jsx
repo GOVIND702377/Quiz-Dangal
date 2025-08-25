@@ -18,8 +18,15 @@ import TermsConditions from '@/pages/TermsConditions';
 import Legality from '@/pages/Legality';
 import Quiz from '@/pages/Quiz';
 import Admin from '@/pages/Admin';
+import AdminRedemptions from '@/pages/AdminRedemptions';
+import AdminReports from '@/pages/AdminReports';
+import AdminUsers from '@/pages/AdminUsers';
+import AdminLeaderboards from '@/pages/AdminLeaderboards';
 import AdminTest from '@/pages/AdminTest';
 import Results from '@/pages/Results';
+import Leaderboards from '@/pages/Leaderboards';
+import Rewards from '@/pages/Rewards';
+import Redemptions from '@/pages/Redemptions';
 
 const UnconfirmedEmail = () => (
   <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -130,11 +137,18 @@ const MainLayout = () => {
           <Route path="/my-quizzes" element={<MyQuizzes />} />
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/leaderboards" element={<Leaderboards />} />
+          <Route path="/rewards" element={<Rewards />} />
+          <Route path="/redemptions" element={<Redemptions />} />
           <Route path="/about-us" element={<AboutUs />} />
           <Route path="/contact-us" element={<ContactUs />} />
           <Route path="/terms-conditions" element={<TermsConditions />} />
           <Route path="/legality" element={<Legality />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+          <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
+          <Route path="/admin/leaderboards" element={<AdminRoute><AdminLeaderboards /></AdminRoute>} />
+          <Route path="/admin/redemptions" element={<AdminRoute><AdminRedemptions /></AdminRoute>} />
+          <Route path="/admin/reports" element={<AdminRoute><AdminReports /></AdminRoute>} />
           <Route path="/admin-test" element={<AdminTest />} />
           <Route path="/test" element={<div style={{padding: '20px', color: 'red', fontSize: '24px'}}>TEST PAGE WORKING!</div>} />
           <Route path="*" element={<Navigate to="/" replace />} />

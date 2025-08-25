@@ -127,25 +127,27 @@ const Wallet = () => {
                 >
                   <div className="flex items-center space-x-3">
                     <div className={`p-2 rounded-full ${
-                      transaction.type === 'win' || transaction.type === 'deposit' ? 'bg-green-500/20' : 'bg-red-500/20'
+                      ['reward','bonus','credit','referral','refund'].includes(transaction.type) ? 'bg-green-500/20' : 'bg-red-500/20'
                     }`}>
-                      {transaction.type === 'win' ? (
+                      {['reward','bonus','credit','referral','refund'].includes(transaction.type) ? (
                         <Trophy size={16} className="text-green-500" />
                       ) : (
                         <ArrowDownLeft size={16} className="text-red-500" />
                       )}
                     </div>
                     <div>
-                      <p className="text-gray-800 font-medium">{transaction.description}</p>
+                      <p className="text-gray-800 font-medium">
+                        {transaction.type ? transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1) : 'Transaction'}
+                      </p>
                       <p className="text-gray-600 text-sm">
                         {new Date(transaction.created_at).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
                   <div className={`font-semibold ${
-                    transaction.amount > 0 ? 'text-green-600' : 'text-red-600'
+                    ['reward','bonus','credit','referral','refund'].includes(transaction.type) ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {transaction.amount > 0 ? '+' : ''}₹{Math.abs(transaction.amount)}
+                    {['reward','bonus','credit','referral','refund'].includes(transaction.type) ? '+' : '-'}₹{Math.abs(Number(transaction.amount) || 0)}
                   </div>
                 </motion.div>
               ))}
