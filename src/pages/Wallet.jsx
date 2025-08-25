@@ -154,6 +154,48 @@ const Wallet = () => {
             </div>
           )}
         </motion.div>
+      {/* Refer & Earn */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.3 }}
+        className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg mt-6"
+      >
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Refer & Earn</h3>
+        <p className="text-gray-600 text-sm mb-4">Share your referral link and earn coins when friends join.</p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={async () => {
+              try {
+                const code = (userProfile?.referral_code || user?.id);
+                const link = `${window.location.origin}?ref=${encodeURIComponent(code)}`;
+                if (navigator.clipboard?.writeText) {
+                  await navigator.clipboard.writeText(link);
+                } else {
+                  window.prompt('Copy your referral link:', link);
+                }
+              } catch {}
+            }}
+            className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm"
+          >
+            Copy Link
+          </button>
+          <a
+            href={`https://wa.me/?text=${encodeURIComponent('Join me on Quiz Dangal!')}%20${encodeURIComponent(window.location.origin + '?ref=' + (userProfile?.referral_code || user?.id))}`}
+            target="_blank" rel="noopener noreferrer"
+            className="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm"
+          >
+            Share on WhatsApp
+          </a>
+          <a
+            href={`https://t.me/share/url?url=${encodeURIComponent(window.location.origin + '?ref=' + (userProfile?.referral_code || user?.id))}&text=${encodeURIComponent('Join me on Quiz Dangal!')}`}
+            target="_blank" rel="noopener noreferrer"
+            className="px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm"
+          >
+            Share on Telegram
+          </a>
+        </div>
+      </motion.div>
       </motion.div>
     </div>
   );

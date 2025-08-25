@@ -106,10 +106,19 @@ export default function Profile() {
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm text-gray-500">Logged in as</div>
-            <div className="text-xl font-semibold text-gray-800 break-all">{profile?.email || sessionUser.email}</div>
-            <div className="text-sm text-gray-600">{profile?.full_name || 'Anonymous'}</div>
+          <div className="flex items-center gap-3">
+            <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center text-gray-600 font-bold">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+              ) : (
+                <span>{(profile?.full_name || sessionUser?.email || 'U').charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+            <div>
+              <div className="text-sm text-gray-500">Logged in as</div>
+              <div className="text-xl font-semibold text-gray-800 break-all">{profile?.email || sessionUser.email}</div>
+              <div className="text-sm text-gray-600">{profile?.full_name || 'Anonymous'}</div>
+            </div>
           </div>
           <div className="text-right">
             <div className="text-xs text-gray-500">Level</div>

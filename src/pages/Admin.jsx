@@ -28,7 +28,8 @@ export default function Admin() {
     prizes: ['', '', ''],
     start_time: '',
     end_time: '',
-    result_time: ''
+    result_time: '',
+    category: ''
   });
 
   // Question form state
@@ -79,7 +80,8 @@ export default function Admin() {
           start_time: quizForm.start_time,
           end_time: quizForm.end_time,
           result_time: quizForm.result_time,
-          status: 'upcoming'
+          status: 'upcoming',
+          category: quizForm.category || null
         }])
         .select();
 
@@ -378,7 +380,7 @@ ORDER BY q.id;`;
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <Label htmlFor="start_time">Start Time</Label>
                 <Input
@@ -407,6 +409,15 @@ ORDER BY q.id;`;
                   value={quizForm.result_time}
                   onChange={(e) => setQuizForm({...quizForm, result_time: e.target.value})}
                   required
+                />
+              </div>
+              <div>
+                <Label htmlFor="category">Category</Label>
+                <Input
+                  id="category"
+                  value={quizForm.category}
+                  onChange={(e) => setQuizForm({ ...quizForm, category: e.target.value })}
+                  placeholder="e.g., GK, Sports, Movies, Opinion"
                 />
               </div>
             </div>

@@ -20,6 +20,7 @@ const Login = () => {
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
+  const [referralCode, setReferralCode] = useState('');
 
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
@@ -62,7 +63,8 @@ const Login = () => {
               id: data.user.id,
               email: data.user.email,
               full_name: '', // Optionally, user input
-              phone_number: '' // Optionally, user input
+              phone_number: '', // Optionally, user input
+              referred_by: referralCode || null
             }
           ]);
         }
@@ -203,6 +205,12 @@ const Login = () => {
               </button>
             )}
           </div>
+          {isSignUp && (
+            <div>
+              <Label htmlFor="referral">Referral Code (optional)</Label>
+              <Input id="referral" type="text" value={referralCode} onChange={(e) => setReferralCode(e.target.value.trim())} placeholder="Enter referral code" />
+            </div>
+          )}
           <Button type="submit" disabled={isLoading || isGoogleLoading} className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold py-3 rounded-lg shadow-lg">
             {isLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </Button>

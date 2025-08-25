@@ -137,10 +137,14 @@ const Header = () => {
             {/* Profile avatar */}
             <Link
               to="/profile"
-              className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold shadow"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold shadow overflow-hidden"
               title="Profile"
             >
-              {initials}
+              {userProfile?.avatar_url ? (
+                <img src={userProfile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+              ) : (
+                initials
+              )}
             </Link>
           </div>
         </div>

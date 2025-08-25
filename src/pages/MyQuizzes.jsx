@@ -129,9 +129,20 @@ const MyQuizzes = () => {
   }, [user]);
 
   useEffect(() => {
+    // Ask for notification permission once
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+
     const channel = supabase.channel('quiz-results')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'quiz_results' }, (payload) => {
         fetchMyQuizzes();
+        // Notify user when results are out
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification('Quiz Result Ready', { body: 'Your quiz results are available. Tap to view.' });
+          } catch {}
+        }
       })
       .subscribe();
     
