@@ -72,10 +72,16 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
             } else {
                 setUserProfile(null);
             }
+        }).catch(async () => {
+            // If fetching session fails (e.g., invalid refresh token), force sign out
+            try { await supabase.auth.signOut(); } catch {}
+            setUser(null);
+            setUserProfile(null);
+            setLoading(false);
         });
 
         // Login ya logout hone par changes ko sunne ke liye
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             const currentUser = session?.user;
             setUser(currentUser ?? null);
             setLoading(false);
@@ -84,12 +90,36 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
             } else {
                 setUserProfile(null);
             }
+            // If Supabase reports the user signed out (often after a failed refresh), clear state
+            if (event === 'SIGNED_OUT') {
+                setUser(null);
+                setUserProfile(null);
+            }
         });
 
         return () => {
             subscription?.unsubscribe();
         };
     }, []);
+
+    // Safety net: periodic session validation to recover from invalid/expired refresh tokens
+    useEffect(() => {
+        const id = setInterval(async () => {
+            try {
+                const { data } = await supabase.auth.getSession();
+                if (!data?.session && user) {
+                    try { await supabase.auth.signOut(); } catch {}
+                    setUser(null);
+                    setUserProfile(null);
+                }
+            } catch {
+                try { await supabase.auth.signOut(); } catch {}
+                setUser(null);
+                setUserProfile(null);
+            }
+        }, 60000); // every 60s
+        return () => clearInterval(id);
+    }, [user]);
 
     // Auto-create/upsert profile row for new users if not exists + referral attribution
     useEffect(() => {
