@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import Spinner from '@/components/Spinner';
@@ -29,13 +29,15 @@ export default function ProfileUpdate() {
     }
   }, [user, loading, navigate]);
 
-  // Prefill from profile
+  // Prefill from profile (only once to avoid clobbering while user types)
+  const prefilledRef = useRef(false);
   useEffect(() => {
-    if (userProfile) {
+    if (userProfile && !prefilledRef.current) {
       setFullName(userProfile.full_name || '');
       setPhoneNumber(userProfile.phone_number || '');
       setUsername(userProfile.username || '');
       setAvatarUrl(userProfile.avatar_url || '');
+      prefilledRef.current = true;
     }
   }, [userProfile]);
 
@@ -101,7 +103,8 @@ export default function ProfileUpdate() {
       setMessage('Name is required.');
       return;
     }
-    if (!phoneNumber || phoneNumber.length !== 10) {
+    // Phone optional; if provided, must be 10 digits
+    if (phoneNumber && phoneNumber.length !== 10) {
       setMessage('Please enter a valid 10-digit mobile number.');
       return;
     }
@@ -147,7 +150,9 @@ export default function ProfileUpdate() {
         .select();
       if (error) throw error;
 
-      setMessage('Profile updated successfully!');
+  setMessage('Profile updated successfully!');
+  // Keep local state in sync after save
+  prefilledRef.current = true;
       await refreshUserProfile(currentUser);
 
       setTimeout(() => { setMessage(''); navigate('/profile'); }, 1200);
