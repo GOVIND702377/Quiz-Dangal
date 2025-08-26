@@ -39,7 +39,8 @@ const Results = () => {
           *,
           profiles (
             full_name,
-            email
+            username,
+            avatar_url
           )
         `)
         .eq('quiz_id', quizId)
@@ -193,13 +194,22 @@ const Results = () => {
                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold">
                     {index + 1}
                   </div>
-                  <div>
-                    <p className="font-semibold text-gray-800">
-                      {participant.profiles?.full_name || 'Anonymous'}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {participant.profiles?.email}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center text-gray-600 font-bold">
+                      {participant.profiles?.avatar_url ? (
+                        <img src={participant.profiles.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{(participant.profiles?.full_name || participant.profiles?.username || 'U').charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-800">
+                        {participant.profiles?.username || participant.profiles?.full_name || 'Anonymous'}
+                      </p>
+                      {participant.profiles?.full_name && participant.profiles?.username && (
+                        <p className="text-xs text-gray-600">{participant.profiles.full_name}</p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 

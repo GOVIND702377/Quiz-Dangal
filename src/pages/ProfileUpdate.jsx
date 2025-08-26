@@ -75,7 +75,13 @@ export default function ProfileUpdate() {
       const { error: upErr } = await supabase.storage
         .from('avatars')
         .upload(path, file, { cacheControl: '3600', upsert: false, contentType: file.type });
-      if (upErr) throw upErr;
+      if (upErr) {
+        const msg = (upErr?.message || '').toLowerCase();
+        if (msg.includes('not found') || msg.includes('no such bucket')) {
+          throw new Error('Storage bucket "avatars" not found. Create a public bucket named "avatars" in Supabase Storage and allow public READ.');
+        }
+        throw upErr;
+      }
       const { data } = supabase.storage.from('avatars').getPublicUrl(path);
       const publicUrl = data?.publicUrl;
       if (!publicUrl) throw new Error('Failed to get avatar URL');
@@ -99,6 +105,17 @@ export default function ProfileUpdate() {
       setMessage('Please enter a valid 10-digit mobile number.');
       return;
     }
+    const uname = (username || '').trim();
+    // Username now required and public (a-z, 0-9, underscore, 3-20 chars)
+    const validUname = /^[a-z0-9_]{3,20}$/.test(uname);
+    if (!uname) {
+      setMessage('Username is required and will be publicly visible on leaderboards and results.');
+      return;
+    }
+    if (!validUname) {
+      setMessage('Username must be 3-20 chars, lowercase letters, numbers, and underscore only.');
+      return;
+    }
     if (!usernameAvailable) {
       setMessage('Chosen username is not available. Please pick another.');
       return;
@@ -115,13 +132,13 @@ export default function ProfileUpdate() {
         return;
       }
 
-      const updates = {
+  const updates = {
         full_name: fullName.trim(),
         phone_number: phoneNumber,
         updated_at: new Date().toISOString(),
       };
-      const uname = (username || '').trim();
-      if (uname) updates.username = uname;
+  // store validated username (lowercase)
+  updates.username = uname.toLowerCase();
       if (avatarUrl) updates.avatar_url = avatarUrl;
 
       const { error } = await supabase
@@ -179,12 +196,16 @@ export default function ProfileUpdate() {
 
           {/* Username */}
           <div>
-            <label htmlFor="username" className="text-sm font-medium text-gray-600">Username</label>
+            <label htmlFor="username" className="text-sm font-medium text-gray-600">Username <span className="text-red-500">*</span></label>
             <input
               id="username"
+              type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="unique_username"
+              onChange={(e) => setUsername(e.target.value.toLowerCase())}
+              onBlur={(e) => checkUsername(e.target.value)}
+              placeholder="your_public_name"
+              autoComplete="username"
+              autoFocus
               className="mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
             />
             <div className="mt-1 text-xs">
@@ -193,7 +214,7 @@ export default function ProfileUpdate() {
               ) : username ? (
                 usernameAvailable ? <span className="text-green-600">Available</span> : <span className="text-red-600">Not available</span>
               ) : (
-                <span className="text-gray-500">Optional</span>
+                <span className="text-gray-500">This will be visible to everyone on results and leaderboards.</span>
               )}
             </div>
           </div>
