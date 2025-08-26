@@ -79,7 +79,8 @@ function App() {
   }
 
   
-  if (user && userProfile && (!userProfile.full_name || !userProfile.phone_number)) {
+  // Gate profile completion: require username + full name + phone number
+  if (user && userProfile && (!userProfile.full_name || !userProfile.username || !userProfile.phone_number)) {
     return (
       <Router>
         <Routes>

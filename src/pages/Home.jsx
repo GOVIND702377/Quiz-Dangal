@@ -153,8 +153,10 @@ const Home = () => {
       // Try RPC first
       let ok = false;
       const rpcTries = [
-        () => supabase.rpc('update_streak', { p_user_id: user.id }),
-        () => supabase.rpc('update_streak', { user_id: user.id })
+  // Support multiple param names to match DB function signature
+  () => supabase.rpc('update_streak', { p_user_id: user.id }),
+  () => supabase.rpc('update_streak', { user_id: user.id }),
+  () => supabase.rpc('update_streak', { user_uuid: user.id })
       ];
       for (const t of rpcTries) {
         const { error } = await t();

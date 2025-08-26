@@ -103,8 +103,8 @@ export default function ProfileUpdate() {
       setMessage('Name is required.');
       return;
     }
-    // Phone optional; if provided, must be 10 digits
-    if (phoneNumber && phoneNumber.length !== 10) {
+    // Phone required: must be 10 digits
+    if (!phoneNumber || phoneNumber.length !== 10) {
       setMessage('Please enter a valid 10-digit mobile number.');
       return;
     }
@@ -137,7 +137,7 @@ export default function ProfileUpdate() {
 
   const updates = {
         full_name: fullName.trim(),
-        phone_number: phoneNumber,
+  phone_number: phoneNumber,
         updated_at: new Date().toISOString(),
       };
   // store validated username (lowercase)
@@ -232,8 +232,8 @@ export default function ProfileUpdate() {
 
           {/* Phone */}
           <div>
-            <label htmlFor="phone" className="text-sm font-medium text-gray-600">Mobile Number</label>
-            <input id="phone" type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="10-digit mobile number" className="mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+            <label htmlFor="phone" className="text-sm font-medium text-gray-600">Mobile Number <span className="text-red-500">*</span></label>
+            <input id="phone" type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="10-digit mobile number" required pattern="\d{10}" className="mt-1 w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
           </div>
 
           {/* Save message */}
