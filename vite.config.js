@@ -189,8 +189,10 @@ export default defineConfig({
 		react(),
 		addTransformIndexHtml
 	],
-	// Using custom domain, base should be root
-	base: '/',
+	// For GitHub Pages project site (https://<user>.github.io/Quiz-Dangal/),
+	// use the repo name as base so built asset URLs include the subpath.
+	// If you switch to a custom domain later, change this to '/'.
+	base: '/Quiz-Dangal/',
 	server: {
 		cors: true,
 		headers: {
