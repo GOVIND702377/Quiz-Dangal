@@ -229,15 +229,14 @@ end $$;
 
 -- Quiz Participants
 do $$ begin
+  -- Non-recursive select policy with SECURITY DEFINER helper
   if not exists (
-    select 1 from pg_policies where schemaname = 'public' and tablename = 'quiz_participants' and policyname = 'Participants: select own + same quiz'
+    select 1 from pg_policies where schemaname = 'public' and tablename = 'quiz_participants' and policyname = 'Participants: select permitted'
   ) then
-    create policy "Participants: select own + same quiz" on public.quiz_participants
+    create policy "Participants: select permitted" on public.quiz_participants
       for select using (
         user_id = auth.uid()
-        or quiz_id in (
-          select quiz_id from public.quiz_participants where user_id = auth.uid()
-        )
+        or public.is_quiz_member(quiz_id)
         or exists (select 1 from public.profiles where id = auth.uid() and role = 'admin')
       );
   end if;

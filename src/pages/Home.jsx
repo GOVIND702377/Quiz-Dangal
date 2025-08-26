@@ -105,14 +105,22 @@ const Home = () => {
   }, [fetchQuizzesAndCounts]);
 
   const updateParticipantCount = async (quizId) => {
+      try {
+        // Prefer server-side count to avoid RLS recursion
+        const { data, error } = await supabase.rpc('get_participant_count', { p_quiz_id: quizId });
+        if (!error && Number.isInteger(data)) {
+          setParticipantCounts(prev => ({...prev, [quizId]: data}));
+          return;
+        }
+      } catch {}
+      // Fallback to client-side head count if RPC unavailable
       const { count, error } = await supabase
         .from('quiz_participants')
         .select('*', { count: 'exact', head: true })
         .eq('quiz_id', quizId)
         .eq('status', 'joined');
-      
       if (!error) {
-        setParticipantCounts(prev => ({...prev, [quizId]: count}));
+        setParticipantCounts(prev => ({...prev, [quizId]: count || 0}));
       }
   }
 
