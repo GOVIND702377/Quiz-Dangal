@@ -4,9 +4,9 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { Loader2, Trophy, ChevronRight } from 'lucide-react';
 
 const periods = [
-  { key: 'weekly', label: 'Weekly' },
-  { key: 'monthly', label: 'Monthly' },
   { key: 'all', label: 'All-time' },
+  { key: 'monthly', label: 'Monthly' },
+  { key: 'weekly', label: 'Weekly' },
 ];
 
 function useQuery() {
@@ -56,7 +56,7 @@ function LeaderboardRow({ rank, name, level, coins, referrals, streak, badges })
 export default function Leaderboards() {
   const navigate = useNavigate();
   const query = useQuery();
-  const period = query.get('period') || 'weekly';
+  const period = query.get('period') || 'all';
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -166,7 +166,25 @@ export default function Leaderboards() {
         ))}
       </div>
 
-      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
+      {/* Podium for top 3 */}
+      {!loading && !error && rows.length >= 1 && (
+        <div className="grid grid-cols-3 gap-3">
+          {[2,1,3].map((pos, idx) => {
+            const r = rows[pos-1];
+            if (!r) return <div key={idx}></div>;
+            const isGold = pos === 1; const isSilver = pos === 2; const isBronze = pos === 3;
+            return (
+              <div key={pos} className={`rounded-2xl p-4 text-center shadow bg-white/80 border ${isGold?'border-yellow-200':'border-gray-200/60'}`}>
+                <div className={`mx-auto w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold ${isGold?'bg-yellow-100 text-yellow-700':isSilver?'bg-gray-100 text-gray-700':'bg-orange-100 text-orange-700'}`}>{pos===1?'🥇':pos===2?'🥈':'🥉'}</div>
+                <div className="mt-2 font-semibold text-gray-800 truncate">{r.name || 'Anonymous'}</div>
+                <div className="text-xs text-gray-500">Coins: {r.coins}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg mt-4">
         {loading ? (
           <div className="py-12 flex flex-col items-center text-gray-600">
             <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mb-2" />
