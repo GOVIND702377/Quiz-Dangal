@@ -1,7 +1,7 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, Trophy, Wallet, User } from 'lucide-react';
+import { Home, Wallet, User, Medal } from 'lucide-react';
 
 const Footer = () => {
   const location = useLocation();
@@ -9,7 +9,7 @@ const Footer = () => {
 
   const navItems = [
     { icon: Home, label: 'Home', path: '/' },
-    { icon: Trophy, label: 'My Quizzes', path: '/my-quizzes' },
+    { icon: Medal, label: 'Leaderboards', path: '/leaderboards' },
     { icon: Wallet, label: 'Wallet', path: '/wallet' },
     { icon: User, label: 'Profile', path: '/profile' },
   ];
