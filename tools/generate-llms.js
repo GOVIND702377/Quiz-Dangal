@@ -18,7 +18,7 @@ try {
 /about-us\tAbout Us\tLearn more about Quiz Dangal
 /contact-us\tContact Us\tGet in touch with our support team
 /terms-conditions\tTerms & Conditions\tRead our terms and conditions
-/legality\tLegality\tLegal information and compliance
+/privacy-policy\tPrivacy Policy\tHow we collect, use, and protect data
 /admin\tAdmin\tAdmin panel for quiz management`;
 
       // Write to public directory

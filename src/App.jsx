@@ -15,7 +15,7 @@ import Login from '@/pages/Login';
 import AboutUs from '@/pages/AboutUs';
 import ContactUs from '@/pages/ContactUs';
 import TermsConditions from '@/pages/TermsConditions';
-import Legality from '@/pages/Legality';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import Quiz from '@/pages/Quiz';
 import Admin from '@/pages/Admin';
 import AdminRedemptions from '@/pages/AdminRedemptions';
@@ -144,7 +144,7 @@ const MainLayout = () => {
           <Route path="/about-us" element={<AboutUs />} />
           <Route path="/contact-us" element={<ContactUs />} />
           <Route path="/terms-conditions" element={<TermsConditions />} />
-          <Route path="/legality" element={<Legality />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
           <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
           <Route path="/admin/leaderboards" element={<AdminRoute><AdminLeaderboards /></AdminRoute>} />

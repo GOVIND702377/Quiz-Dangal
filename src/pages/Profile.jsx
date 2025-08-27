@@ -98,7 +98,7 @@ export default function Profile() {
     { label: "About Us", href: "/about-us" },
     { label: "Contact Us", href: "/contact-us" },
     { label: "Terms & Conditions", href: "/terms-conditions" },
-    { label: "Legality", href: "/legality" },
+    { label: "Privacy Policy", href: "/privacy-policy" },
   ];
 
   return (
