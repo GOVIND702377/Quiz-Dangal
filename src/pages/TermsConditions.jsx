@@ -7,96 +7,100 @@ const TermsConditions = () => {
   const sections = [
     {
       icon: Users,
-      title: '1. User Eligibility',
+      title: '1. Eligibility',
       content: [
-        'You may use this Platform only if you are 18 years of age or older and are competent to contract under the Indian Contract Act, 1872.',
-        'You acknowledge that real money gaming on the Platform is legal only in Indian states where it is not prohibited. If you are accessing the Platform from a state (such as Telangana, Andhra Pradesh, Assam, Odisha, and Tamil Nadu) where online gaming is prohibited, your participation is illegal, and Quiz Dangal shall be absolved of any liability.',
-        'You represent and warrant that all information you provide to us is true, accurate, and complete.'
+        'Users must be 13 years or older to create an account.',
+        'By using this App, you confirm that all details provided (name, username, email) are accurate.',
+        'One person = one account. Multiple or fake accounts are prohibited.'
       ]
     },
     {
       icon: Shield,
-      title: '2. Registration & Account Security',
+      title: '2. Registration & Accounts',
       content: [
-        'To use the Platform, you must register an account. You will need to create a username and password during the registration process.',
-        'You are solely responsible for maintaining the confidentiality of your account details and for all activities that occur under your account.',
-        'You agree to notify us immediately of any unauthorized use of your account or any breach of security. Quiz Dangal will not be liable for any loss that you may incur as a result of unauthorized use of your password.',
-        'You may not create more than one account or use the account of any other person.'
+        'To use Quiz Dangal, you must register with a unique username, display name, and email.',
+        'You are responsible for maintaining the confidentiality of your account credentials.',
+        'You agree not to share your account or impersonate another person.',
+        'Quiz Dangal is not liable for losses caused by misuse of your login details.'
       ]
     },
     {
       icon: FileText,
       title: '3. Gameplay Rules',
       content: [
-        'Game Type: Quiz Dangal is a skill-based opinion-based quiz game. The winner is determined primarily based on the user\'s skill, knowledge, analysis, and prediction abilities, not solely on chance.',
-        'Winner Determination: In each quiz, the option that receives the highest number of valid votes within the stipulated time limit shall be considered the \'correct\' or \'winning\' option. Winners will be those users who selected that \'winning\' option.',
-        'Quiz Timer: Each quiz will commence at a fixed time and remain open for a specified duration. Users must submit their answers within this timeframe. Answers submitted after the timer expires will not be valid.',
-        'Entry Fees: Participation in a quiz will require the payment of a specified entry fee.',
-        'Prize Distribution: After the quiz results are declared, winning users will have their prize money automatically credited to their Quiz Dangal wallet. The method and amount of prize distribution may vary from quiz to quiz and will be clearly stated before the quiz begins.'
+        'Skill-Based Quizzes – Winners are decided based on performance, knowledge, accuracy, and speed.',
+        'Quiz Timings – Each quiz has a fixed start and end time. Submissions after time expiry will not be valid.',
+        'Results – Once results are declared, they are final and cannot be challenged.',
+        'Fairness – All quizzes are designed to provide equal opportunities to all participants.'
       ]
     },
     {
       icon: CreditCard,
-      title: '4. Payments & Withdrawals',
+      title: '4. Rewards & Wallet',
       content: [
-        'Wallet Management: Your Quiz Dangal account will feature an in-app wallet where your deposited funds and winnings will be stored.',
-        'Payments: You can add funds to your wallet using various secure payment methods available on the Platform (e.g., UPI, NetBanking, Credit/Debit cards, etc.).',
-        'Withdrawals: You may request to withdraw funds from your wallet to your registered bank account/UPI ID.',
-        'KYC Requirement: To comply with Indian laws and guidelines, you will be required to complete a \'Know Your Customer\' (KYC) verification process for withdrawals exceeding a specified limit (currently total withdrawals of ₹10,000 or more in a financial year). This will involve submitting your identity and address proof documents. Withdrawal requests will not be processed until the KYC process is completed.',
-        'TDS Deduction: As per Indian income tax laws, a TDS (Tax Deducted at Source) of 30% will be levied on all net winnings from online gaming, regardless of the winning amount (no minimum threshold). This deduction will occur either at the time of withdrawal or at the end of the financial year, whichever is earlier. You will see the TDS credit in your Form 26AS, and Quiz Dangal will issue you a TDS Certificate (Form 16A).',
-        'Withdrawal requests may take 24-72 business hours to process, though we strive for faster payouts.'
+        'All quizzes are free to enter.',
+        'Based on performance, users earn coins/rewards which are stored in their in-app wallet.',
+        'Rewards are for entertainment and recognition. In the future, withdrawal features may be introduced, which may require identity verification (KYC).',
+        'Rewards cannot be transferred or exchanged outside the app unless officially announced.'
+      ]
+    },
+    {
+      icon: Users,
+      title: '5. Referral & Earn Program',
+      content: [
+        'Users may invite friends using their unique referral codes.',
+        'Coins are credited once the referred user successfully registers and engages.',
+        'Any misuse of referral (e.g., self-referrals, fake accounts) may lead to account suspension.'
       ]
     },
     {
       icon: AlertTriangle,
-      title: '5. Responsible Gaming Policies',
+      title: '6. Responsible Usage',
       content: [
-        'Quiz Dangal is committed to promoting a responsible gaming environment. We provide tools and resources to help users manage their gaming habits.',
-        'You may set limits on your gaming activity, including deposit limits, spending limits, and self-exclusion options.',
-        'We advise you to play responsibly and only spend what you can afford to lose. If you feel you may have a gaming problem, please seek professional help.'
+        'Quiz Dangal is a platform for fun, learning, and skill development.',
+        'It is not gambling and does not involve betting or wagering real money.',
+        'We encourage users to play responsibly and in moderation.'
       ]
     },
     {
       icon: EyeOff,
-      title: '6. Unfair Play & Fraud',
+      title: '7. Fair Play & Security',
       content: [
-        'Any form of fraud, manipulation, or unfair play is strictly prohibited on Quiz Dangal. This includes, but is not limited to: creating multiple accounts, using bots, interfering with quizzes, or engaging in any illegal activities.',
-        'If we suspect that you have engaged in unfair play or violated these Terms, we reserve the right to suspend or terminate your account, confiscate your winnings, and bar you from future use of the Platform.',
-        'Any fraudulent or suspicious activity may be reported to the relevant authorities.'
+        'Users must not: create multiple or fake accounts; use bots, scripts, or cheats; manipulate results in any way.',
+        'Violation may result in: immediate account suspension, loss of rewards, and permanent ban from the platform.'
       ]
     },
     {
       icon: Copyright,
-      title: '7. Intellectual Property Rights',
+      title: '8. Intellectual Property',
       content: [
-        'The Platform and all content contained therein (including, but not limited to, text, graphics, logos, icons, images, audio clips, digital downloads, data compilations, and software) are the property of Quiz Dangal or its content suppliers and protected by Indian and international copyright laws.',
-        'You may not reproduce, duplicate, copy, sell, resell, or exploit any portion of the content on the Platform without the express written consent of Quiz Dangal.'
+        'All app content (questions, designs, logos, data, software) belongs to Quiz Dangal.',
+        'Users cannot copy, resell, or exploit app content without permission.'
       ]
     },
     {
       icon: Info,
-      title: '8. Limitation of Liability',
+      title: '9. Limitation of Liability',
       content: [
-        'Quiz Dangal provides the Platform on an "as is" and "as available" basis. We make no warranties of any kind, whether express or implied, including, but not limited to, implied warranties of merchantability, fitness for a particular purpose, or non-infringement.',
-        'To the fullest extent permissible by law, Quiz Dangal will not be liable for any direct, indirect, incidental, special, consequential, or exemplary damages, including damages for loss of profits, goodwill, use, data, or other intangible losses, resulting from the use or inability to use the Platform.'
-      ]
-    },
-    {
-      icon: MessageSquare,
-      title: '9. Dispute Resolution',
-      content: [
-        'Any dispute or claim relating in any way to these Terms will be resolved through amicable settlement via mediation first.',
-        'If the dispute is not resolved through mediation, such disputes shall be subject to the exclusive jurisdiction of the courts located in New Delhi, India.',
-        'These Terms shall be governed by and construed in accordance with the laws of India.'
+        'The platform is provided “as is” and “as available.”',
+        'Quiz Dangal makes no guarantees of uninterrupted or error-free service.',
+        'We are not liable for indirect or incidental losses caused by using the platform.'
       ]
     },
     {
       icon: Repeat,
-      title: '10. Changes to Terms',
+      title: '10. Changes & Updates',
       content: [
-        'Quiz Dangal reserves the right to modify, update, or change these Terms and Conditions at any time.',
-        'Any changes made to these Terms will be effective immediately upon posting on the Platform. It is your responsibility to review these Terms regularly.',
-        'Your continued use of the Platform after the posting of modifications will constitute your acceptance of the revised Terms.'
+        'Quiz Dangal may update features, rewards, or terms at any time.',
+        'Major changes will be notified in-app.',
+        'Continued use of the app after updates = acceptance of new terms.'
+      ]
+    },
+    {
+      icon: MessageSquare,
+      title: '11. Contact Us',
+      content: [
+        'For questions, support, or feedback: quizdangalbusiness@gmail.com'
       ]
     }
   ];
@@ -127,8 +131,8 @@ const TermsConditions = () => {
   return (
     <div className="container mx-auto px-4 py-6 space-y-8 text-black">
       <Helmet>
-        <title>Terms & Conditions - Quiz Dangal</title>
-        <meta name="description" content="Read Quiz Dangal's Terms & Conditions for platform usage, gameplay rules, and legal compliance." />
+  <title>Terms & Conditions – Quiz Dangal</title>
+  <meta name="description" content="Terms & Conditions for using Quiz Dangal – eligibility, accounts, gameplay, rewards, fair play, and contact details." />
       </Helmet>
 
       <motion.div
@@ -140,10 +144,10 @@ const TermsConditions = () => {
         <h1 className="text-3xl font-bold gradient-text mb-4">Terms & Conditions</h1>
         <div className="flex items-center justify-center space-x-2 text-gray-600 mb-4">
           <Calendar className="w-4 h-4" />
-          <span className="text-sm">Last Updated: June 27, 2025</span>
+          <span className="text-sm">Last Updated: August 27, 2025</span>
         </div>
         <p className="text-lg text-gray-800 leading-relaxed">
-          Please read these Terms & Conditions carefully before using the Quiz Dangal platform. By using this Platform, you agree to be bound by these Terms.
+          These Terms & Conditions (“Terms”) govern your use of the Quiz Dangal mobile application (“App” or “Platform”). By using Quiz Dangal, you agree to these Terms. Please read them carefully.
         </p>
       </motion.div>
 
