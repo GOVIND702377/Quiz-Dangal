@@ -1,21 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/customSupabaseClient";
-import { Loader2, Crown, Wallet, TrendingUp, TrendingDown, Flame, Globe, Share2, Camera } from 'lucide-react';
+import { Loader2, Crown, Globe, Share2, Camera, Info, Mail, FileText, Shield, LogOut, ChevronRight } from 'lucide-react';
 
-function StatCard({ icon: Icon, label, value, className = '' }) {
-  return (
-    <div className={`bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg flex items-center ${className}`}>
-      <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center mr-3">
-        <Icon className="w-5 h-5" />
-      </div>
-      <div>
-        <div className="text-xs text-gray-500">{label}</div>
-        <div className="text-lg font-semibold text-gray-800">{value}</div>
-      </div>
-    </div>
-  );
-}
+// Removed StatCard and stats grid as requested
 
 export default function Profile() {
   const [loading, setLoading] = useState(true);
@@ -118,12 +106,10 @@ export default function Profile() {
   }
 
   const menuItems = [
-    { label: "About Us", href: "/about-us" },
-    { label: "Contact Us", href: "/contact-us" },
-    { label: "Terms & Conditions", href: "/terms-conditions" },
-    { label: "Privacy Policy", href: "/privacy-policy" },
-  ];
-  const extraItems = [
+    { label: "About Us", href: "/about-us", icon: Info },
+    { label: "Contact Us", href: "/contact-us", icon: Mail },
+    { label: "Terms & Conditions", href: "/terms-conditions", icon: FileText },
+    { label: "Privacy Policy", href: "/privacy-policy", icon: Shield },
     { label: 'Language', onClick: () => alert('Languages coming soon'), icon: Globe },
     { label: 'Share', onClick: shareApp, icon: Share2 },
   ];
@@ -180,42 +166,49 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard icon={Wallet} label="Wallet" value={Number(profile?.wallet_balance || 0)} />
-        <StatCard icon={TrendingUp} label="Total Earned" value={Number(profile?.total_earned || 0)} />
-        <StatCard icon={TrendingDown} label="Total Spent" value={Number(profile?.total_spent || 0)} />
-        <StatCard icon={Flame} label="Streak" value={Number(profile?.streak_count || 0)} />
-      </div>
+  {/* Stats removed as requested */}
 
-  {/* Badges moved to header */}
-
-  {/* Referral section removed as requested */}
-
-    {/* Menu */}
-      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
-        <div className="grid grid-cols-2 gap-2">
-      {menuItems.map((item) => (
-            <Link key={item.href} to={item.href} className="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm text-gray-700 text-center">
-              {item.label}
-            </Link>
-          ))}
-          {extraItems.map((item, idx) => (
-            <button key={idx} onClick={item.onClick} className="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm text-gray-700 text-center flex items-center justify-center gap-2">
-              {item.icon ? <item.icon className="w-4 h-4" /> : null}
-              {item.label}
-            </button>
-          ))}
+      {/* Menu (vertical list with icons) */}
+      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-2 shadow-lg">
+        <div className="flex flex-col gap-2">
+          {menuItems.map((item, idx) => {
+            const Icon = item.icon;
+            const content = (
+              <div className="w-full flex items-center justify-between px-3 py-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm text-gray-700">
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center">
+                    <Icon className="w-4 h-4" />
+                  </span>
+                  <span>{item.label}</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </div>
+            );
+            return item.href ? (
+              <Link key={idx} to={item.href}>
+                {content}
+              </Link>
+            ) : (
+              <button key={idx} onClick={item.onClick} className="text-left">
+                {content}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Logout */}
-      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
-        <button
-          onClick={handleSignOut}
-          className="w-full px-3 py-3 rounded-lg text-red-600 hover:bg-red-50 text-sm font-medium"
-        >
-          Logout
+      {/* Logout (same style item at bottom) */}
+      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-2 shadow-lg">
+        <button onClick={handleSignOut} className="w-full text-left">
+          <div className="w-full flex items-center justify-between px-3 py-3 rounded-lg border border-gray-200 bg-white hover:bg-red-50 text-sm text-red-600">
+            <div className="flex items-center gap-3">
+              <span className="w-8 h-8 rounded-full bg-red-50 text-red-600 flex items-center justify-center">
+                <LogOut className="w-4 h-4" />
+              </span>
+              <span className="font-medium">Logout</span>
+            </div>
+            <ChevronRight className="w-4 h-4" />
+          </div>
         </button>
       </div>
     </div>

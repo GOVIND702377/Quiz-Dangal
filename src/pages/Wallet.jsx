@@ -14,6 +14,7 @@ const Wallet = () => {
   const [sharing, setSharing] = useState(false);
   const [showShareOptions, setShowShareOptions] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [bouncing, setBouncing] = useState(false);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -45,6 +46,17 @@ const Wallet = () => {
   // Add Money / Withdraw removed as per new wallet design
 
   const walletBalance = Number(userProfile?.wallet_balance || 0);
+
+  // Bounce animate coin when balance increases
+  const [prevBalance, setPrevBalance] = useState(walletBalance);
+  useEffect(() => {
+    if (walletBalance > prevBalance) {
+      setBouncing(true);
+      const t = setTimeout(() => setBouncing(false), 600);
+      return () => clearTimeout(t);
+    }
+    setPrevBalance(walletBalance);
+  }, [walletBalance, prevBalance]);
 
   // Refer & Earn (migrated from Rewards)
   const getReferralLink = () => {
@@ -112,16 +124,73 @@ const Wallet = () => {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 mb-6 text-center shadow-lg"
+          className="relative overflow-hidden rounded-2xl p-6 mb-6 text-center shadow-lg border border-amber-100 bg-gradient-to-br from-yellow-50 via-amber-50 to-yellow-100"
         >
+          {/* Floating coins on open */}
+          <motion.div
+            className="pointer-events-none absolute -bottom-6 left-6 text-yellow-400"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 0.6, y: -8 }}
+            transition={{ duration: 1.2, delay: 0.2 }}
+          >
+            <Coins size={20} />
+          </motion.div>
+          <motion.div
+            className="pointer-events-none absolute -bottom-8 right-10 text-amber-400"
+            initial={{ opacity: 0, y: 28 }}
+            animate={{ opacity: 0.6, y: -10 }}
+            transition={{ duration: 1.2, delay: 0.35 }}
+          >
+            <Coins size={16} />
+          </motion.div>
+          <motion.div
+            className="pointer-events-none absolute -bottom-10 left-1/2 text-yellow-500"
+            initial={{ opacity: 0, y: 32 }}
+            animate={{ opacity: 0.6, y: -12 }}
+            transition={{ duration: 1.2, delay: 0.5 }}
+          >
+            <Coins size={14} />
+          </motion.div>
+
           <div className="flex justify-center mb-4">
-            <div className="bg-gradient-to-r from-yellow-400 to-amber-500 p-4 rounded-full">
-              <Coins size={32} className="text-white" />
+            <motion.div
+              animate={bouncing ? { scale: [1, 1.2, 1] } : {}}
+              transition={{ duration: 0.6, ease: 'easeOut' }}
+              className="bg-gradient-to-r from-yellow-400 to-amber-500 p-4 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.5)]"
+            >
+              <Coins size={32} className="text-white drop-shadow" />
+            </motion.div>
+          </div>
+          <div className="text-sm font-medium text-gray-600 tracking-wide">Coins Balance</div>
+          <div className="text-4xl font-extrabold text-amber-600 mb-1">{walletBalance.toLocaleString()} coins</div>
+          <div className="text-sm text-gray-600">👉 Keep playing, keep earning!</div>
+
+          {/* Streak and progress */}
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <div className="text-sm text-gray-700">
+              🔥 Streak Counter: <span className="font-semibold">Day {Number(userProfile?.streak_count || 0)}</span>
+              {Number(userProfile?.streak_count || 0) === 0 ? ' → Start playing to build streaks!' : ''}
+            </div>
+            <div className="w-full max-w-md">
+              <div className="flex items-center justify-between mb-1 text-[11px] text-gray-700">
+                <span>Progress to next reward</span>
+                <span>100 coins → Next Reward</span>
+              </div>
+              {(() => {
+                const target = 100;
+                const pct = Math.min(100, Math.round(((walletBalance % target) / target) * 100));
+                return (
+                  <div className="h-2 bg-white/60 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-400 to-yellow-500"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                );
+              })()}
+              <div className="text-[11px] text-gray-500 mt-1">More Quizzes = More Coins = More Rewards!</div>
             </div>
           </div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Coins Balance</h2>
-          <div className="text-4xl font-bold text-yellow-600 mb-2">{walletBalance.toLocaleString()} coins</div>
-          <div className="text-sm text-gray-500">Earn coins by playing quizzes and referrals.</div>
         </motion.div>
 
         {/* Refer & Earn */}
@@ -129,26 +198,26 @@ const Wallet = () => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
-          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg mb-6"
+          className="rounded-2xl p-6 shadow-lg mb-6 border border-indigo-200 bg-gradient-to-r from-violet-500 via-indigo-500 to-blue-500 text-white"
         >
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <img src="/android-chrome-512x512.png" alt="Quiz Dangal" className="w-12 h-12 rounded-xl" />
+              <img src="/android-chrome-512x512.png" alt="Quiz Dangal" className="w-12 h-12 rounded-xl ring-2 ring-white/40" />
               <div>
-                <div className="text-lg font-bold text-gray-800">Refer & Earn</div>
-                <div className="text-sm text-gray-600">Invite friends, they join — you earn referral rewards</div>
+                <div className="text-lg font-bold">Refer & Earn</div>
+                <div className="text-sm opacity-90">Invite friends, they join — you earn referral rewards</div>
               </div>
             </div>
-            <Button onClick={handleShareInvite} className="bg-indigo-600 hover:bg-indigo-700">
-              <Share2 className="w-4 h-4 mr-2" /> {sharing ? 'Sharing…' : 'Share Invite'}
+            <Button onClick={handleShareInvite} className="bg-white text-indigo-700 hover:bg-white/90">
+              <Share2 className="w-4 h-4 mr-2" /> {sharing ? 'Sharing…' : '🚀 Invite & Earn'}
             </Button>
           </div>
           {showShareOptions && (
-            <div className="mt-4 border-t border-gray-200 pt-3">
-              <div className="text-sm text-gray-700 mb-2">Share via:</div>
+            <div className="mt-4 border-t border-white/30 pt-3">
+              <div className="text-sm mb-2">Share via:</div>
               <div className="flex flex-wrap gap-2">
                 {shareLinks.map((s) => (
-                  <a key={s.name} href={s.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-gray-50">
+                  <a key={s.name} href={s.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white/95 hover:bg-white">
                     <ExternalLink className="w-3.5 h-3.5" /> {s.name}
                   </a>
                 ))}
@@ -158,12 +227,12 @@ const Wallet = () => {
                     setCopied(true);
                     setTimeout(() => setCopied(false), 1500);
                   }}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-gray-50"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white/95 hover:bg-white"
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />} {copied ? 'Copied' : 'Copy link'}
                 </button>
               </div>
-              <div className="text-[11px] text-gray-500 mt-2">Tip: Instagram direct share works best via the native share sheet on mobile.</div>
+              <div className="text-[11px] opacity-90 mt-2">Tip: Instagram direct share works best via the native share sheet on mobile.</div>
             </div>
           )}
         </motion.div>
@@ -188,9 +257,9 @@ const Wallet = () => {
             </div>
           ) : transactions.length === 0 ? (
             <div className="text-center py-8">
-              <div className="text-4xl mb-4">💳</div>
-              <p className="text-gray-700">No transactions yet</p>
-              <p className="text-gray-500 text-sm mt-2">Start playing quizzes to see your transaction history!</p>
+              <div className="text-4xl mb-2">🪙</div>
+              <p className="text-gray-800 font-medium">No activity yet — Start your first quiz and earn coins!</p>
+              <p className="text-gray-500 text-sm mt-1">Your wallet will show quiz rewards, referrals and redeems here.</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -203,14 +272,16 @@ const Wallet = () => {
                   className="flex items-center justify-between p-3 bg-gray-50/80 rounded-lg"
                 >
                   <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-full ${
-                      ['reward','bonus','credit','referral','refund'].includes(transaction.type) ? 'bg-green-500/20' : 'bg-red-500/20'
-                    }`}>
-                      {['reward','bonus','credit','referral','refund'].includes(transaction.type) ? (
-                        <Trophy size={16} className="text-green-500" />
-                      ) : (
-                        <ArrowDownLeft size={16} className="text-red-500" />
-                      )}
+                    <div className="p-2 rounded-full bg-white border flex items-center justify-center w-8 h-8">
+                      <span className="text-lg" aria-hidden>
+                        {(() => {
+                          const t = (transaction.type || '').toLowerCase();
+                          if (t.includes('ref')) return '👥';
+                          if (t.includes('redeem') || t.includes('debit') || t.includes('spend')) return '🎁';
+                          if (t.includes('quiz') || t.includes('reward') || t.includes('bonus') || t.includes('credit')) return '🎯';
+                          return '🪙';
+                        })()}
+                      </span>
                     </div>
                     <div>
                       <p className="text-gray-800 font-medium">
