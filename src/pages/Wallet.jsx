@@ -4,13 +4,16 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Coins, ArrowDownLeft, Trophy } from 'lucide-react';
+import { Coins, ArrowDownLeft, Trophy, Share2, Copy, Check, ExternalLink, Gift } from 'lucide-react';
 
 const Wallet = () => {
   const { toast } = useToast();
   const { user, userProfile } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sharing, setSharing] = useState(false);
+  const [showShareOptions, setShowShareOptions] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -43,6 +46,59 @@ const Wallet = () => {
 
   const walletBalance = Number(userProfile?.wallet_balance || 0);
 
+  // Refer & Earn (migrated from Rewards)
+  const getReferralLink = () => {
+    const code = userProfile?.referral_code || user?.id || '';
+    return `${window.location.origin}?ref=${encodeURIComponent(code)}`;
+  };
+
+  const handleShareInvite = async () => {
+    if (!user) {
+      toast({ title: 'Login required', description: 'Please login to share your referral link.' });
+      return;
+    }
+    setSharing(true);
+    const shareUrl = getReferralLink();
+    const shareText = 'Join me on Quiz Dangal — Play daily quizzes, win coins and redeem rewards! Use my link to sign up:';
+    try {
+      const shareData = { title: 'Quiz Dangal - Refer & Earn', text: `${shareText} ${shareUrl}`, url: shareUrl };
+      try {
+        const res = await fetch('/android-chrome-512x512.png');
+        const blob = await res.blob();
+        const file = new File([blob], 'quiz-dangal.png', { type: blob.type || 'image/png' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          shareData.files = [file];
+        }
+      } catch {}
+      if (navigator.share) {
+        await navigator.share(shareData);
+        toast({ title: 'Thanks for sharing!', description: 'Your referral link has been shared.' });
+        setShowShareOptions(false);
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setShowShareOptions(true);
+        setTimeout(() => setCopied(false), 1500);
+        toast({ title: 'Link copied', description: 'Share via your favorite app below.' });
+      }
+    } catch (e) {
+      setShowShareOptions(true);
+      toast({ title: 'Share failed', description: e.message || 'Please try again.', variant: 'destructive' });
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const shareUrl = getReferralLink();
+  const encodedUrl = encodeURIComponent(shareUrl);
+  const encodedText = encodeURIComponent('Join me on Quiz Dangal — Play daily quizzes, win coins and redeem rewards!');
+  const shareLinks = [
+    { name: 'WhatsApp', href: `https://wa.me/?text=${encodedText}%20${encodedUrl}` },
+    { name: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}` },
+    { name: 'Telegram', href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}` },
+    { name: 'X (Twitter)', href: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedText}` },
+  ];
+
   return (
     <div className="container mx-auto px-4 py-6">
       <motion.div
@@ -50,7 +106,7 @@ const Wallet = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h1 className="text-3xl font-bold gradient-text mb-8 text-center">My Wallet</h1>
+  <h1 className="text-3xl font-bold gradient-text mb-8 text-center">My Wallet</h1>
         
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
@@ -68,13 +124,62 @@ const Wallet = () => {
           <div className="text-sm text-gray-500">Earn coins by playing quizzes and referrals.</div>
         </motion.div>
 
+        {/* Refer & Earn */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg mb-6"
+        >
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <img src="/android-chrome-512x512.png" alt="Quiz Dangal" className="w-12 h-12 rounded-xl" />
+              <div>
+                <div className="text-lg font-bold text-gray-800">Refer & Earn</div>
+                <div className="text-sm text-gray-600">Invite friends, they join — you earn referral rewards</div>
+              </div>
+            </div>
+            <Button onClick={handleShareInvite} className="bg-indigo-600 hover:bg-indigo-700">
+              <Share2 className="w-4 h-4 mr-2" /> {sharing ? 'Sharing…' : 'Share Invite'}
+            </Button>
+          </div>
+          {showShareOptions && (
+            <div className="mt-4 border-t border-gray-200 pt-3">
+              <div className="text-sm text-gray-700 mb-2">Share via:</div>
+              <div className="flex flex-wrap gap-2">
+                {shareLinks.map((s) => (
+                  <a key={s.name} href={s.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-gray-50">
+                    <ExternalLink className="w-3.5 h-3.5" /> {s.name}
+                  </a>
+                ))}
+                <button
+                  onClick={async () => {
+                    await navigator.clipboard.writeText(shareUrl);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                  }}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white hover:bg-gray-50"
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />} {copied ? 'Copied' : 'Copy link'}
+                </button>
+              </div>
+              <div className="text-[11px] text-gray-500 mt-2">Tip: Instagram direct share works best via the native share sheet on mobile.</div>
+            </div>
+          )}
+        </motion.div>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
           className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg"
         >
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-gray-900">Recent Activity</h3>
+            <button disabled className="text-sm px-3 py-1.5 rounded-lg border bg-white text-gray-400 flex items-center" title="Coming soon">
+              <Gift className="w-4 h-4 mr-1 text-yellow-600" /> Redeem Coins
+            </button>
+          </div>
           
           {loading ? (
             <div className="text-center py-8">

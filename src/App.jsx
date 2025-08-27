@@ -25,7 +25,6 @@ import AdminLeaderboards from '@/pages/AdminLeaderboards';
 import AdminTest from '@/pages/AdminTest';
 import Results from '@/pages/Results';
 import Leaderboards from '@/pages/Leaderboards';
-import Rewards from '@/pages/Rewards';
 import Redemptions from '@/pages/Redemptions';
 
 const UnconfirmedEmail = () => (
@@ -139,7 +138,7 @@ const MainLayout = () => {
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/leaderboards" element={<Leaderboards />} />
-          <Route path="/rewards" element={<Rewards />} />
+          <Route path="/rewards" element={<Navigate to="/wallet" replace />} />
           <Route path="/redemptions" element={<Redemptions />} />
           <Route path="/about-us" element={<AboutUs />} />
           <Route path="/contact-us" element={<ContactUs />} />

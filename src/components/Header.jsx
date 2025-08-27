@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { Coins, Shield } from 'lucide-react';
+import { Coins, Shield, Medal } from 'lucide-react';
 
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -65,6 +65,15 @@ const Header = () => {
               <Coins className="w-4 h-4 text-yellow-500" />
               <span className="font-semibold">{wallet.toLocaleString()} coins</span>
             </Link>
+
+              {/* Leaderboards shortcut */}
+              <Link
+                to="/leaderboards"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold text-indigo-700 border border-indigo-200 bg-white/70 hover:bg-indigo-50"
+                title="Leaderboards"
+              >
+                <Medal className="w-4 h-4 text-indigo-600" /> Leaderboards
+              </Link>
 
             {/* Invite removed as per UI update */}
 
