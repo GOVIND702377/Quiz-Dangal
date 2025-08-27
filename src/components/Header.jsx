@@ -1,17 +1,9 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Link, NavLink } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import {
-  Home,
-  Trophy,
-  Gift,
-  Wallet as WalletIcon,
-  User as UserIcon,
-  Share2,
-  Shield,
-} from 'lucide-react';
+import { Share2, Shield } from 'lucide-react';
 
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -44,13 +36,7 @@ const Header = () => {
     }
   };
 
-  const navItems = [
-    { to: '/', label: 'Home', icon: Home },
-    { to: '/leaderboards', label: 'Leaderboards', icon: Trophy },
-    { to: '/rewards', label: 'Rewards', icon: Gift },
-    { to: '/my-quizzes', label: 'My Quizzes', icon: Trophy },
-    { to: '/wallet', label: 'Wallet', icon: WalletIcon },
-  ];
+  // Header se navigation hata diya gaya hai (nav links sirf footer me honge)
 
   return (
     <motion.header
@@ -79,41 +65,11 @@ const Header = () => {
             </div>
           </Link>
 
-          {/* Nav (desktop) */}
-          <nav className="hidden lg:flex items-center gap-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    cn(
-                      'px-3 py-2 rounded-full text-sm font-medium flex items-center gap-2 border transition',
-                      isActive
-                        ? 'bg-indigo-600 text-white border-indigo-600 shadow'
-                        : 'bg-white/70 text-gray-700 border-gray-200 hover:bg-gray-50'
-                    )
-                  }
-                >
-                  <Icon className="w-4 h-4" />
-                  <span>{item.label}</span>
-                </NavLink>
-              );
-            })}
-          </nav>
+          {/* Nav (desktop) intentionally removed */}
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            {/* Wallet pill */}
-            <Link
-              to="/wallet"
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white/70 border-gray-200 hover:bg-gray-50 text-sm text-gray-700"
-              title="Wallet Balance"
-            >
-              <WalletIcon className="w-4 h-4 text-indigo-600" />
-              <span className="font-semibold">₹{wallet.toLocaleString()}</span>
-            </Link>
+            {/* Wallet pill removed (moved to footer navigation) */}
 
             {/* Invite */}
             <button
@@ -134,47 +90,12 @@ const Header = () => {
               </Link>
             )}
 
-            {/* Profile avatar */}
-            <Link
-              to="/profile"
-              className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-bold shadow overflow-hidden"
-              title="Profile"
-            >
-              {userProfile?.avatar_url ? (
-                <img src={userProfile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-              ) : (
-                initials
-              )}
-            </Link>
+            {/* Profile avatar removed (access via footer navigation) */}
           </div>
         </div>
       </div>
 
-      {/* Mobile nav */}
-      <div className="lg:hidden border-t border-white/30 bg-white/70 backdrop-blur">
-        <div className="container mx-auto px-3 py-2 flex items-center justify-between gap-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  cn(
-                    'flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border',
-                    isActive
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow'
-                      : 'bg-white/70 text-gray-700 border-gray-200 hover:bg-gray-50'
-                  )
-                }
-              >
-                <Icon className="w-4 h-4" />
-                <span className="hidden xs:inline">{item.label}</span>
-              </NavLink>
-            );
-          })}
-        </div>
-      </div>
+  {/* Mobile nav removed (navigation only in Footer) */}
     </motion.header>
   );
 };
