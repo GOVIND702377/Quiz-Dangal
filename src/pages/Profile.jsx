@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/customSupabaseClient";
-import { Loader2, Crown, Camera, LogOut, ChevronRight } from 'lucide-react';
+import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Globe, Share2 } from 'lucide-react';
 
 // Removed StatCard and stats grid as requested
 
@@ -159,21 +159,22 @@ export default function Profile() {
   }
 
   const menuItems = [
-    { label: 'About Us', href: '/about-us', emoji: 'ℹ️', bg: 'bg-gray-100', fg: 'text-gray-700' },
-    { label: 'Contact Us', href: '/contact-us', emoji: '📞', bg: 'bg-gray-100', fg: 'text-gray-700' },
-    { label: 'Terms & Conditions', href: '/terms-conditions', emoji: '📜', bg: 'bg-gray-100', fg: 'text-gray-700' },
-    { label: 'Privacy Policy', href: '/privacy-policy', emoji: '🔒', bg: 'bg-gray-100', fg: 'text-gray-700' },
-    { label: 'Language', onClick: () => alert('Languages coming soon'), emoji: '🌍', bg: 'bg-gray-100', fg: 'text-gray-700' },
-    { label: 'Share', onClick: shareApp, emoji: '📤', bg: 'bg-gray-100', fg: 'text-gray-700' },
+    { label: 'About Us', href: '/about-us', icon: Info },
+    { label: 'Contact Us', href: '/contact-us', icon: Mail },
+    { label: 'Terms & Conditions', href: '/terms-conditions', icon: FileText },
+    { label: 'Privacy Policy', href: '/privacy-policy', icon: Shield },
+    { label: 'Language', onClick: () => alert('Languages coming soon'), icon: Globe },
+    { label: 'Share', onClick: shareApp, icon: Share2 },
   ];
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-3xl space-y-6">
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative w-16 h-16">
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          {/* Left: Avatar + Email */}
+          <div className="flex flex-col items-center md:items-start gap-2">
+            <div className="relative w-20 h-20">
               <div className={`w-16 h-16 rounded-full overflow-hidden flex items-center justify-center text-gray-700 font-bold ring-2 ring-offset-2 ${getLevelRingClass(profile?.level)}`}>
                 {profile?.avatar_url ? (
                   <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
@@ -195,38 +196,24 @@ export default function Profile() {
               </button>
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onAvatarSelected} />
             </div>
-            <div>
+            <div className="text-center md:text-left">
               <div className="text-xs text-gray-500">Email</div>
               <div className="text-lg font-semibold text-gray-800 break-all">{profile?.email || sessionUser.email}</div>
-              <div className="mt-1 text-xs text-gray-500">Public handle</div>
-              {!editingUsername ? (
-                <div className="flex items-center gap-2 text-sm text-gray-800">
-                  <span className="font-medium">{profile?.username ? `@${profile.username}` : 'Not set'}</span>
-                  <button onClick={startEditUsername} className="px-2 py-0.5 text-xs rounded-md border bg-white hover:bg-gray-50">Edit</button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <input
-                    value={newUsername}
-                    onChange={(e) => setNewUsername(e.target.value)}
-                    className="px-2 py-1 text-sm rounded-md border outline-none focus:ring-2 focus:ring-indigo-200"
-                    placeholder="your_username"
-                  />
-                  <button onClick={saveUsername} disabled={savingUsername} className="px-2 py-1 text-xs rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60">
-                    {savingUsername ? 'Saving…' : 'Save'}
-                  </button>
-                  <button onClick={() => setEditingUsername(false)} className="px-2 py-1 text-xs rounded-md border bg-white hover:bg-gray-50">Cancel</button>
-                </div>
-              )}
-              <button onClick={() => setShowBadges((v) => !v)} className="mt-2 text-xs text-indigo-700 underline">{showBadges ? 'Hide badges' : 'View badges'}</button>
             </div>
           </div>
-          <div className="text-right">
-            <div className="text-xs text-gray-500">Level {profile?.level ?? '—'} – {getLevelTitle(profile?.level)}</div>
+          {/* Right: Username + Edit Profile + Level */}
+          <div className="md:text-right w-full md:w-auto">
+            <div className="text-xs text-gray-500">Username</div>
+            <div className="flex items-center gap-2 justify-between md:justify-end">
+              <span className="font-medium text-gray-800">{profile?.username ? `@${profile.username}` : 'Not set'}</span>
+              <Link to="/profile-update" className="px-3 py-1.5 rounded-lg border bg-white hover:bg-gray-50 text-sm text-gray-700">Edit Profile</Link>
+            </div>
+            <div className="mt-3 text-xs text-gray-500">Level {profile?.level ?? '—'} – {getLevelTitle(profile?.level)}</div>
             <div className="mt-1 h-2 bg-gray-200 rounded-full overflow-hidden">
               <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500" style={{ width: `${getLevelProgress(profile?.total_earned)}%` }} />
             </div>
             <div className="mt-1 text-[11px] text-gray-500">{getLevelProgress(profile?.total_earned)}% to next level</div>
+            <button onClick={() => setShowBadges((v) => !v)} className="mt-2 text-xs text-indigo-700 underline">{showBadges ? 'Hide badges' : 'View badges'}</button>
           </div>
         </div>
       </div>
@@ -251,15 +238,15 @@ export default function Profile() {
         </div>
       )}
 
-      {/* Menu (vertical list with icons, colored pills) */}
+      {/* Menu (vertical list with simple icons) */}
       <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-2 shadow-lg">
         <div className="flex flex-col gap-2">
           {menuItems.map((item, idx) => {
             const content = (
               <div className="w-full flex items-center justify-between px-3 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-sm text-gray-700">
                 <div className="flex items-center gap-3">
-                  <span className={`w-8 h-8 rounded-full flex items-center justify-center ${item.bg} ${item.fg}`}>
-                    <span className="text-base" aria-hidden>{item.emoji}</span>
+                  <span className="w-8 h-8 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center">
+                    <item.icon className="w-4 h-4" />
                   </span>
                   <span className="font-medium">{item.label}</span>
                 </div>
