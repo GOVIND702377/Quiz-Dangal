@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
-import { Share2, Shield } from 'lucide-react';
+import { Coins, Shield } from 'lucide-react';
 
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -21,20 +21,7 @@ const Header = () => {
     return (parts[0]?.[0] || 'U').toUpperCase();
   })();
 
-  const handleInvite = async () => {
-    try {
-      const code = userProfile?.referral_code || user?.id;
-      const shareUrl = `${window.location.origin}?ref=${encodeURIComponent(code)}`;
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareUrl);
-        toast({ title: 'Link copied', description: 'Referral link copied to clipboard' });
-      } else {
-        window.prompt('Copy your referral link:', shareUrl);
-      }
-    } catch (e) {
-      toast({ title: 'Copy failed', description: e.message, variant: 'destructive' });
-    }
-  };
+  // Invite button removed; coins indicator added instead
 
   // Header se navigation hata diya gaya hai (nav links sirf footer me honge)
 
@@ -69,15 +56,17 @@ const Header = () => {
 
           {/* Actions */}
           <div className="flex items-center gap-2">
-            {/* Wallet pill removed (moved to footer navigation) */}
-
-            {/* Invite */}
-            <button
-              onClick={handleInvite}
-              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow"
+            {/* Coins indicator */}
+            <Link
+              to="/wallet"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white/70 border-gray-200 hover:bg-gray-50 text-sm text-gray-700"
+              title="Coins Balance"
             >
-              <Share2 className="w-4 h-4" /> Invite
-            </button>
+              <Coins className="w-4 h-4 text-yellow-500" />
+              <span className="font-semibold">{wallet.toLocaleString()} coins</span>
+            </Link>
+
+            {/* Invite removed as per UI update */}
 
             {/* Admin shortcut */}
             {isAdmin && (

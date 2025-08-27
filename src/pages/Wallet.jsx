@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Wallet as WalletIcon, Plus, ArrowUpRight, ArrowDownLeft, Trophy } from 'lucide-react';
+import { Coins, ArrowDownLeft, Trophy } from 'lucide-react';
 
 const Wallet = () => {
   const { toast } = useToast();
@@ -39,21 +39,9 @@ const Wallet = () => {
     fetchTransactions();
   }, [user]);
 
-  const handleAddMoney = () => {
-    toast({
-      title: "🚧 Payment Integration Coming Soon!",
-      description: "Wallet top-up will be available once payment is integrated! 🚀",
-    });
-  };
+  // Add Money / Withdraw removed as per new wallet design
 
-  const handleWithdraw = () => {
-    toast({
-      title: "🚧 Withdrawal Feature Coming Soon!",
-      description: "Money withdrawal will be available soon! 🚀",
-    });
-  };
-
-  const walletBalance = userProfile?.wallet_balance || 0;
+  const walletBalance = Number(userProfile?.wallet_balance || 0);
 
   return (
     <div className="container mx-auto px-4 py-6">
@@ -71,29 +59,13 @@ const Wallet = () => {
           className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 mb-6 text-center shadow-lg"
         >
           <div className="flex justify-center mb-4">
-            <div className="bg-gradient-to-r from-pink-500 to-violet-500 p-4 rounded-full">
-              <WalletIcon size={32} className="text-white" />
+            <div className="bg-gradient-to-r from-yellow-400 to-amber-500 p-4 rounded-full">
+              <Coins size={32} className="text-white" />
             </div>
           </div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Current Balance</h2>
-          <div className="text-4xl font-bold gradient-text mb-6">₹{walletBalance}</div>
-          
-          <div className="flex space-x-4">
-            <Button
-              onClick={handleAddMoney}
-              className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold py-3 rounded-lg"
-            >
-              <Plus size={20} className="mr-2" />
-              Add Money
-            </Button>
-            <Button
-              onClick={handleWithdraw}
-              className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white font-semibold py-3 rounded-lg"
-            >
-              <ArrowUpRight size={20} className="mr-2" />
-              Withdraw
-            </Button>
-          </div>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Coins Balance</h2>
+          <div className="text-4xl font-bold text-yellow-600 mb-2">{walletBalance.toLocaleString()} coins</div>
+          <div className="text-sm text-gray-500">Earn coins by playing quizzes and referrals.</div>
         </motion.div>
 
         <motion.div
@@ -102,7 +74,7 @@ const Wallet = () => {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg"
         >
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">Recent Transactions</h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-4">Recent Activity</h3>
           
           {loading ? (
             <div className="text-center py-8">
@@ -147,55 +119,14 @@ const Wallet = () => {
                   <div className={`font-semibold ${
                     ['reward','bonus','credit','referral','refund'].includes(transaction.type) ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {['reward','bonus','credit','referral','refund'].includes(transaction.type) ? '+' : '-'}₹{Math.abs(Number(transaction.amount) || 0)}
+                    {['reward','bonus','credit','referral','refund'].includes(transaction.type) ? '+' : '-'}{Math.abs(Number(transaction.amount) || 0)} coins
                   </div>
                 </motion.div>
               ))}
             </div>
           )}
         </motion.div>
-      {/* Refer & Earn */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-        className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg mt-6"
-      >
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Refer & Earn</h3>
-        <p className="text-gray-600 text-sm mb-4">Share your referral link and earn coins when friends join.</p>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={async () => {
-              try {
-                const code = (userProfile?.referral_code || user?.id);
-                const link = `${window.location.origin}?ref=${encodeURIComponent(code)}`;
-                if (navigator.clipboard?.writeText) {
-                  await navigator.clipboard.writeText(link);
-                } else {
-                  window.prompt('Copy your referral link:', link);
-                }
-              } catch {}
-            }}
-            className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm"
-          >
-            Copy Link
-          </button>
-          <a
-            href={`https://wa.me/?text=${encodeURIComponent('Join me on Quiz Dangal!')}%20${encodeURIComponent(window.location.origin + '?ref=' + (userProfile?.referral_code || user?.id))}`}
-            target="_blank" rel="noopener noreferrer"
-            className="px-3 py-2 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm"
-          >
-            Share on WhatsApp
-          </a>
-          <a
-            href={`https://t.me/share/url?url=${encodeURIComponent(window.location.origin + '?ref=' + (userProfile?.referral_code || user?.id))}&text=${encodeURIComponent('Join me on Quiz Dangal!')}`}
-            target="_blank" rel="noopener noreferrer"
-            className="px-3 py-2 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-sm"
-          >
-            Share on Telegram
-          </a>
-        </div>
-      </motion.div>
+      {/* Refer & Earn section removed in Wallet per new design */}
       </motion.div>
     </div>
   );
