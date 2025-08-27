@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/customSupabaseClient";
-import { Loader2, Crown, Wallet, TrendingUp, TrendingDown, Flame, Badge as BadgeIcon, Copy, Globe, Share2 } from 'lucide-react';
+import { Loader2, Crown, Wallet, TrendingUp, TrendingDown, Flame, Globe, Share2, Camera } from 'lucide-react';
 
 function StatCard({ icon: Icon, label, value, className = '' }) {
   return (
@@ -21,7 +21,8 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [sessionUser, setSessionUser] = useState(null);
   const [profile, setProfile] = useState(null);
-  const [copying, setCopying] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,7 +33,7 @@ export default function Profile() {
       if (u) {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, email, full_name, wallet_balance, total_earned, total_spent, streak_count, badges, level, referral_code')
+          .select('id, email, full_name, username, avatar_url, wallet_balance, total_earned, total_spent, streak_count, badges, level')
           .eq('id', u.id)
           .single();
         if (error) throw error;
@@ -67,6 +68,30 @@ export default function Profile() {
         window.prompt('Share this text:', `${text} ${link}`);
       }
     } catch {}
+  };
+
+  const onChooseAvatar = () => fileInputRef.current?.click();
+  const onAvatarSelected = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !sessionUser) return;
+    setUploading(true);
+    try {
+      const path = `${sessionUser.id}/${Date.now()}-${file.name}`;
+      const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+      if (upErr) throw upErr;
+      const { data: pub } = await supabase.storage.from('avatars').getPublicUrl(path);
+      const publicUrl = pub?.publicUrl;
+      if (!publicUrl) throw new Error('Could not get public URL');
+      const { error: updErr } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', sessionUser.id);
+      if (updErr) throw updErr;
+      await load();
+      alert('Avatar updated');
+    } catch (err) {
+      alert(`Avatar change failed: ${err?.message || 'Try again later'}`);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   if (loading) {
@@ -109,17 +134,43 @@ export default function Profile() {
       <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center text-gray-600 font-bold">
-              {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-              ) : (
-                <span>{(profile?.full_name || sessionUser?.email || 'U').charAt(0).toUpperCase()}</span>
-              )}
+            <div className="relative w-16 h-16">
+              <div className="w-16 h-16 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center text-gray-600 font-bold">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{(profile?.full_name || sessionUser?.email || 'U').charAt(0).toUpperCase()}</span>
+                )}
+              </div>
+              <button
+                onClick={onChooseAvatar}
+                disabled={uploading}
+                className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-white border shadow text-gray-700 hover:bg-gray-50"
+                title={uploading ? 'Uploading…' : 'Change avatar'}
+              >
+                <Camera className="w-4 h-4" />
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onAvatarSelected} />
             </div>
             <div>
               <div className="text-sm text-gray-500">Logged in as</div>
               <div className="text-xl font-semibold text-gray-800 break-all">{profile?.email || sessionUser.email}</div>
-              <div className="text-sm text-gray-600">{profile?.full_name || 'Anonymous'}</div>
+              <div className="text-sm text-gray-600">{profile?.full_name || 'Anonymous'}{profile?.username ? ` • @${profile.username}` : ''}</div>
+              {/* Badges inline */}
+              <div className="mt-2">
+                {Array.isArray(profile?.badges) && profile.badges.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {profile.badges.slice(0, 6).map((b, i) => (
+                      <span key={i} className="px-2 py-0.5 text-[10px] rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700">{b}</span>
+                    ))}
+                    {profile.badges.length > 6 && (
+                      <span className="px-2 py-0.5 text-[10px] rounded-full bg-gray-100 border border-gray-200 text-gray-600">+{profile.badges.length - 6}</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-xs text-gray-500">No badges yet</div>
+                )}
+              </div>
             </div>
           </div>
           <div className="text-right">
@@ -137,34 +188,14 @@ export default function Profile() {
         <StatCard icon={Flame} label="Streak" value={Number(profile?.streak_count || 0)} />
       </div>
 
-      {/* Badges */}
-      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
-        <div className="flex items-center mb-3">
-          <BadgeIcon className="w-4 h-4 text-indigo-600 mr-2" />
-          <h3 className="font-semibold text-gray-800">Badges</h3>
-        </div>
-        {Array.isArray(profile?.badges) && profile.badges.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {profile.badges.map((b, i) => (
-              <span key={i} className="px-3 py-1 text-xs rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700">{b}</span>
-            ))}
-          </div>
-        ) : (
-          <div className="text-sm text-gray-500">No badges yet</div>
-        )}
-      </div>
+  {/* Badges moved to header */}
 
   {/* Referral section removed as requested */}
 
-      {/* Menu */}
+    {/* Menu */}
       <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
         <div className="grid grid-cols-2 gap-2">
-          {menuItems.map((item) => (
-            <Link key={item.href} to={item.href} className="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm text-gray-700 text-center">
-              {item.label}
-            </Link>
-          ))}
-          {menuItems.map((item) => (
+      {menuItems.map((item) => (
             <Link key={item.href} to={item.href} className="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm text-gray-700 text-center">
               {item.label}
             </Link>

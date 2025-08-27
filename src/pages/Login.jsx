@@ -11,7 +11,7 @@ const Login = () => {
   const { toast } = useToast();
   const auth = useAuth();
   const { signUp, signIn } = auth;
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -178,7 +178,7 @@ const Login = () => {
           <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
             {isSignUp ? 'Create Account' : 'Welcome Back!'}
           </h1>
-          <p className="text-gray-600">Opinion-based quizzes with real prizes!</p>
+          <p className="text-gray-600">Play • Win • Redeem – Khelo Roz, Jeeto Roz!</p>
         </motion.div>
 
         <motion.form
