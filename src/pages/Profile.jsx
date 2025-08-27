@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/customSupabaseClient";
-import { Loader2, Crown, Wallet, TrendingUp, TrendingDown, Flame, Badge as BadgeIcon, Copy } from 'lucide-react';
+import { Loader2, Crown, Wallet, TrendingUp, TrendingDown, Flame, Badge as BadgeIcon, Copy, Globe, Share2 } from 'lucide-react';
 
 function StatCard({ icon: Icon, label, value, className = '' }) {
   return (
@@ -54,21 +54,19 @@ export default function Profile() {
     window.location.href = "/";
   };
 
-  const copyReferral = async () => {
-    if (!profile && !sessionUser) return;
-    setCopying(true);
+  const shareApp = async () => {
+    const link = window.location.origin;
+    const text = 'Join me on Quiz Dangal — Play daily quizzes, win coins and redeem rewards!';
     try {
-      const code = profile?.referral_code || sessionUser?.id;
-      const link = `${window.location.origin}?ref=${encodeURIComponent(code)}`;
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(link);
-        alert('Referral link copied to clipboard');
+      if (navigator.share) {
+        await navigator.share({ title: 'Quiz Dangal', text, url: link });
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(`${text} ${link}`);
+        alert('Share text copied');
       } else {
-        window.prompt('Copy your referral link:', link);
+        window.prompt('Share this text:', `${text} ${link}`);
       }
-    } finally {
-      setCopying(false);
-    }
+    } catch {}
   };
 
   if (loading) {
@@ -99,6 +97,10 @@ export default function Profile() {
     { label: "Contact Us", href: "/contact-us" },
     { label: "Terms & Conditions", href: "/terms-conditions" },
     { label: "Privacy Policy", href: "/privacy-policy" },
+  ];
+  const extraItems = [
+    { label: 'Language', onClick: () => alert('Languages coming soon'), icon: Globe },
+    { label: 'Share', onClick: shareApp, icon: Share2 },
   ];
 
   return (
@@ -152,22 +154,7 @@ export default function Profile() {
         )}
       </div>
 
-      {/* Referral */}
-      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm text-gray-600">Referral Code</div>
-            <div className="font-semibold text-gray-800">{profile?.referral_code || sessionUser.id}</div>
-          </div>
-          <button
-            onClick={copyReferral}
-            disabled={copying}
-            className="px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-sm flex items-center"
-          >
-            <Copy className="w-4 h-4 mr-1" /> {copying ? 'Copying...' : 'Copy Link'}
-          </button>
-        </div>
-      </div>
+  {/* Referral section removed as requested */}
 
       {/* Menu */}
       <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
@@ -176,6 +163,17 @@ export default function Profile() {
             <Link key={item.href} to={item.href} className="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm text-gray-700 text-center">
               {item.label}
             </Link>
+          ))}
+          {menuItems.map((item) => (
+            <Link key={item.href} to={item.href} className="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm text-gray-700 text-center">
+              {item.label}
+            </Link>
+          ))}
+          {extraItems.map((item, idx) => (
+            <button key={idx} onClick={item.onClick} className="px-3 py-3 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm text-gray-700 text-center flex items-center justify-center gap-2">
+              {item.icon ? <item.icon className="w-4 h-4" /> : null}
+              {item.label}
+            </button>
           ))}
         </div>
       </div>

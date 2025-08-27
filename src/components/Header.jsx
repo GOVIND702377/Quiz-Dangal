@@ -104,7 +104,7 @@ const Header = () => {
             {/* Coins indicator */}
             <Link
               to="/wallet"
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white/70 border-gray-200 hover:bg-gray-50 text-sm text-gray-700"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white/70 border-gray-200 hover:bg-gray-50 text-sm text-gray-700"
               title="Coins Balance"
             >
               <Coins className="w-4 h-4 text-yellow-500" />
@@ -113,7 +113,7 @@ const Header = () => {
 
               {/* Streak indicator */}
               <div
-                className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white/70 border-gray-200 text-sm text-gray-700"
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border bg-white/70 border-gray-200 text-sm text-gray-700"
                 title="Daily Streak"
               >
                 <Flame className="w-4 h-4 text-orange-500" />
