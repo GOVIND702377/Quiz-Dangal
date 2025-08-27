@@ -12,6 +12,7 @@ import Wallet from '@/pages/Wallet';
 import Profile from '@/pages/Profile';
 import ProfileUpdate from '@/pages/ProfileUpdate';
 import Login from '@/pages/Login';
+import ResetPassword from '@/pages/ResetPassword';
 import AboutUs from '@/pages/AboutUs';
 import ContactUs from '@/pages/ContactUs';
 import TermsConditions from '@/pages/TermsConditions';
@@ -55,6 +56,7 @@ function App() {
           <meta name="description" content="Login to Quiz Dangal and start playing opinion-based quizzes." />
         </Helmet>
         <Routes>
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="*" element={<Login />} />
         </Routes>
         <Toaster />
