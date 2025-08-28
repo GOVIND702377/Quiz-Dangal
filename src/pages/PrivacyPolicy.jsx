@@ -81,7 +81,7 @@ const PrivacyPolicy = () => {
       icon: Mail,
       title: '9. Contact Us',
       content: [
-        'For queries or concerns: quizdangalbusiness@gmail.com'
+  'For queries or concerns: support@quizdangal.com'
       ]
     },
   ];
@@ -151,7 +151,7 @@ const PrivacyPolicy = () => {
         <FileText className="w-12 h-12 text-pink-500 mx-auto mb-4" />
         <h3 className="text-xl font-bold gradient-text mb-3">Questions About This Policy?</h3>
         <p className="text-gray-800 leading-relaxed mb-2">We’re here to help.</p>
-        <p className="text-gray-600 text-sm">Contact: quizdangalbusiness@gmail.com</p>
+  <p className="text-gray-600 text-sm">Contact: support@quizdangal.com</p>
       </motion.div>
     </div>
   );

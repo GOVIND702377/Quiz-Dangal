@@ -10,8 +10,8 @@ const ContactUs = () => {
       icon: Mail,
       title: 'Email Support',
       description: 'For general inquiries, technical assistance, or gameplay questions.',
-      contact: 'quizdangalbusiness@gmail.com',
-      action: () => window.open('mailto:quizdangalbusiness@gmail.com')
+  contact: 'support@quizdangal.com',
+  action: () => window.open('mailto:support@quizdangal.com')
     },
     {
       icon: Phone,

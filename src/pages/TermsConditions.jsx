@@ -100,7 +100,7 @@ const TermsConditions = () => {
       icon: MessageSquare,
       title: '11. Contact Us',
       content: [
-        'For questions, support, or feedback: quizdangalbusiness@gmail.com'
+  'For questions, support, or feedback: support@quizdangal.com'
       ]
     }
   ];
