@@ -7,6 +7,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
 
 const Login = () => {
   const { toast } = useToast();
@@ -24,6 +25,7 @@ const Login = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [referralCode, setReferralCode] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Show a success toast if redirected from reset-password and switch to Sign In mode
   useEffect(() => {
@@ -44,9 +46,7 @@ const Login = () => {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
+        options: { redirectTo: window.location.origin },
       });
       if (error) throw error;
     } catch (error) {
@@ -61,7 +61,7 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsLoading(true);
+  setIsLoading(true);
     setEmailSent(false);
 
     if (isSignUp) {
@@ -201,9 +201,10 @@ const Login = () => {
           <p className="text-gray-600">Where Minds Clash</p>
         </motion.div>
 
-        {/* Small left-aligned label above the form to indicate current mode */}
+        {/* Mode badge above the form */}
         <div className="mb-2 text-left">
-          <span className="text-sm font-semibold text-gray-800">
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-semibold px-2.5 py-1">
+            {isSignUp ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
             {isSignUp ? 'Create Account' : 'Sign In'}
           </span>
         </div>
@@ -217,11 +218,30 @@ const Login = () => {
         >
           <div>
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email address" required />
           </div>
           <div>
             <Label htmlFor="password">Password</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required autoComplete={isSignUp ? "new-password" : "current-password"} />
+            <div className="relative">
+              <Input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                autoComplete={isSignUp ? "new-password" : "current-password"}
+                className="pr-10"
+              />
+              <button
+                type="button"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
             {!isSignUp && (
               <button
                 type="button"
