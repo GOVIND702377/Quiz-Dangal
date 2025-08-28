@@ -14,13 +14,29 @@ export default function ResetPassword() {
     const url = new URL(window.location.href);
     const hash = url.hash || '';
     const search = url.search || '';
-    if (hash.includes('type=recovery') || new URLSearchParams(search).get('type') === 'recovery') {
-      setInRecovery(true);
-    }
+
+    // 1) Best-effort detection from URL (works for both hash and query params)
+    const qs = new URLSearchParams(search);
+    const hashHasRecovery = hash.includes('type=recovery');
+    const queryHasRecovery = qs.get('type') === 'recovery';
+    const hasTokens = hash.includes('access_token=') || qs.has('code');
+    if (hashHasRecovery || queryHasRecovery || hasTokens) setInRecovery(true);
+
+    // 2) If the user arrives already signed-in on /reset-password (Supabase magic link), allow reset
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session && window.location.pathname.includes('/reset-password')) {
+          setInRecovery(true);
+        }
+      } catch {}
+    })();
+
+    // 3) React to auth events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setInRecovery(true);
       // If SDK logs user in due to magic link, keep them on this page until password is updated
-      if (event === 'SIGNED_IN' && (hash.includes('type=recovery') || new URLSearchParams(search).get('type') === 'recovery')) {
+      if (event === 'SIGNED_IN') {
         setInRecovery(true);
       }
     });
@@ -53,9 +69,9 @@ export default function ResetPassword() {
         <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2 text-center">
           Reset Password
         </h1>
-        {!inRecovery ? (
+    {!inRecovery ? (
           <div className="text-center text-gray-600">
-            The reset link is invalid or has expired. Please request a new one from the Sign In screen.
+      The reset link is invalid or has expired, or you are already signed in. If you see this by mistake, open the link again or request a new reset from the Sign In screen.
           </div>
         ) : (
           <form onSubmit={handleReset} className="space-y-4">
