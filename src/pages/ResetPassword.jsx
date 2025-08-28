@@ -52,10 +52,11 @@ export default function ResetPassword() {
     try {
       const { error } = await supabase.auth.updateUser({ password: pw1 });
       if (error) throw error;
-      setMessage('Password updated! Please sign in again.');
-      // For security: end any existing session that came from the recovery link
-      try { await supabase.auth.signOut(); } catch {}
-      setTimeout(() => navigate('/login'), 1200);
+  setMessage('Password updated! Redirecting to sign in…');
+  // For security: end any existing session that came from the recovery link
+  try { await supabase.auth.signOut(); } catch {}
+  // Redirect with success flag; replace to prevent navigating back to reset page
+  navigate('/login?reset=1', { replace: true });
     } catch (err) {
       setMessage(err?.message || 'Failed to update password.');
     } finally {

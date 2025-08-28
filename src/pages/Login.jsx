@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const Login = () => {
   const { toast } = useToast();
   const auth = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { signUp, signIn } = auth;
   const [isSignUp, setIsSignUp] = useState(true);
   const [email, setEmail] = useState('');
@@ -21,6 +24,19 @@ const Login = () => {
   const [forgotEmail, setForgotEmail] = useState("");
   const [forgotLoading, setForgotLoading] = useState(false);
   const [referralCode, setReferralCode] = useState('');
+
+  // Show a success toast if redirected from reset-password
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('reset') === '1') {
+      toast({
+        title: 'Password updated',
+        description: 'Please sign in with your new password.',
+      });
+      // Clean the query string so reloads don't re-toast
+      navigate('/login', { replace: true });
+    }
+  }, [location.search, navigate, toast]);
 
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
