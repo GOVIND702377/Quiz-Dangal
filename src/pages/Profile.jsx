@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/customSupabaseClient";
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Globe, Share2 } from 'lucide-react';
 
 // Removed StatCard and stats grid as requested
 
 export default function Profile() {
+  const { signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [sessionUser, setSessionUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -44,8 +46,7 @@ export default function Profile() {
   useEffect(() => { load(); }, [load]);
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    window.location.href = "/";
+    await signOut();
   };
 
   const shareApp = async () => {

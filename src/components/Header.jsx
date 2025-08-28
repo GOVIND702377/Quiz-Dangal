@@ -93,7 +93,7 @@ const Header = () => {
               <div className="text-lg sm:text-xl font-extrabold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 Quiz Dangal
               </div>
-              <div className="text-[10px] sm:text-[11px] text-gray-500 -mt-0.5">Play • Win • Redeem</div>
+              <div className="text-[10px] sm:text-[11px] text-gray-500 -mt-0.5">Where Minds Clash</div>
             </div>
           </Link>
 

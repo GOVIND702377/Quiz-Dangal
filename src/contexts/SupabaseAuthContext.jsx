@@ -198,6 +198,23 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
         return await supabase.auth.signInWithPassword({ email, password });
     };
 
+    const hardSignOut = async () => {
+        try { await supabase.auth.signOut(); } catch {}
+        try {
+            // Clear common Supabase/local keys to avoid ghost sessions
+            Object.keys(localStorage).forEach((k) => {
+                if (k.startsWith('sb-') || k.startsWith('qd_') || k.toLowerCase().includes('supabase')) {
+                    localStorage.removeItem(k);
+                }
+            });
+            sessionStorage.clear();
+        } catch {}
+        setUser(null);
+        setUserProfile(null);
+        // Redirect to login explicitly
+        try { window.location.assign('/login'); } catch { window.location.href = '/login'; }
+    };
+
     const value = {
         supabase,
         user,
@@ -206,7 +223,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
     isRecoveryFlow,
         signUp,
         signIn,
-        signOut: () => supabase.auth.signOut(),
+        signOut: hardSignOut,
         refreshUserProfile,
     };
 

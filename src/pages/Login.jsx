@@ -25,7 +25,7 @@ const Login = () => {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [referralCode, setReferralCode] = useState('');
 
-  // Show a success toast if redirected from reset-password
+  // Show a success toast if redirected from reset-password and switch to Sign In mode
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('reset') === '1') {
@@ -33,6 +33,7 @@ const Login = () => {
         title: 'Password updated',
         description: 'Please sign in with your new password.',
       });
+      setIsSignUp(false);
       // Clean the query string so reloads don't re-toast
       navigate('/login', { replace: true });
     }
@@ -195,10 +196,17 @@ const Login = () => {
             className="w-20 h-20 mx-auto mb-4 rounded-full shadow-lg"
           />
           <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            {isSignUp ? 'Create Account' : 'Welcome Back!'}
+            Quiz Dangal
           </h1>
-          <p className="text-gray-600">Play • Win • Redeem – Khelo Roz, Jeeto Roz!</p>
+          <p className="text-gray-600">Where Minds Clash</p>
         </motion.div>
+
+        {/* Small left-aligned label above the form to indicate current mode */}
+        <div className="mb-2 text-left">
+          <span className="text-sm font-semibold text-gray-800">
+            {isSignUp ? 'Create Account' : 'Sign In'}
+          </span>
+        </div>
 
         <motion.form
           initial={{ y: 20, opacity: 0 }}
