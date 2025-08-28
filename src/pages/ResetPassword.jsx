@@ -19,6 +19,10 @@ export default function ResetPassword() {
     }
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setInRecovery(true);
+      // If SDK logs user in due to magic link, keep them on this page until password is updated
+      if (event === 'SIGNED_IN' && (hash.includes('type=recovery') || new URLSearchParams(search).get('type') === 'recovery')) {
+        setInRecovery(true);
+      }
     });
     return () => subscription?.unsubscribe();
   }, []);
@@ -32,7 +36,9 @@ export default function ResetPassword() {
     try {
       const { error } = await supabase.auth.updateUser({ password: pw1 });
       if (error) throw error;
-      setMessage('Password updated! You can now sign in.');
+      setMessage('Password updated! Please sign in again.');
+      // For security: end any existing session that came from the recovery link
+      try { await supabase.auth.signOut(); } catch {}
       setTimeout(() => navigate('/login'), 1200);
     } catch (err) {
       setMessage(err?.message || 'Failed to update password.');

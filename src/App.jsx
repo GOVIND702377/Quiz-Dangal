@@ -72,6 +72,7 @@ function App() {
           <meta name="description" content="Confirm your email to continue." />
         </Helmet>
         <Routes>
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="*" element={<UnconfirmedEmail />} />
         </Routes>
         <Toaster />
@@ -85,6 +86,7 @@ function App() {
     return (
       <Router>
         <Routes>
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/profile-update" element={<ProfileUpdate />} />
           <Route path="*" element={<Navigate to="/profile-update" replace />} />
         </Routes>
@@ -102,6 +104,7 @@ function App() {
             <meta name="description" content="Join Quiz Dangal for exciting opinion-based quizzes with real prizes!" />
           </Helmet>
           <Routes>
+            <Route path="/reset-password" element={<ResetPassword />} />
              <Route path="/quiz/:id" element={<Quiz />} />
              <Route path="/results/:id" element={<Results />} />
              <Route path="/*" element={<MainLayout />} />

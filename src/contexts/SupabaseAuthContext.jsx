@@ -12,6 +12,7 @@ export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
     const [userProfile, setUserProfile] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [isRecoveryFlow, setIsRecoveryFlow] = useState(false);
 
     // Dev bypass: allow running app without Supabase for local UI testing
     const _bypass = String(import.meta.env.VITE_BYPASS_AUTH || '').toLowerCase();
@@ -61,6 +62,12 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
     };
 
     useEffect(() => {
+        // Detect recovery intent in URL once, so routing can allow reset page even if a session appears
+        try {
+            const u = new URL(window.location.href);
+            const isRec = (u.hash || '').includes('type=recovery') || new URLSearchParams(u.search).get('type') === 'recovery';
+            if (isRec) setIsRecoveryFlow(true);
+        } catch {}
         setLoading(true);
         // Pehli baar session check karne ke liye
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -89,6 +96,9 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
                 refreshUserProfile(currentUser);
             } else {
                 setUserProfile(null);
+            }
+            if (event === 'PASSWORD_RECOVERY') {
+                setIsRecoveryFlow(true);
             }
             // If Supabase reports the user signed out (often after a failed refresh), clear state
             if (event === 'SIGNED_OUT') {
@@ -193,6 +203,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
         user,
         userProfile,
         loading,
+    isRecoveryFlow,
         signUp,
         signIn,
         signOut: () => supabase.auth.signOut(),
