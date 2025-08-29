@@ -1,3 +1,7 @@
 {
-    "codium.codeCompletion.enable": false
+    "codium.codeCompletion.enable": false,
+    "css.validate": false,
+    "tailwindCSS.validate": true,
+    "tailwindCSS.classAttributes": ["class", "className", "ngClass"],
+    "tailwindCSS.experimental.configFile": "tailwind.config.js"
 }
