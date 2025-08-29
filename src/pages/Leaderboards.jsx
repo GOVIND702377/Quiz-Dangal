@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Loader2, Trophy, ChevronRight } from 'lucide-react';
+import { Loader2, Trophy, ChevronRight, Search } from 'lucide-react';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const periods = [
   { key: 'all', label: 'All-time' },
@@ -14,23 +15,22 @@ function useQuery() {
   return useMemo(() => new URLSearchParams(search), [search]);
 }
 
-function LeaderboardRow({ rank, name, level, coins, referrals, streak, badges }) {
+function LeaderboardRow({ rank, name, level, coins, referrals, streak, badges, highlight = false }) {
   const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
   return (
-    <div className="flex items-center justify-between p-3 rounded-xl bg-white/70 border border-gray-200/50">
+    <div className={`flex items-center justify-between p-3 rounded-xl bg-white/80 border ${highlight ? 'border-indigo-300 ring-1 ring-indigo-200' : 'border-gray-200/50'} shadow-sm hover:shadow-md transition`}>
       <div className="flex items-center space-x-3">
         <div className={`w-10 h-10 flex items-center justify-center rounded-full font-bold ${
           rank === 1 ? 'bg-yellow-100 text-yellow-700' : rank === 2 ? 'bg-gray-100 text-gray-700' : rank === 3 ? 'bg-orange-100 text-orange-700' : 'bg-indigo-50 text-indigo-700'
         }`}>{medal}</div>
-        <div>
-          <div className="font-semibold text-gray-800">{name || 'Anonymous'}</div>
+        <div className="min-w-0">
+          <div className="font-semibold text-gray-800 truncate max-w-[160px] sm:max-w-[240px]">{name || 'Anonymous'}</div>
           <div className="text-xs text-gray-500">Level: {level || '—'}</div>
         </div>
       </div>
       <div className="flex items-center space-x-6 text-sm">
         <div className="text-right">
-          <div className="text-gray-900 font-semibold">{coins}</div>
-          <div className="text-gray-500 text-xs">Coins</div>
+          <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">🪙 {coins}</div>
         </div>
         <div className="text-right hidden sm:block">
           <div className="text-gray-900 font-semibold">{referrals ?? 0}</div>
@@ -55,11 +55,13 @@ function LeaderboardRow({ rank, name, level, coins, referrals, streak, badges })
 
 export default function Leaderboards() {
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
   const query = useQuery();
   const period = query.get('period') || 'all';
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
 
   useEffect(() => {
     let isMounted = true;
@@ -139,6 +141,20 @@ export default function Leaderboards() {
     navigate({ search: params.toString() });
   };
 
+  const filteredRows = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    if (!s) return rows;
+    return rows.filter((r) => (r.name || '').toLowerCase().includes(s));
+  }, [rows, search]);
+
+  const myIndex = useMemo(() => {
+    const n = (userProfile?.full_name || '').toLowerCase();
+    if (!n) return -1;
+    return rows.findIndex((r) => (r.name || '').toLowerCase() === n);
+  }, [rows, userProfile]);
+  const myRow = myIndex >= 0 ? rows[myIndex] : null;
+  const myRank = myIndex >= 0 ? myIndex + 1 : null;
+
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -150,20 +166,31 @@ export default function Leaderboards() {
         </div>
       </div>
 
-      <div className="flex items-center space-x-2">
-        {periods.map((p) => (
-          <button
-            key={p.key}
-            onClick={() => onTabClick(p.key)}
-            className={`px-4 py-2 rounded-full text-sm font-medium border transition ${
-              period === p.key
-                ? 'bg-indigo-600 text-white border-indigo-600'
-                : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-            }`}
-          >
-            {p.label}
-          </button>
-        ))}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center flex-wrap gap-2">
+          {periods.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => onTabClick(p.key)}
+              className={`px-4 py-2 rounded-full text-sm font-medium border transition ${
+                period === p.key
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div className="relative">
+          <Search className="w-4 h-4 text-gray-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search players..."
+            className="pl-9 pr-3 py-2 rounded-full border border-gray-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-indigo-200 text-sm w-full sm:w-64"
+          />
+        </div>
       </div>
 
       {/* Podium for top 3 */}
@@ -184,6 +211,22 @@ export default function Leaderboards() {
         </div>
       )}
 
+      {/* My Rank */}
+      {!loading && !error && myRow && (
+        <div className="rounded-2xl p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border border-indigo-100 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">{myRank}</div>
+              <div>
+                <div className="font-semibold text-gray-800">{myRow.name || 'You'}</div>
+                <div className="text-xs text-gray-500">Your position</div>
+              </div>
+            </div>
+            <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">🪙 {myRow.coins}</div>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg mt-4">
         {loading ? (
           <div className="py-12 flex flex-col items-center text-gray-600">
@@ -196,11 +239,11 @@ export default function Leaderboards() {
           <div className="py-8 text-center text-gray-600">No data available</div>
         ) : (
           <div className="space-y-2">
-            {rows.map((r) => (
-              <LeaderboardRow key={r.rank} {...r} />
+            {filteredRows.map((r) => (
+              <LeaderboardRow key={r.rank} {...r} highlight={myRank === r.rank} />
             ))}
             <div className="flex justify-end text-xs text-gray-500 mt-2">
-              Showing top {rows.length}
+              Showing {filteredRows.length} of {rows.length}
               <ChevronRight className="w-3 h-3 ml-1" />
             </div>
           </div>

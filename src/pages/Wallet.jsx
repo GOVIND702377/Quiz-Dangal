@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Coins, ArrowDownLeft, Trophy, Share2, Copy, Check, ExternalLink, Gift } from 'lucide-react';
+import { Coins, Share2, Copy, Check, ExternalLink, Gift } from 'lucide-react';
 
 const Wallet = () => {
   const { toast } = useToast();
@@ -112,104 +113,91 @@ const Wallet = () => {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-6">
+    <div className="container mx-auto px-4 py-0">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-  <h1 className="text-3xl font-bold gradient-text mb-8 text-center">My Wallet</h1>
-        
+  {/* Main heading centered in blue */}
+  <h1 className="text-3xl md:text-4xl font-extrabold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600">My Wallet</h1>
+  {/* Refer & Earn stays below */}
+
+  {/* Coins Balance card - compact with coin left and Redeem left */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="relative overflow-hidden rounded-2xl p-6 mb-6 text-center shadow-lg border border-amber-100 bg-gradient-to-br from-yellow-50 via-amber-50 to-yellow-100"
+          className="relative overflow-hidden rounded-3xl p-3 md:p-4 mb-2 shadow-xl ring-1 ring-black/5 border border-white/40 bg-white/70 backdrop-blur-xl"
         >
-          {/* Floating coins on open */}
-          <motion.div
-            className="pointer-events-none absolute -bottom-6 left-6 text-yellow-400"
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 0.6, y: -8 }}
-            transition={{ duration: 1.2, delay: 0.2 }}
-          >
-            <Coins size={20} />
-          </motion.div>
-          <motion.div
-            className="pointer-events-none absolute -bottom-8 right-10 text-amber-400"
-            initial={{ opacity: 0, y: 28 }}
-            animate={{ opacity: 0.6, y: -10 }}
-            transition={{ duration: 1.2, delay: 0.35 }}
-          >
-            <Coins size={16} />
-          </motion.div>
-          <motion.div
-            className="pointer-events-none absolute -bottom-10 left-1/2 text-yellow-500"
-            initial={{ opacity: 0, y: 32 }}
-            animate={{ opacity: 0.6, y: -12 }}
-            transition={{ duration: 1.2, delay: 0.5 }}
-          >
-            <Coins size={14} />
-          </motion.div>
+          {/* decorative blobs removed per request */}
 
-          <div className="flex justify-center mb-4">
-            <motion.div
-              animate={bouncing ? { scale: [1, 1.2, 1] } : {}}
-              transition={{ duration: 0.6, ease: 'easeOut' }}
-              className="bg-gradient-to-r from-yellow-400 to-amber-500 p-4 rounded-full shadow-[0_0_20px_rgba(245,158,11,0.5)]"
-            >
-              <Coins size={32} className="text-white drop-shadow" />
-            </motion.div>
-          </div>
-          <div className="text-sm font-medium text-gray-600 tracking-wide">Coins Balance</div>
-          <div className="text-4xl font-extrabold text-amber-600 mb-1">{walletBalance.toLocaleString()} coins</div>
-          <div className="text-sm text-gray-600">👉 Keep playing, keep earning!</div>
-
-          {/* Streak and progress */}
-          <div className="mt-4 flex flex-col items-center gap-2">
-            <div className="text-sm text-gray-700">
-              🔥 Streak Counter: <span className="font-semibold">Day {Number(userProfile?.streak_count || 0)}</span>
-              {Number(userProfile?.streak_count || 0) === 0 ? ' → Start playing to build streaks!' : ''}
-            </div>
-            <div className="w-full max-w-md">
-              <div className="flex items-center justify-between mb-1 text-[11px] text-gray-700">
-                <span>Progress to next reward</span>
-                <span>100 coins → Next Reward</span>
+          {/* decorative floating coins removed per request */}
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            {/* Left: Coin icon + balance */}
+            <div className="flex items-center gap-3 min-w-[230px] flex-1">
+              <motion.div
+                animate={bouncing ? { scale: [1, 1.12, 1] } : {}}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
+                className="relative bg-gradient-to-r from-yellow-400 to-amber-500 p-3 rounded-full shadow-[0_0_14px_rgba(245,158,11,0.45)] -mt-1"
+                aria-hidden
+              >
+                <Coins size={22} className="text-white drop-shadow" />
+                <motion.span
+                  className="pointer-events-none absolute inset-0 rounded-full"
+                  initial={{ opacity: 0.25 }}
+                  animate={{ opacity: [0.2, 0.45, 0.2] }}
+                  transition={{ duration: 2.2, repeat: Infinity }}
+                  style={{ boxShadow: '0 0 18px 4px rgba(245,158,11,0.3)' }}
+                />
+              </motion.div>
+              <div>
+                <div className="text-xs font-medium text-gray-700 tracking-wide">Coins Balance</div>
+                <div className="text-3xl md:text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-amber-600 via-yellow-600 to-orange-500 leading-tight">
+                  {walletBalance.toLocaleString()} coins
+                </div>
+                <motion.div
+                  className="text-xs md:text-sm text-gray-700"
+                  initial={{ opacity: 0.6 }}
+                  animate={{ opacity: [0.6, 1, 0.6] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                >
+                  Your wallet is waiting to be filled 💸
+                </motion.div>
               </div>
-              {(() => {
-                const target = 100;
-                const pct = Math.min(100, Math.round(((walletBalance % target) / target) * 100));
-                return (
-                  <div className="h-2 bg-white/60 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-amber-400 to-yellow-500"
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                );
-              })()}
-              <div className="text-[11px] text-gray-500 mt-1">More Quizzes = More Coins = More Rewards!</div>
+            </div>
+            {/* Redeem moved to right side */}
+            <div className="ml-auto self-start">
+              <Link
+                to="/redemptions"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md hover:shadow-lg hover:scale-[1.015] active:scale-100 transition focus:outline-none focus:ring-2 focus:ring-pink-300"
+              >
+                <Gift className="w-4 h-4" />
+                <span className="font-semibold tracking-wide">Redeem Coins</span>
+              </Link>
             </div>
           </div>
+
+          {/* Progress removed per request */}
         </motion.div>
 
-        {/* Refer & Earn */}
+        {/* Refer & Earn - moved below wallet card (slightly smaller) */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.15 }}
-          className="rounded-2xl p-6 shadow-lg mb-6 border border-indigo-200 bg-gradient-to-r from-violet-500 via-indigo-500 to-blue-500 text-white"
+          className="rounded-2xl p-3 shadow-lg mb-2 border border-indigo-200 bg-gradient-to-r from-violet-500 via-indigo-500 to-blue-500 text-white"
         >
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3">
-              <img src="/android-chrome-512x512.png" alt="Quiz Dangal" className="w-12 h-12 rounded-xl ring-2 ring-white/40" />
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2">
+              <img src="/android-chrome-512x512.png" alt="Quiz Dangal" className="w-9 h-9 rounded-xl ring-2 ring-white/40" />
               <div>
-                <div className="text-lg font-bold">Refer & Earn</div>
-                <div className="text-sm opacity-90">Invite friends, they join — you earn referral rewards</div>
+                <div className="text-base font-bold">Refer & Earn</div>
+                <div className="text-sm opacity-90">Invite friends, they join — you earn rewards</div>
               </div>
             </div>
-            <Button onClick={handleShareInvite} className="bg-white text-indigo-700 hover:bg-white/90">
-              <Share2 className="w-4 h-4 mr-2" /> {sharing ? 'Sharing…' : '🚀 Invite & Earn'}
+            <Button onClick={handleShareInvite} className="bg-white text-indigo-700 hover:bg-white/90 px-2.5 py-1.5 text-sm">
+              <Share2 className="w-4 h-4 mr-2" /> {sharing ? 'Sharing…' : 'Invite & Earn'}
             </Button>
           </div>
           {showShareOptions && (
@@ -237,29 +225,38 @@ const Wallet = () => {
           )}
         </motion.div>
 
+        {/* Recent Activity - glass card + skeletons */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg"
+          className="rounded-3xl p-6 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40"
         >
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold text-gray-900">Recent Activity</h3>
-            <button disabled className="text-sm px-3 py-1.5 rounded-lg border bg-white text-gray-400 flex items-center" title="Coming soon">
-              <Gift className="w-4 h-4 mr-1 text-yellow-600" /> Redeem Coins
-            </button>
           </div>
           
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 mx-auto"></div>
-              <p className="text-gray-700 mt-2">Loading transactions...</p>
+      {loading ? (
+            <div className="space-y-3">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="p-3 rounded-lg bg-white/70 border border-gray-100/60 shadow-sm">
+                  <div className="animate-pulse flex items-center justify-between">
+                    <div className="flex items-center space-x-3 w-2/3">
+                      <div className="w-8 h-8 rounded-full bg-gray-200" />
+                      <div className="flex-1">
+                        <div className="h-3 bg-gray-200 rounded w-2/3 mb-2" />
+                        <div className="h-2.5 bg-gray-200 rounded w-1/3" />
+                      </div>
+                    </div>
+                    <div className="h-3 w-16 bg-gray-200 rounded" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : transactions.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-4xl mb-2">🪙</div>
-              <p className="text-gray-800 font-medium">No activity yet — Start your first quiz and earn coins!</p>
-              <p className="text-gray-500 text-sm mt-1">Your wallet will show quiz rewards, referrals and redeems here.</p>
+        <p className="text-gray-800 font-semibold">Your wallet’s hungry — feed it with wins 💰</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -269,7 +266,7 @@ const Wallet = () => {
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.3, delay: index * 0.1 }}
-                  className="flex items-center justify-between p-3 bg-gray-50/80 rounded-lg"
+                  className="flex items-center justify-between p-3 bg-white/80 rounded-lg border border-gray-100/70 shadow-sm hover:shadow-md transition"
                 >
                   <div className="flex items-center space-x-3">
                     <div className="p-2 rounded-full bg-white border flex items-center justify-center w-8 h-8">
@@ -302,7 +299,6 @@ const Wallet = () => {
             </div>
           )}
         </motion.div>
-      {/* Refer & Earn section removed in Wallet per new design */}
       </motion.div>
     </div>
   );

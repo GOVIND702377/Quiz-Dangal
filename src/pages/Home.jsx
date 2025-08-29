@@ -51,7 +51,7 @@ const Home = () => {
   const [weeklyTop, setWeeklyTop] = useState([]);
   const [monthlyTop, setMonthlyTop] = useState([]);
   const [streakClaiming, setStreakClaiming] = useState(false);
-  const categories = ['All', 'GK', 'Sports', 'Movies', 'Opinion Polls'];
+  const categories = ['All', 'GK', 'Sports', 'Opinion Polls', 'Movies'];
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   const fetchQuizzesAndCounts = useCallback(async () => {
@@ -222,21 +222,21 @@ const Home = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
+  <div className="container mx-auto px-4 py-4 space-y-6">
        <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="text-center mb-8"
+  className="text-center mb-6"
       >
-        <div className="flex justify-center mb-4">
+  <div className="flex justify-center mb-3">
           <img 
             src="/android-chrome-512x512.png" 
             alt="Quiz Dangal Logo" 
             className="w-16 h-16 rounded-full shadow-lg"
           />
         </div>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Today's Quizzes</h1>
+  <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Today's Quizzes</h1>
         <p className="text-gray-600">Join opinion-based quizzes and win amazing prizes!</p>
         <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
           <button
@@ -257,7 +257,7 @@ const Home = () => {
       </motion.div>
 
       {/* Category filters */}
-      <div className="flex items-center justify-center gap-2 flex-wrap -mt-4">
+  <div className="flex items-center justify-center gap-2 flex-nowrap overflow-x-auto -mt-4">
         {categories.map((c) => (
           <button
             key={c}
