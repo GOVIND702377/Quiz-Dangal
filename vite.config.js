@@ -1,7 +1,5 @@
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
-import path from 'node:path';
-import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 // Clean Vite config without any Hostinger/Horizons debug injections
@@ -34,4 +32,3 @@ export default defineConfig({
 		},
 	},
 });
-				'@babel/types'
