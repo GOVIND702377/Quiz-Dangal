@@ -240,26 +240,26 @@ export default function Profile() {
       )}
 
       {/* Menu (vertical list with simple icons) */}
-      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-2 shadow-lg">
-        <div className="flex flex-col gap-2">
+      <div className="bg-gradient-to-br from-white/90 to-indigo-50/60 backdrop-blur-md border border-gray-100 rounded-2xl p-3 shadow-xl">
+        <div className="flex flex-col gap-3">
           {menuItems.map((item, idx) => {
             const content = (
-              <div className="w-full flex items-center justify-between px-3 py-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-sm text-gray-700">
+              <div className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-gray-100 bg-white/90 hover:shadow-lg hover:-translate-y-0.5 hover:bg-indigo-50/60 transition-all duration-200 text-sm text-gray-800 cursor-pointer">
                 <div className="flex items-center gap-3">
-                  <span className="w-8 h-8 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center">
-                    <item.icon className="w-4 h-4" />
+                  <span className="w-9 h-9 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center shadow-sm">
+                    <item.icon className="w-5 h-5" />
                   </span>
-                  <span className="font-medium">{item.label}</span>
+                  <span className="font-semibold tracking-wide">{item.label}</span>
                 </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
+                <ChevronRight className="w-4 h-4 text-gray-300" />
               </div>
             );
             return item.href ? (
-              <Link key={idx} to={item.href}>
+              <Link key={idx} to={item.href} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-indigo-300 rounded-xl">
                 {content}
               </Link>
             ) : (
-              <button key={idx} onClick={item.onClick} className="text-left">
+              <button key={idx} onClick={item.onClick} className="text-left w-full focus:outline-none focus:ring-2 focus:ring-indigo-300 rounded-xl">
                 {content}
               </button>
             );
