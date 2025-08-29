@@ -23,53 +23,77 @@ export default function Profile() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const u = session?.user || null;
-      setSessionUser(u);
-      if (u) {
-        const { data, error } = await supabase
+      {/* Header */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-white/95 to-indigo-50/60 backdrop-blur-md border border-gray-100 rounded-2xl p-6 shadow-xl ring-1 ring-white/60">
+        {/* decorative glow */}
+        <div className="pointer-events-none absolute -top-16 -right-10 w-56 h-56 rounded-full bg-gradient-to-br from-indigo-400/25 via-fuchsia-300/20 to-purple-300/10 blur-3xl" />
+
+        <div className="relative flex flex-col md:flex-row md:items-start md:justify-between gap-6">
           .from('profiles')
-          .select('id, email, full_name, username, avatar_url, wallet_balance, total_earned, total_spent, streak_count, badges, level')
-          .eq('id', u.id)
-          .single();
+          <div className="flex flex-col items-center md:items-start gap-3">
+            <div className="relative w-24 h-24">
+              {/* gradient ring wrapper */}
+              <div className="absolute inset-0 -z-10 rounded-full bg-gradient-to-br from-amber-400 via-pink-400 to-violet-600 opacity-20 blur-xl" />
+              <div className="p-[2px] rounded-full bg-gradient-to-br from-amber-400 via-pink-400 to-violet-600">
+                <div className={`w-20 h-20 rounded-full overflow-hidden flex items-center justify-center text-gray-700 font-bold bg-white ring-2 ring-offset-2 ring-white ${getLevelRingClass(profile?.level)}`}>
         if (error) throw error;
         setProfile(data);
         setNewUsername(data?.username || "");
-      } else {
-        setProfile(null);
+                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-100 via-purple-100 to-pink-100">
+                    <span className="text-xl">
       }
     } catch (e) {
       setProfile(null);
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const handleSignOut = async () => {
-    await signOut();
-  };
-
+              <button
+                onClick={onChooseAvatar}
+                disabled={uploading}
+                className="absolute -bottom-1 -right-1 p-1.5 rounded-full bg-white/90 border border-gray-200 shadow-md text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+                title={uploading ? 'Uploading…' : 'Change avatar'}
+              >
+                <Camera className="w-4 h-4" />
+              </button>
   const shareApp = async () => {
     const link = window.location.origin;
-    const text = 'Join me on Quiz Dangal — Play daily quizzes, win coins and redeem rewards!';
-    try {
-      if (navigator.share) {
+            <div className="text-center md:text-left">
+              <div className="flex items-center justify-center md:justify-start gap-2 text-xs text-gray-500">
+                <Mail className="w-3.5 h-3.5" />
+                <span>Email</span>
+              </div>
+              <div className="text-lg font-semibold text-gray-800 break-all">{profile?.email || sessionUser.email}</div>
         await navigator.share({ title: 'Quiz Dangal', text, url: link });
       } else if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(`${text} ${link}`);
-        alert('Share text copied');
-      } else {
-        window.prompt('Share this text:', `${text} ${link}`);
-      }
-    } catch {}
-  };
-
-  const onChooseAvatar = () => fileInputRef.current?.click();
-  const onAvatarSelected = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !sessionUser) return;
-    setUploading(true);
-    try {
+          <div className="md:text-right w-full md:w-auto">
+            <div className="text-xs text-gray-500">Username</div>
+            <div className="flex items-center gap-2 justify-between md:justify-end">
+              {profile?.username ? (
+                <span className="font-semibold text-gray-900">@{profile.username}</span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-gray-600 text-sm">
+                  <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-100">Not set</span>
+                </span>
+              )}
+              <Link to="/profile-update" className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm shadow hover:from-indigo-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                Edit Profile
+              </Link>
+            </div>
+            <div className="mt-3 flex items-center md:justify-end gap-2 text-xs text-gray-600">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                <Crown className="w-3.5 h-3.5 mr-1" />
+                Level {profile?.level ?? '—'} · {getLevelTitle(profile?.level)}
+              </span>
+            </div>
+            <div className="mt-2 h-2 w-full md:w-64 bg-gradient-to-r from-gray-200 to-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500" style={{ width: `${getLevelProgress(profile?.total_earned)}%` }} />
+            </div>
+            <div className="mt-1 text-[11px] text-gray-500">{getLevelProgress(profile?.total_earned)}% to next level</div>
+            <button onClick={() => setShowBadges((v) => !v)} className="mt-2 text-xs text-indigo-700 hover:text-indigo-800 underline underline-offset-2">
+              {showBadges ? 'Hide badges' : 'View badges'}
+            </button>
+          </div>
       const path = `${sessionUser.id}/${Date.now()}-${file.name}`;
       const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
       if (upErr) throw upErr;
