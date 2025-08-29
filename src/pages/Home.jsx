@@ -49,7 +49,7 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [participantCounts, setParticipantCounts] = useState({});
   // Top-3 and streak removed
-  const categories = ['All', 'GK', 'Sports', 'Opinion Polls', 'Movies'];
+  const categories = ['All', 'GK', 'Sports', 'Opinion', 'Movies'];
   const [selectedCategory, setSelectedCategory] = useState('All');
 
   const fetchQuizzesAndCounts = useCallback(async () => {
