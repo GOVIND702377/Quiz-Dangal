@@ -7,7 +7,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { Eye, EyeOff, LogIn, UserPlus } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
   const { toast } = useToast();
@@ -201,10 +201,9 @@ const Login = () => {
           <p className="text-gray-600">Where Minds Clash</p>
         </motion.div>
 
-        {/* Mode badge above the form */}
+        {/* Mode label (no box) */}
         <div className="mb-2 text-left">
-          <span className="inline-flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 text-sm font-semibold px-2.5 py-1">
-            {isSignUp ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+          <span className="text-indigo-700 text-sm font-semibold">
             {isSignUp ? 'Create Account' : 'Sign In'}
           </span>
         </div>
