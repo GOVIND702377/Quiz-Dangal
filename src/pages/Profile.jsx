@@ -164,7 +164,7 @@ export default function Profile() {
     { label: 'Contact Us', href: '/contact-us', icon: Mail },
     { label: 'Terms & Conditions', href: '/terms-conditions', icon: FileText },
     { label: 'Privacy Policy', href: '/privacy-policy', icon: Shield },
-    { label: 'Language', onClick: () => alert('Languages coming soon'), icon: Globe },
+    { label: 'Language', href: '/language', icon: Globe },
     { label: 'Share', onClick: shareApp, icon: Share2 },
   ];
 

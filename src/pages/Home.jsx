@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Clock, Users, Star, Gift, Loader2, Play, Flame, Crown } from 'lucide-react';
+import { Clock, Users, Star, Gift, Loader2, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
@@ -44,13 +44,11 @@ const CountdownTimer = ({ targetTime, onEnd, label }) => {
 const Home = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, userProfile, refreshUserProfile } = useAuth();
+  const { user } = useAuth();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [participantCounts, setParticipantCounts] = useState({});
-  const [weeklyTop, setWeeklyTop] = useState([]);
-  const [monthlyTop, setMonthlyTop] = useState([]);
-  const [streakClaiming, setStreakClaiming] = useState(false);
+  // Top-3 and streak removed
   const categories = ['All', 'GK', 'Sports', 'Opinion Polls', 'Movies'];
   const [selectedCategory, setSelectedCategory] = useState('All');
 
@@ -130,58 +128,7 @@ const Home = () => {
       }
   }, [quizzes]);
 
-  // Fetch top 3 weekly & monthly leaderboards
-  useEffect(() => {
-    let mounted = true;
-    async function loadTop() {
-      try {
-        const [w, m] = await Promise.all([
-          supabase.from('leaderboard_weekly').select('*'),
-          supabase.from('leaderboard_monthly').select('*')
-        ]);
-        if (!mounted) return;
-        if (!w.error && Array.isArray(w.data)) {
-          const sorted = [...w.data].sort((a,b)=>Number(b.coins_earned||0)-Number(a.coins_earned||0));
-          setWeeklyTop(sorted.slice(0,3));
-        }
-        if (!m.error && Array.isArray(m.data)) {
-          const sorted = [...m.data].sort((a,b)=>Number(b.coins_earned||0)-Number(a.coins_earned||0));
-          setMonthlyTop(sorted.slice(0,3));
-        }
-      } catch {}
-    }
-    loadTop();
-    return ()=>{ mounted = false };
-  }, []);
-
-  const handleClaimStreak = async () => {
-    if (!user || streakClaiming) return;
-    setStreakClaiming(true);
-    try {
-      // Try RPC first
-      let ok = false;
-      const rpcTries = [
-  // Support multiple param names to match DB function signature
-  () => supabase.rpc('update_streak', { p_user_id: user.id }),
-  () => supabase.rpc('update_streak', { user_id: user.id }),
-  () => supabase.rpc('update_streak', { user_uuid: user.id })
-      ];
-      for (const t of rpcTries) {
-        const { error } = await t();
-        if (!error) { ok = true; break; }
-      }
-      // Fallback: insert activity transaction to trigger streak update
-      if (!ok) {
-        await supabase.from('transactions').insert([{ user_id: user.id, type: 'activity', amount: 0, status: 'ok', created_at: new Date().toISOString() }]);
-      }
-      await refreshUserProfile(user);
-      toast({ title: 'Streak updated', description: `Day ${Number(userProfile?.streak_count||0)+1} streak claimed!` });
-    } catch (e) {
-      toast({ title: 'Failed', description: e.message || 'Could not update streak', variant: 'destructive' });
-    } finally {
-      setStreakClaiming(false);
-    }
-  };
+  // Streak logic removed
 
   const handleJoinQuiz = async (quiz) => {
     try {
@@ -222,42 +169,26 @@ const Home = () => {
   };
 
   return (
-  <div className="container mx-auto px-4 py-4 space-y-6">
+    <div className="container mx-auto px-4 py-4 space-y-6">
        <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-  className="text-center mb-6"
+        className="text-center mb-6"
       >
-  <div className="flex justify-center mb-3">
+        <div className="flex justify-center mb-3">
           <img 
             src="/android-chrome-512x512.png" 
             alt="Quiz Dangal Logo" 
             className="w-16 h-16 rounded-full shadow-lg"
           />
         </div>
-  <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Today's Quizzes</h1>
-        <p className="text-gray-600">Join opinion-based quizzes and win amazing prizes!</p>
-        <div className="mt-4 flex items-center justify-center gap-2 flex-wrap">
-          <button
-            onClick={handleClaimStreak}
-            disabled={streakClaiming}
-            className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 shadow"
-          >
-            <Flame className="w-4 h-4 mr-2" />
-            Day {userProfile?.streak_count ?? 0} Streak – +{userProfile?.streak_count ?? 0} coins
-          </button>
-          <Link
-            to="/leaderboards"
-            className="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 shadow"
-          >
-            <Play className="w-4 h-4 mr-2" /> View Leaderboards
-          </Link>
-        </div>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-1">Today's Quizzes</h1>
+        <p className="text-gray-600">Quizzes for every mood ~ Prizes for every win</p>
       </motion.div>
 
       {/* Category filters */}
-  <div className="flex items-center justify-center gap-2 flex-nowrap overflow-x-auto -mt-4">
+      <div className="flex items-center justify-center gap-2 flex-nowrap overflow-x-auto -mt-4">
         {categories.map((c) => (
           <button
             key={c}
@@ -272,52 +203,7 @@ const Home = () => {
           </button>
         ))}
       </div>
-
-      {/* Weekly / Monthly Top-3 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
-          <div className="flex items-center mb-2">
-            <Crown className="w-4 h-4 text-indigo-600 mr-2" />
-            <h3 className="font-semibold text-gray-800">Weekly Top 3</h3>
-          </div>
-          {weeklyTop.length === 0 ? (
-            <div className="text-sm text-gray-500">No data</div>
-          ) : (
-            <div className="space-y-2">
-              {weeklyTop.map((r, i) => (
-                <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">{i+1}</div>
-                    <div className="text-sm font-medium text-gray-800">{r.full_name || 'Anonymous'}</div>
-                  </div>
-                  <div className="text-sm text-gray-700">{Number(r.coins_earned || 0)} coins</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
-          <div className="flex items-center mb-2">
-            <Crown className="w-4 h-4 text-purple-600 mr-2" />
-            <h3 className="font-semibold text-gray-800">Monthly Top 3</h3>
-          </div>
-          {monthlyTop.length === 0 ? (
-            <div className="text-sm text-gray-500">No data</div>
-          ) : (
-            <div className="space-y-2">
-              {monthlyTop.map((r, i) => (
-                <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-gray-50">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold">{i+1}</div>
-                    <div className="text-sm font-medium text-gray-800">{r.full_name || 'Anonymous'}</div>
-                  </div>
-                  <div className="text-sm text-gray-700">{Number(r.coins_earned || 0)} coins</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      {/* Weekly / Monthly Top-3 removed per request */}
 
       {loading ? (
         <div className="text-center py-8 flex justify-center">
@@ -407,28 +293,7 @@ const Home = () => {
         </div>
       )}
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-        className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 text-center shadow-lg"
-      >
-        <h3 className="text-xl font-semibold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">How It Works</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-          <div>
-            <div className="text-2xl mb-2">🎯</div>
-            <p>Answer 10 opinion-based questions</p>
-          </div>
-          <div>
-            <div className="text-2xl mb-2">👥</div>
-            <p>Majority vote determines correct answers</p>
-          </div>
-          <div>
-            <div className="text-2xl mb-2">🏆</div>
-            <p>Win prizes based on correct answers</p>
-          </div>
-        </div>
-      </motion.div>
+  {/* How It Works section removed per request */}
     </div>
   );
 };

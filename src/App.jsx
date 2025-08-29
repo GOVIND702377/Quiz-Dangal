@@ -27,6 +27,7 @@ import AdminTest from '@/pages/AdminTest';
 import Results from '@/pages/Results';
 import Leaderboards from '@/pages/Leaderboards';
 import Redemptions from '@/pages/Redemptions';
+import Language from '@/pages/Language';
 
 const UnconfirmedEmail = () => (
   <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -143,6 +144,7 @@ const MainLayout = () => {
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/leaderboards" element={<Leaderboards />} />
+          <Route path="/language" element={<Language />} />
           <Route path="/rewards" element={<Navigate to="/wallet" replace />} />
           <Route path="/redemptions" element={<Redemptions />} />
           <Route path="/about-us" element={<AboutUs />} />

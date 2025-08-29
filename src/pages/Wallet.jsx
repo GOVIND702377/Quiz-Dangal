@@ -16,6 +16,8 @@ const Wallet = () => {
   const [showShareOptions, setShowShareOptions] = useState(false);
   const [copied, setCopied] = useState(false);
   const [bouncing, setBouncing] = useState(false);
+  const [burstKey, setBurstKey] = useState(0);
+  const [rippleKey, setRippleKey] = useState(0);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -135,14 +137,14 @@ const Wallet = () => {
           {/* decorative floating coins removed per request */}
           <div className="flex items-start justify-between gap-4 flex-wrap">
             {/* Left: Coin icon + balance */}
-            <div className="flex items-center gap-3 min-w-[230px] flex-1">
+            <div className="flex items-start gap-3 min-w-[230px] flex-1">
               <motion.div
                 animate={bouncing ? { scale: [1, 1.12, 1] } : {}}
                 transition={{ duration: 0.6, ease: 'easeOut' }}
-                className="relative bg-gradient-to-r from-yellow-400 to-amber-500 p-3 rounded-full shadow-[0_0_14px_rgba(245,158,11,0.45)] -mt-1"
+                className="relative bg-gradient-to-r from-yellow-400 to-amber-500 p-3 rounded-full shadow-[0_0_14px_rgba(245,158,11,0.45)] mt-2"
                 aria-hidden
               >
-                <Coins size={22} className="text-white drop-shadow" />
+                <Coins size={35} className="text-white drop-shadow" />
                 <motion.span
                   className="pointer-events-none absolute inset-0 rounded-full"
                   initial={{ opacity: 0.25 }}
@@ -152,30 +154,96 @@ const Wallet = () => {
                 />
               </motion.div>
               <div>
-                <div className="text-xs font-medium text-gray-700 tracking-wide">Coins Balance</div>
-                <div className="text-3xl md:text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-amber-600 via-yellow-600 to-orange-500 leading-tight">
+                <div className="text-sm font-medium text-gray-700 tracking-wide">Coins Balance</div>
+                <div className="text-[2rem] md:text-[2.4rem] font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-amber-600 via-yellow-600 to-orange-500 leading-tight">
                   {walletBalance.toLocaleString()} coins
                 </div>
                 <motion.div
-                  className="text-xs md:text-sm text-gray-700"
+                  className="text-sm md:text-base text-gray-700"
                   initial={{ opacity: 0.6 }}
                   animate={{ opacity: [0.6, 1, 0.6] }}
                   transition={{ duration: 3, repeat: Infinity }}
                 >
                   Your wallet is waiting to be filled 💸
                 </motion.div>
+                {/* Redeem button moved to left, made bigger, with burst animation */}
+                <motion.div
+                  className="relative mt-3"
+                  onMouseEnter={() => setBurstKey((k) => k + 1)}
+                  onClick={() => { setBurstKey((k) => k + 1); setRippleKey((k) => k + 1); }}
+                  animate={{ scale: [1, 1.02, 1] }}
+                  transition={{ repeat: Infinity, duration: 2.2, ease: 'easeInOut' }}
+                >
+                  {/* burst particles */}
+                  <div className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 select-none">
+                    {Array.from({ length: 8 }).map((_, i) => {
+                      const dx = (Math.random() * 70) - 35; // -35 to 35 px
+                      const dy = 60 + Math.random() * 20; // 60-80 px up
+                      const rot = (Math.random() * 30) - 15;
+                      const delay = i * 0.06;
+                      const emoji = i % 2 === 0 ? '🪙' : '🎁';
+                      return (
+                        <motion.span
+                          key={`${burstKey}-${i}`}
+                          initial={{ opacity: 0, y: 0, x: 0, rotate: 0, scale: 0.9 }}
+                          animate={{ opacity: [0.95, 0], y: [-6, -dy], x: [0, dx], rotate: [0, rot], scale: [1, 1.05] }}
+                          transition={{ duration: 1.1, delay, ease: 'easeOut' }}
+                          className="absolute text-lg will-change-transform"
+                          style={{ left: 0 }}
+                        >
+                          {emoji}
+                        </motion.span>
+                      );
+                    })}
+                  </div>
+
+                  {/* glowing ring behind button */}
+                  <motion.span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 -z-0 rounded-3xl"
+                    initial={{ boxShadow: '0 0 0px rgba(236,72,153,0.0)' }}
+                    animate={{ boxShadow: ['0 0 0px rgba(236,72,153,0.0)', '0 0 28px rgba(236,72,153,0.35)', '0 0 0px rgba(236,72,153,0.0)'] }}
+                    transition={{ duration: 3.2, repeat: Infinity }}
+                  />
+
+                  <Link
+                    to="/redemptions"
+                    aria-label="Redeem Coins"
+                    className="relative inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl text-base md:text-lg bg-gradient-to-r from-fuchsia-500 via-rose-500 to-orange-500 text-white shadow-[0_10px_24px_rgba(236,72,153,0.35)] hover:shadow-[0_14px_30px_rgba(236,72,153,0.5)] hover:scale-[1.03] active:scale-[0.99] transition focus:outline-none focus:ring-2 focus:ring-rose-300 pr-7 overflow-hidden"
+                  >
+                    {/* shine sweep */}
+                    <motion.div
+                      className="pointer-events-none absolute top-0 -left-1/2 h-full w-1/3 skew-x-12 bg-gradient-to-r from-white/0 via-white/35 to-white/0"
+                      initial={{ x: '-20%' }}
+                      animate={{ x: ['-20%', '160%'] }}
+                      transition={{ duration: 2.6, repeat: Infinity, repeatDelay: 1.2 }}
+                      aria-hidden
+                    />
+                    {/* click ripple */}
+                    <motion.span
+                      key={rippleKey}
+                      className="pointer-events-none absolute inset-0 m-auto rounded-full"
+                      initial={{ width: 0, height: 0, opacity: 0.35, background: 'radial-gradient(circle, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 70%)' }}
+                      animate={{ width: 260, height: 260, opacity: 0 }}
+                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                      aria-hidden
+                    />
+                    <motion.span
+                      initial={{ rotate: 0 }}
+                      animate={{ rotate: [0, -12, 10, -8, 0] }}
+                      transition={{ duration: 1.2, repeat: Infinity, repeatDelay: 2 }}
+                      className="inline-flex"
+                    >
+                      <Gift className="w-6 h-6" />
+                    </motion.span>
+                    <span className="font-extrabold tracking-wide">Redeem Coins</span>
+                    <span className="absolute -right-1 -top-1 text-xs bg-white/90 text-rose-600 px-1.5 py-0.5 rounded-full border border-rose-200 shadow">Prizes</span>
+                  </Link>
+                </motion.div>
               </div>
             </div>
-            {/* Redeem moved to right side */}
-            <div className="ml-auto self-start">
-              <Link
-                to="/redemptions"
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-md hover:shadow-lg hover:scale-[1.015] active:scale-100 transition focus:outline-none focus:ring-2 focus:ring-pink-300"
-              >
-                <Gift className="w-4 h-4" />
-                <span className="font-semibold tracking-wide">Redeem Coins</span>
-              </Link>
-            </div>
+            {/* Right side empty per design simplification */}
+            <div className="ml-auto self-start" />
           </div>
 
           {/* Progress removed per request */}
