@@ -19,11 +19,6 @@ import TermsConditions from '@/pages/TermsConditions';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import Quiz from '@/pages/Quiz';
 import Admin from '@/pages/Admin';
-import AdminRedemptions from '@/pages/AdminRedemptions';
-import AdminReports from '@/pages/AdminReports';
-import AdminUsers from '@/pages/AdminUsers';
-import AdminLeaderboards from '@/pages/AdminLeaderboards';
-import AdminTest from '@/pages/AdminTest';
 import Results from '@/pages/Results';
 import Leaderboards from '@/pages/Leaderboards';
 import Redemptions from '@/pages/Redemptions';
@@ -152,11 +147,11 @@ const MainLayout = () => {
           <Route path="/terms-conditions" element={<TermsConditions />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
-          <Route path="/admin/users" element={<AdminRoute><AdminUsers /></AdminRoute>} />
-          <Route path="/admin/leaderboards" element={<AdminRoute><AdminLeaderboards /></AdminRoute>} />
-          <Route path="/admin/redemptions" element={<AdminRoute><AdminRedemptions /></AdminRoute>} />
-          <Route path="/admin/reports" element={<AdminRoute><AdminReports /></AdminRoute>} />
-          <Route path="/admin-test" element={<AdminTest />} />
+          {/* Back-compat redirects to single admin with tab param */}
+          <Route path="/admin/users" element={<Navigate to="/admin?tab=users" replace />} />
+          <Route path="/admin/leaderboards" element={<Navigate to="/admin?tab=leaderboards" replace />} />
+          <Route path="/admin/redemptions" element={<Navigate to="/admin?tab=redemptions" replace />} />
+          <Route path="/admin/reports" element={<Navigate to="/admin?tab=reports" replace />} />
           <Route path="/test" element={<div style={{padding: '20px', color: 'red', fontSize: '24px'}}>TEST PAGE WORKING!</div>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

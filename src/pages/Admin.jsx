@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -7,11 +7,531 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Edit, Trash2, Clock, Users, Trophy, Settings, Copy, Database, HelpCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Clock, Users, Trophy, Settings, Copy, Database, HelpCircle, Loader2, Search, ShieldCheck, Check, XCircle, Crown, Calendar, BarChart3, Activity, TrendingUp } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+
+// ---- Embedded Sections ----
+function AdminUsersSection() {
+  const { toast } = useToast();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState('');
+  const [sortKey, setSortKey] = useState('grand_total');
+
+  useEffect(() => {
+    let mounted = true;
+    async function load() {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('all_time_leaderboard')
+        .select('*');
+      if (!mounted) return;
+      if (error) {
+        toast({ title: 'Load failed', description: error.message, variant: 'destructive' });
+        setRows([]);
+      } else {
+        setRows(data || []);
+      }
+      setLoading(false);
+    }
+    load();
+    return () => { mounted = false; };
+  }, [toast]);
+
+  const filtered = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    let list = rows;
+    if (needle) {
+      list = rows.filter(r => (r.full_name || '').toLowerCase().includes(needle));
+    }
+    list = [...list].sort((a, b) => Number(b[sortKey] || 0) - Number(a[sortKey] || 0));
+    return list.slice(0, 200);
+  }, [rows, q, sortKey]);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center">
+            <Users className="mr-2" /> Admin: Users
+          </h2>
+          <p className="text-gray-600 text-sm">Top users overview (from all-time leaderboard)</p>
+        </div>
+      </div>
+      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
+        <div className="flex items-center mb-3 gap-3">
+          <div className="flex items-center px-3 py-2 border rounded-lg bg-white">
+            <Search className="w-4 h-4 text-gray-400 mr-2" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search by name"
+              className="outline-none text-sm"
+            />
+          </div>
+          <select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value)}
+            className="px-3 py-2 border rounded-lg bg-white text-sm"
+          >
+            <option value="grand_total">Sort: Grand Total</option>
+            <option value="coins_earned">Sort: Coins Earned</option>
+            <option value="coins_spent">Sort: Coins Spent</option>
+          </select>
+        </div>
+        {loading ? (
+          <div className="py-12 flex items-center justify-center text-gray-600">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mr-2" /> Loading users...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="py-12 text-center text-gray-600">No users found</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-gray-600">
+                  <th className="px-2 py-2">Name</th>
+                  <th className="px-2 py-2">Coins Earned</th>
+                  <th className="px-2 py-2">Coins Spent</th>
+                  <th className="px-2 py-2">Referrals</th>
+                  <th className="px-2 py-2">Streak</th>
+                  <th className="px-2 py-2">Badges</th>
+                  <th className="px-2 py-2">Grand Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((r, idx) => (
+                  <tr key={idx} className="border-t border-gray-100">
+                    <td className="px-2 py-2 text-gray-800">{r.full_name || 'Anonymous'}</td>
+                    <td className="px-2 py-2">{Number(r.coins_earned || 0)}</td>
+                    <td className="px-2 py-2">{Number(r.coins_spent || 0)}</td>
+                    <td className="px-2 py-2">{Number(r.referrals || 0)}</td>
+                    <td className="px-2 py-2">{Number(r.streak_count || 0)}</td>
+                    <td className="px-2 py-2">{Array.isArray(r.badges) ? r.badges.length : 0}</td>
+                    <td className="px-2 py-2 font-semibold">{Number(r.grand_total || 0)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminRedemptionsSection() {
+  const { toast } = useToast();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [actingId, setActingId] = useState(null);
+
+  const load = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('v_pending_redemptions')
+      .select('*');
+    if (error) {
+      toast({ title: 'Load failed', description: error.message, variant: 'destructive' });
+      setRows([]);
+    } else {
+      setRows(data || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const tryApprove = async (id) => {
+    const tries = [
+      () => supabase.rpc('approve_redemption', { redemption_id: id }),
+      () => supabase.rpc('approve_redemption', { p_redemption_id: id }),
+      () => supabase.rpc('approve_redemption', { id }),
+    ];
+    let lastError = null;
+    for (const t of tries) {
+      const { error } = await t();
+      if (!error) return { ok: true };
+      lastError = error;
+    }
+    return { ok: false, error: lastError };
+  };
+
+  const tryReject = async (id, reason) => {
+    const tries = [
+      () => supabase.rpc('reject_redemption', { redemption_id: id, reason }),
+      () => supabase.rpc('reject_redemption', { p_redemption_id: id, p_reason: reason }),
+      () => supabase.rpc('reject_redemption', { id, reason }),
+    ];
+    let lastError = null;
+    for (const t of tries) {
+      const { error } = await t();
+      if (!error) return { ok: true };
+      lastError = error;
+    }
+    return { ok: false, error: lastError };
+  };
+
+  const handleApprove = async (id) => {
+    setActingId(id);
+    const res = await tryApprove(id);
+    if (!res.ok) {
+      toast({ title: 'Approve failed', description: res.error?.message || 'RPC error', variant: 'destructive' });
+    } else {
+      toast({ title: 'Approved', description: 'Redemption approved' });
+      await load();
+    }
+    setActingId(null);
+  };
+
+  const handleReject = async (id) => {
+    const reason = window.prompt('Enter rejection reason (optional):', '');
+    if (reason === null) return;
+    setActingId(id);
+    const res = await tryReject(id, reason || '');
+    if (!res.ok) {
+      toast({ title: 'Reject failed', description: res.error?.message || 'RPC error', variant: 'destructive' });
+    } else {
+      toast({ title: 'Rejected', description: 'Redemption rejected' });
+      await load();
+    }
+    setActingId(null);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center">
+            <ShieldCheck className="mr-2" /> Admin: Pending Redemptions
+          </h2>
+          <p className="text-gray-600 text-sm">Approve or reject pending requests</p>
+        </div>
+        <Button variant="outline" onClick={load}>Refresh</Button>
+      </div>
+      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
+        {loading ? (
+          <div className="py-12 flex items-center justify-center text-gray-600">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mr-2" /> Loading...
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="py-12 text-center text-gray-600">No pending redemptions</div>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((r) => (
+              <div key={r.id} className="p-3 rounded-xl bg-white/70 border border-gray-200/50 flex items-center justify-between text-sm">
+                <div>
+                  <div className="font-semibold text-gray-800">{r.full_name}</div>
+                  <div className="text-gray-600">{r.reward_type}: {r.reward_value}</div>
+                  <div className="text-gray-500">Coins: {r.coins_required} • Requested: {new Date(r.requested_at).toLocaleString()}</div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Button onClick={() => handleApprove(r.id)} disabled={actingId === r.id} className="bg-green-600 hover:bg-green-700" size="sm">
+                    <Check className="w-4 h-4 mr-1" /> Approve
+                  </Button>
+                  <Button onClick={() => handleReject(r.id)} disabled={actingId === r.id} variant="outline" className="text-red-600 border-red-300 hover:bg-red-50" size="sm">
+                    <XCircle className="w-4 h-4 mr-1" /> Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AdminLeaderboardsSection() {
+  const { toast } = useToast();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [acting, setActing] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('leaderboard_snapshot')
+      .select('*')
+      .order('snapshot_date', { ascending: false });
+    if (error) {
+      toast({ title: 'Load failed', description: error.message, variant: 'destructive' });
+      setRows([]);
+    } else {
+      setRows(data || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const triggerWeekly = async () => {
+    setActing(true);
+    try {
+      const calls = [
+        () => supabase.rpc('award_weekly_winners'),
+        () => supabase.rpc('take_winners_snapshot'),
+      ];
+      for (const c of calls) {
+        const { error } = await c();
+        if (error) throw error;
+      }
+      toast({ title: 'Weekly snapshot taken' });
+      await load();
+    } catch (e) {
+      toast({ title: 'Weekly failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setActing(false);
+    }
+  };
+
+  const triggerMonthly = async () => {
+    setActing(true);
+    try {
+      const calls = [
+        () => supabase.rpc('award_monthly_winners'),
+        () => supabase.rpc('take_winners_snapshot'),
+      ];
+      for (const c of calls) {
+        const { error } = await c();
+        if (error) throw error;
+      }
+      toast({ title: 'Monthly snapshot taken' });
+      await load();
+    } catch (e) {
+      toast({ title: 'Monthly failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setActing(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center">
+            <Crown className="mr-2" /> Admin: Leaderboards
+          </h2>
+          <p className="text-gray-600 text-sm">Trigger weekly/monthly winners and view snapshots</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={triggerWeekly} disabled={acting} className="bg-indigo-600 hover:bg-indigo-700">Weekly Snapshot</Button>
+          <Button onClick={triggerMonthly} disabled={acting} variant="outline">Monthly Snapshot</Button>
+          <Button onClick={load} variant="outline">Refresh</Button>
+        </div>
+      </div>
+      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
+        {loading ? (
+          <div className="py-12 flex items-center justify-center text-gray-600">
+            <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mr-2" /> Loading...
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="py-12 text-center text-gray-600">No snapshots yet</div>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((r) => (
+              <div key={r.id} className="p-3 rounded-xl bg-white/70 border border-gray-200/50 flex items-center justify-between text-sm">
+                <div>
+                  <div className="font-semibold text-gray-800">{r.full_name}</div>
+                  <div className="text-gray-600">{r.period} • Rank {r.rank} • Reward {r.reward_amount}</div>
+                </div>
+                <div className="text-gray-500 flex items-center"><Calendar className="w-4 h-4 mr-1" /> {new Date(r.snapshot_date).toLocaleDateString()}</div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Card({ title, children, icon: Icon }) {
+  return (
+    <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
+      <div className="flex items-center mb-3">
+        {Icon && <Icon className="w-5 h-5 text-indigo-600 mr-2" />}
+        <h3 className="font-semibold text-gray-800">{title}</h3>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SimpleTable({ columns, rows, emptyText = 'No data' }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="min-w-full text-sm">
+        <thead>
+          <tr className="text-left text-gray-600">
+            {columns.map((c) => (
+              <th key={c.key} className="px-2 py-2 font-medium">{c.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0 ? (
+            <tr>
+              <td colSpan={columns.length} className="px-2 py-4 text-center text-gray-500">{emptyText}</td>
+            </tr>
+          ) : (
+            rows.map((r, idx) => (
+              <tr key={idx} className="border-t border-gray-100">
+                {columns.map((c) => (
+                  <td key={c.key} className="px-2 py-2 text-gray-800">{c.render ? c.render(r[c.key], r) : r[c.key]}</td>
+                ))}
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AdminReportsSection() {
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [dau, setDau] = useState([]);
+  const [dailyFlow, setDailyFlow] = useState([]);
+  const [weeklyFlow, setWeeklyFlow] = useState([]);
+  const [topEarners, setTopEarners] = useState([]);
+  const [topSpenders, setTopSpenders] = useState([]);
+  const [winners, setWinners] = useState([]);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [d1, d2, d3, d4, d5, d6] = await Promise.all([
+        supabase.from('v_daily_active_users').select('*'),
+        supabase.from('v_daily_coins_flow').select('*'),
+        supabase.from('v_weekly_coins_flow').select('*'),
+        supabase.from('v_top_earners').select('*'),
+        supabase.from('v_top_spenders').select('*'),
+        supabase.from('winners_report').select('*'),
+      ]);
+      if (d1.error) throw d1.error;
+      if (d2.error) throw d2.error;
+      if (d3.error) throw d3.error;
+      if (d4.error) throw d4.error;
+      if (d5.error) throw d5.error;
+      if (d6.error) throw d6.error;
+
+      setDau(d1.data || []);
+      setDailyFlow(d2.data || []);
+      setWeeklyFlow(d3.data || []);
+      setTopEarners(d4.data || []);
+      setTopSpenders(d5.data || []);
+      setWinners(d6.data || []);
+    } catch (e) {
+      toast({ title: 'Load failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center">
+            <BarChart3 className="mr-2" /> Admin Reports
+          </h2>
+          <p className="text-gray-600 text-sm">DAU, coins flow, winners and top lists</p>
+        </div>
+        <button onClick={load} className="px-4 py-2 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-sm">Refresh</button>
+      </div>
+      {loading ? (
+        <div className="py-16 flex items-center justify-center text-gray-600">
+          <Loader2 className="h-8 w-8 animate-spin text-indigo-500 mr-2" /> Loading reports...
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card title="Daily Active Users" icon={Activity}>
+            <SimpleTable
+              columns={[
+                { key: 'day', label: 'Day', render: (v) => new Date(v).toLocaleDateString() },
+                { key: 'active_users', label: 'Active Users' },
+              ]}
+              rows={dau}
+              emptyText="No DAU data"
+            />
+          </Card>
+          <Card title="Daily Coins Flow" icon={TrendingUp}>
+            <SimpleTable
+              columns={[
+                { key: 'day', label: 'Day', render: (v) => new Date(v).toLocaleDateString() },
+                { key: 'coins_issued', label: 'Issued' },
+                { key: 'coins_spent', label: 'Spent' },
+                { key: 'coins_refunded', label: 'Refunded' },
+              ]}
+              rows={dailyFlow}
+              emptyText="No daily flow"
+            />
+          </Card>
+          <Card title="Weekly Coins Flow" icon={TrendingUp}>
+            <SimpleTable
+              columns={[
+                { key: 'week_start', label: 'Week Start', render: (v) => new Date(v).toLocaleDateString() },
+                { key: 'coins_issued', label: 'Issued' },
+                { key: 'coins_spent', label: 'Spent' },
+                { key: 'coins_refunded', label: 'Refunded' },
+              ]}
+              rows={weeklyFlow}
+              emptyText="No weekly flow"
+            />
+          </Card>
+          <Card title="Top Earners" icon={Trophy}>
+            <SimpleTable
+              columns={[
+                { key: 'full_name', label: 'Name' },
+                { key: 'total_earned', label: 'Total Earned' },
+                { key: 'wallet_balance', label: 'Wallet Balance' },
+              ]}
+              rows={topEarners}
+              emptyText="No earners"
+            />
+          </Card>
+          <Card title="Top Spenders" icon={Trophy}>
+            <SimpleTable
+              columns={[
+                { key: 'full_name', label: 'Name' },
+                { key: 'total_spent', label: 'Total Spent' },
+              ]}
+              rows={topSpenders}
+              emptyText="No spenders"
+            />
+          </Card>
+          <Card title="Winners Report" icon={Trophy}>
+            <SimpleTable
+              columns={[
+                { key: 'period', label: 'Period' },
+                { key: 'rank', label: 'Rank' },
+                { key: 'full_name', label: 'Name' },
+                { key: 'coins_earned', label: 'Coins' },
+                { key: 'reward_amount', label: 'Reward' },
+              ]}
+              rows={winners}
+              emptyText="No winners"
+            />
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Admin() {
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
+  const [params, setParams] = useSearchParams();
+  const activeTab = params.get('tab') || 'overview';
+  const setTab = (key) => {
+    const p = new URLSearchParams(params);
+    p.set('tab', key);
+    setParams(p, { replace: false });
+  };
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateQuiz, setShowCreateQuiz] = useState(false);
@@ -39,9 +559,10 @@ export default function Admin() {
   });
 
   useEffect(() => {
-    // Always fetch quizzes for testing
-    fetchQuizzes();
-  }, []);
+    if (activeTab === 'overview') {
+      fetchQuizzes();
+    }
+  }, [activeTab]);
 
   const fetchQuizzes = async () => {
     try {
@@ -229,15 +750,6 @@ ORDER BY q.id;`;
   //   );
   // }
 
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
-      </div>
-    );
-  }
-
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <motion.div
@@ -248,9 +760,30 @@ ORDER BY q.id;`;
         <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
           Quiz Dangal Admin
         </h1>
-        <p className="text-gray-600">Manage quizzes, questions, and prizes</p>
+        <p className="text-gray-600">Admin dashboard</p>
       </motion.div>
 
+      {/* Tabs */}
+      <div className="flex gap-2 flex-wrap mb-6">
+        {[
+          { key: 'overview', title: 'Overview' },
+          { key: 'users', title: 'Users' },
+          { key: 'redemptions', title: 'Redemptions' },
+          { key: 'leaderboards', title: 'Leaderboards' },
+          { key: 'reports', title: 'Reports' },
+        ].map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-3 py-2 rounded-lg border text-sm transition-colors ${t.key === activeTab ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+          >
+            {t.title}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'overview' && (
+        <>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <motion.div
@@ -300,7 +833,7 @@ ORDER BY q.id;`;
             </div>
           </div>
         </motion.div>
-      </div>
+  </div>
 
       {/* Create Quiz Button */}
       <div className="mb-6">
@@ -494,7 +1027,11 @@ ORDER BY q.id;`;
       {/* Quizzes List */}
       <div className="space-y-4">
         <h2 className="text-xl font-bold text-gray-800">All Quizzes</h2>
-        {quizzes.map((quiz, index) => (
+        {loading ? (
+          <div className="py-8 text-center text-gray-600">
+            <Loader2 className="inline-block h-6 w-6 animate-spin text-indigo-500 mr-2" /> Loading quizzes...
+          </div>
+        ) : quizzes.map((quiz, index) => (
           <motion.div
             key={quiz.id}
             initial={{ opacity: 0, y: 20 }}
@@ -561,6 +1098,13 @@ ORDER BY q.id;`;
           </motion.div>
         ))}
       </div>
+      </>
+      )}
+
+      {activeTab === 'users' && <AdminUsersSection />}
+      {activeTab === 'redemptions' && <AdminRedemptionsSection />}
+      {activeTab === 'leaderboards' && <AdminLeaderboardsSection />}
+      {activeTab === 'reports' && <AdminReportsSection />}
     </div>
   );
 }
