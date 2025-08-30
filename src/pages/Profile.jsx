@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/customSupabaseClient";
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Globe, Share2, Coins, Flame, Award, Sparkles } from 'lucide-react';
+import ProfileUpdateModal from '@/components/ProfileUpdateModal';
+import ReferEarnModal from '@/components/ReferEarnModal';
 
 // Removed StatCard and stats grid as requested
 
@@ -16,6 +18,8 @@ export default function Profile() {
   const [newUsername, setNewUsername] = useState("");
   const [savingUsername, setSavingUsername] = useState(false);
   const [showBadges, setShowBadges] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [showReferEarn, setShowReferEarn] = useState(false);
   const fileInputRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -61,7 +65,7 @@ export default function Profile() {
       } else {
         window.prompt('Share this text:', `${text} ${link}`);
       }
-    } catch {}
+    } catch { }
   };
 
   const onChooseAvatar = () => fileInputRef.current?.click();
@@ -160,19 +164,19 @@ export default function Profile() {
   }
 
   const menuItems = [
+    { label: 'Refer & Earn', onClick: () => setShowReferEarn(true), icon: Share2 },
     { label: 'About Us', href: '/about-us', icon: Info },
     { label: 'Contact Us', href: '/contact-us', icon: Mail },
     { label: 'Terms & Conditions', href: '/terms-conditions', icon: FileText },
     { label: 'Privacy Policy', href: '/privacy-policy', icon: Shield },
     { label: 'Language', href: '/language', icon: Globe },
-    { label: 'Share', onClick: shareApp, icon: Share2 },
   ];
 
   return (
-  <div className="min-h-[100svh] bg-indigo-50">
-  <div className="container mx-auto px-2 md:px-3 py-0 max-w-3xl space-y-3">
+    <div className="min-h-[100svh] bg-indigo-50">
+      <div className="container mx-auto px-2 md:px-3 py-0 max-w-3xl space-y-3">
         {/* Header */}
-  <div className="group relative overflow-hidden rounded-3xl p-4 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
+        <div className="group relative overflow-hidden rounded-3xl p-4 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
           {/* subtle decorative gradient */}
           <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 h-56 w-56 rounded-full bg-gradient-to-tr from-indigo-200/60 via-fuchsia-200/50 to-transparent blur-3xl" />
           <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-24 h-56 w-56 rounded-full bg-gradient-to-tr from-purple-200/50 via-pink-200/40 to-transparent blur-3xl" />
@@ -180,35 +184,35 @@ export default function Profile() {
             {/* Left: Avatar + Email */}
             <div className="flex items-start gap-2">
               <div className="flex flex-col items-center -ml-2">
-              <div className="relative w-[5.5rem] h-[5.5rem]">
-                {/* soft animated glow */}
-                <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-400/20 via-fuchsia-400/20 to-transparent blur-[3px] animate-spin" style={{ animationDuration: '9s' }} />
-                <div className={`relative w-[5.5rem] h-[5.5rem] rounded-full overflow-hidden flex items-center justify-center text-gray-700 font-bold ring-2 ring-offset-2 ${getLevelRingClass(profile?.level)} bg-gradient-to-br from-gray-50 to-gray-100 shadow-md`}>
-                  {profile?.avatar_url ? (
-                    <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <span className="text-2xl">
-                        {(profile?.full_name || sessionUser?.email || 'U').charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                  )}
+                <div className="relative w-[5.5rem] h-[5.5rem]">
+                  {/* soft animated glow */}
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-400/20 via-fuchsia-400/20 to-transparent blur-[3px] animate-spin" style={{ animationDuration: '9s' }} />
+                  <div className={`relative w-[5.5rem] h-[5.5rem] rounded-full overflow-hidden flex items-center justify-center text-gray-700 font-bold ring-2 ring-offset-2 ${getLevelRingClass(profile?.level)} bg-gradient-to-br from-gray-50 to-gray-100 shadow-md`}>
+                    {profile?.avatar_url ? (
+                      <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <span className="text-2xl">
+                          {(profile?.full_name || sessionUser?.email || 'U').charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={onChooseAvatar}
+                    disabled={uploading}
+                    className="absolute -bottom-2 -right-2 p-2 rounded-xl bg-white/90 border border-gray-200 shadow-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-60"
+                    title={uploading ? 'Uploading…' : 'Change avatar'}
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onAvatarSelected} />
                 </div>
-                <button
-                  onClick={onChooseAvatar}
-                  disabled={uploading}
-                  className="absolute -bottom-2 -right-2 p-2 rounded-xl bg-white/90 border border-gray-200 shadow-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-60"
-                  title={uploading ? 'Uploading…' : 'Change avatar'}
-                >
-                  <Camera className="w-4 h-4" />
-                </button>
-                <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onAvatarSelected} />
-              </div>
-              {/* Email under avatar */}
-              <div className="mt-2 text-center">
-                <div className="text-[11px] text-gray-500">Email</div>
-                <div className="text-sm font-medium text-gray-800 whitespace-nowrap overflow-x-auto">{profile?.email || sessionUser.email}</div>
-              </div>
+                {/* Email under avatar */}
+                <div className="mt-2 text-center">
+                  <div className="text-[11px] text-gray-500">Email</div>
+                  <div className="text-sm font-medium text-gray-800 whitespace-nowrap overflow-x-auto">{profile?.email || sessionUser.email}</div>
+                </div>
               </div>
               <div className="min-w-0 -mt-1">
                 <div className="flex items-center gap-2 text-xs text-gray-500">
@@ -241,14 +245,17 @@ export default function Profile() {
             </div>
             {/* Bottom-left action */}
             <div className="pt-3 mt-1 w-full border-t border-gray-100">
-              <Link to="/profile-update" className="inline-flex items-center px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow hover:shadow-md text-sm transition">
+              <button
+                onClick={() => setEditingProfile(true)}
+                className="inline-flex items-center px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow hover:shadow-md text-sm transition"
+              >
                 Edit Profile
-              </Link>
+              </button>
             </div>
           </div>
         </div>
 
-      {/* Badges Section */}
+        {/* Badges Section */}
         {showBadges && (
           <div className="rounded-3xl p-4 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
             <div className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
@@ -275,14 +282,14 @@ export default function Profile() {
           </div>
         )}
 
-      {/* Menu (vertical list with simple icons) */}
-  <div className="rounded-3xl p-3 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
+        {/* Menu (vertical list with simple icons) */}
+        <div className="rounded-3xl p-3 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
           <div className="flex flex-col gap-3">
             {menuItems.map((item, idx) => {
               const content = (
-    <div className="group w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border border-gray-100/70 bg-white/80 hover:bg-white transition shadow-sm hover:shadow-md text-sm text-gray-800 cursor-pointer">
+                <div className="group w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border border-gray-100/70 bg-white/80 hover:bg-white transition shadow-sm hover:shadow-md text-sm text-gray-800 cursor-pointer">
                   <div className="flex items-center gap-3">
-        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 text-indigo-600 flex items-center justify-center shadow-sm border border-indigo-100 group-hover:scale-[1.03] transition">
+                    <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 text-indigo-600 flex items-center justify-center shadow-sm border border-indigo-100 group-hover:scale-[1.03] transition">
                       <item.icon className="w-4 h-4" />
                     </span>
                     <span className="font-semibold tracking-wide">{item.label}</span>
@@ -303,7 +310,7 @@ export default function Profile() {
           </div>
         </div>
 
-      {/* Logout (styled like menu items, keep red palette) */}
+        {/* Logout (styled like menu items, keep red palette) */}
         <div className="rounded-3xl p-3 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
           <button onClick={handleSignOut} className="w-full text-left focus:outline-none focus:ring-2 focus:ring-red-200 rounded-2xl">
             <div className="group w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border border-red-100 bg-white/80 hover:bg-white transition shadow-sm hover:shadow-md text-sm text-red-600 cursor-pointer">
@@ -317,6 +324,22 @@ export default function Profile() {
             </div>
           </button>
         </div>
+
+        {/* Profile Edit Modal */}
+        <ProfileUpdateModal
+          isOpen={editingProfile}
+          onClose={() => {
+            setEditingProfile(false);
+            load(); // Refresh profile data
+          }}
+          isFirstTime={false}
+        />
+
+        {/* Refer & Earn Modal */}
+        <ReferEarnModal
+          isOpen={showReferEarn}
+          onClose={() => setShowReferEarn(false)}
+        />
       </div>
     </div>
   );

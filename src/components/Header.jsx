@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Coins, Shield, Flame } from 'lucide-react';
+import StreakChart from './StreakChart';
 
 function cn(...classes) {
   return classes.filter(Boolean).join(' ');
@@ -111,14 +112,8 @@ const Header = () => {
         <span className="font-semibold">{wallet.toLocaleString()} coins</span>
             </Link>
 
-              {/* Streak indicator */}
-              <div
-                className="inline-flex items-center gap-1.5 md:gap-2 px-2.5 py-1 md:px-3 md:py-1.5 rounded-full border bg-white/70 border-gray-200 text-xs md:text-sm text-gray-700 shadow-sm"
-                title="Daily Streak"
-              >
-                <Flame className="w-3.5 h-3.5 md:w-4 md:h-4 text-orange-500" />
-                <span className="font-semibold">Day {streak}</span>
-              </div>
+              {/* Streak Chart */}
+              <StreakChart />
 
             {/* Invite removed as per UI update */}
 

@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import OnboardingFlow from '@/components/OnboardingFlow';
 import Home from '@/pages/Home';
 import MyQuizzes from '@/pages/MyQuizzes';
 import Wallet from '@/pages/Wallet';
@@ -157,6 +158,9 @@ const MainLayout = () => {
         </Routes>
       </main>
       <Footer />
+      
+      {/* Onboarding Flow */}
+      <OnboardingFlow />
     </>
   );
 };
