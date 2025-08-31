@@ -10,7 +10,7 @@ const StreakChart = () => {
     const [loading, setLoading] = useState(false);
 
     const fetchStreakData = async () => {
-        if (!user) return;
+        if (!user || loading) return;
         
         setLoading(true);
         try {
@@ -25,20 +25,23 @@ const StreakChart = () => {
                 .lt('login_date', `${currentYear}-${(currentMonth + 1).toString().padStart(2, '0')}-01`)
                 .order('login_date', { ascending: true });
 
-            if (error) throw error;
+            if (error && error.code !== 'PGRST116') {
+                throw error;
+            }
             setStreakData(data || []);
         } catch (error) {
             console.error('Error fetching streak data:', error);
+            setStreakData([]);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        if (showChart) {
+        if (showChart && user) {
             fetchStreakData();
         }
-    }, [showChart, user]);
+    }, [showChart]);
 
     const getDaysInCurrentMonth = () => {
         const now = new Date();

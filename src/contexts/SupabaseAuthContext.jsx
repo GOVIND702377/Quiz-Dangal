@@ -52,8 +52,13 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
         if (currentUser) {
             try {
                 const { data, error } = await supabase.from('profiles').select('*').eq('id', currentUser.id).single();
-                // "no rows found" error ko ignore karenge, kyunki naye user ka profile turant nahi banta
-                if (error && error.code !== 'PGRST116') throw error; 
+                // "no rows found" (PGRST116) error ko ignore karenge, kyunki naye user ka profile turant nahi banta.
+                // Lekin, agar multiple rows milti hain (jo ek data integrity issue hai), to error throw karna zaroori hai.
+                if (error) {
+                    // Sirf "0 rows" wala error ignore karein.
+                    const isNoRowsError = error.code === 'PGRST116' && error.details?.includes('0 rows');
+                    if (!isNoRowsError) throw error;
+                }
                 setUserProfile(data || null);
             } catch (error) {
                 setUserProfile(null);

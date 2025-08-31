@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/customSupabaseClient";
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Globe, Share2, Coins, Flame, Award, Sparkles } from 'lucide-react';
+import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Globe, Share2, Award, Sparkles } from 'lucide-react';
 import ProfileUpdateModal from '@/components/ProfileUpdateModal';
 import ReferEarnModal from '@/components/ReferEarnModal';
 
@@ -14,9 +14,6 @@ export default function Profile() {
   const [sessionUser, setSessionUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [editingUsername, setEditingUsername] = useState(false);
-  const [newUsername, setNewUsername] = useState("");
-  const [savingUsername, setSavingUsername] = useState(false);
   const [showBadges, setShowBadges] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [showReferEarn, setShowReferEarn] = useState(false);
@@ -31,12 +28,11 @@ export default function Profile() {
       if (u) {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, email, full_name, username, avatar_url, wallet_balance, total_earned, total_spent, streak_count, badges, level')
+          .select('id, email, full_name, username, avatar_url, wallet_balance, total_earned, total_spent, badges, level')
           .eq('id', u.id)
           .single();
         if (error) throw error;
         setProfile(data);
-        setNewUsername(data?.username || "");
       } else {
         setProfile(null);
       }
@@ -53,20 +49,7 @@ export default function Profile() {
     await signOut();
   };
 
-  const shareApp = async () => {
-    const link = window.location.origin;
-    const text = 'Join me on Quiz Dangal — Play daily quizzes, win coins and redeem rewards!';
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: 'Quiz Dangal', text, url: link });
-      } else if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(`${text} ${link}`);
-        alert('Share text copied');
-      } else {
-        window.prompt('Share this text:', `${text} ${link}`);
-      }
-    } catch { }
-  };
+
 
   const onChooseAvatar = () => fileInputRef.current?.click();
   const onAvatarSelected = async (e) => {
@@ -77,7 +60,7 @@ export default function Profile() {
       const path = `${sessionUser.id}/${Date.now()}-${file.name}`;
       const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
       if (upErr) throw upErr;
-      const { data: pub } = await supabase.storage.from('avatars').getPublicUrl(path);
+      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
       const publicUrl = pub?.publicUrl;
       if (!publicUrl) throw new Error('Could not get public URL');
       const { error: updErr } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', sessionUser.id);
@@ -117,28 +100,6 @@ export default function Profile() {
   const ALL_BADGES = ['Rookie', 'Explorer', 'Challenger', 'Pro', 'Legend', 'Streak 7', 'Streak 30', 'Top 10', 'Winner', 'Referral Pro'];
   const unlocked = Array.isArray(profile?.badges) ? profile.badges : [];
   const locked = ALL_BADGES.filter(b => !unlocked.includes(b));
-
-  const startEditUsername = () => {
-    setNewUsername(profile?.username || "");
-    setEditingUsername(true);
-  };
-  const saveUsername = async () => {
-    if (!sessionUser) return;
-    const u = (newUsername || '').trim();
-    if (!u) return alert('Username cannot be empty');
-    try {
-      setSavingUsername(true);
-      const { error } = await supabase.from('profiles').update({ username: u }).eq('id', sessionUser.id);
-      if (error) throw error;
-      await load();
-      setEditingUsername(false);
-      alert('Username updated');
-    } catch (err) {
-      alert(err?.message || 'Failed to update username');
-    } finally {
-      setSavingUsername(false);
-    }
-  };
 
   if (loading) {
     return (

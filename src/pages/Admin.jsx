@@ -22,9 +22,8 @@ function AdminUsersSection() {
     let mounted = true;
     async function load() {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('all_time_leaderboard')
-        .select('*');
+      // NOTE: Faltu fallback ko 'leaderboard_view' se hata diya gaya hai. Sunishchit karein ki 'all_time_leaderboard' view sahi se kaam kar raha hai.
+      const { data, error } = await supabase.from('all_time_leaderboard').select('*');
       if (!mounted) return;
       if (error) {
         toast({ title: 'Load failed', description: error.message, variant: 'destructive' });
@@ -36,7 +35,7 @@ function AdminUsersSection() {
     }
     load();
     return () => { mounted = false; };
-  }, [toast]);
+  }, []);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -106,7 +105,7 @@ function AdminUsersSection() {
                     <td className="px-2 py-2">{Number(r.coins_earned || 0)}</td>
                     <td className="px-2 py-2">{Number(r.coins_spent || 0)}</td>
                     <td className="px-2 py-2">{Number(r.referrals || 0)}</td>
-                    <td className="px-2 py-2">{Number(r.streak_count || 0)}</td>
+                    <td className="px-2 py-2">{Number(r.current_streak || 0)}</td>
                     <td className="px-2 py-2">{Array.isArray(r.badges) ? r.badges.length : 0}</td>
                     <td className="px-2 py-2 font-semibold">{Number(r.grand_total || 0)}</td>
                   </tr>
@@ -142,41 +141,12 @@ function AdminRedemptionsSection() {
 
   useEffect(() => { load(); }, []);
 
-  const tryApprove = async (id) => {
-    const tries = [
-      () => supabase.rpc('approve_redemption', { redemption_id: id }),
-      () => supabase.rpc('approve_redemption', { p_redemption_id: id }),
-      () => supabase.rpc('approve_redemption', { id }),
-    ];
-    let lastError = null;
-    for (const t of tries) {
-      const { error } = await t();
-      if (!error) return { ok: true };
-      lastError = error;
-    }
-    return { ok: false, error: lastError };
-  };
-
-  const tryReject = async (id, reason) => {
-    const tries = [
-      () => supabase.rpc('reject_redemption', { redemption_id: id, reason }),
-      () => supabase.rpc('reject_redemption', { p_redemption_id: id, p_reason: reason }),
-      () => supabase.rpc('reject_redemption', { id, reason }),
-    ];
-    let lastError = null;
-    for (const t of tries) {
-      const { error } = await t();
-      if (!error) return { ok: true };
-      lastError = error;
-    }
-    return { ok: false, error: lastError };
-  };
-
   const handleApprove = async (id) => {
     setActingId(id);
-    const res = await tryApprove(id);
-    if (!res.ok) {
-      toast({ title: 'Approve failed', description: res.error?.message || 'RPC error', variant: 'destructive' });
+    // NOTE: Sunishchit karein ki aapka Supabase function 'approve_redemption' ek hi parameter 'p_redemption_id' leta hai.
+    const { error } = await supabase.rpc('approve_redemption', { p_redemption_id: id });
+    if (error) {
+      toast({ title: 'Approve failed', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Approved', description: 'Redemption approved' });
       await load();
@@ -188,9 +158,10 @@ function AdminRedemptionsSection() {
     const reason = window.prompt('Enter rejection reason (optional):', '');
     if (reason === null) return;
     setActingId(id);
-    const res = await tryReject(id, reason || '');
-    if (!res.ok) {
-      toast({ title: 'Reject failed', description: res.error?.message || 'RPC error', variant: 'destructive' });
+    // NOTE: Sunishchit karein ki aapka Supabase function 'reject_redemption' do parameters 'p_redemption_id' aur 'p_reason' leta hai.
+    const { error } = await supabase.rpc('reject_redemption', { p_redemption_id: id, p_reason: reason || '' });
+    if (error) {
+      toast({ title: 'Reject failed', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Rejected', description: 'Redemption rejected' });
       await load();
@@ -270,7 +241,6 @@ function AdminLeaderboardsSection() {
     try {
       const calls = [
         () => supabase.rpc('award_weekly_winners'),
-        () => supabase.rpc('take_winners_snapshot'),
       ];
       for (const c of calls) {
         const { error } = await c();
@@ -290,7 +260,6 @@ function AdminLeaderboardsSection() {
     try {
       const calls = [
         () => supabase.rpc('award_monthly_winners'),
-        () => supabase.rpc('take_winners_snapshot'),
       ];
       for (const c of calls) {
         const { error } = await c();

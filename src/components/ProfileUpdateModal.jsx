@@ -54,24 +54,33 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
     const checkUsernameAvailability = async (username) => {
         if (!username || username === userProfile?.username) return true;
         
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('id')
-            .eq('username', username)
-            .neq('id', user.id)
-            .single();
-        
-        return !data; // true if username is available
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('username', username)
+                .neq('id', user.id);
+            
+            if (error) {
+                console.error('Username check error:', error);
+                return true; // Allow if check fails
+            }
+            
+            return !data || data.length === 0; // true if username is available
+        } catch (error) {
+            console.error('Username availability check failed:', error);
+            return true; // Allow if check fails
+        }
     };
 
     const uploadAvatar = async (file) => {
         const fileExt = file.name.split('.').pop();
         const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-        const filePath = `avatars/${fileName}`;
+        const filePath = `${user.id}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
             .from('avatars')
-            .upload(filePath, file);
+            .upload(filePath, file, { upsert: true });
 
         if (uploadError) throw uploadError;
 
@@ -122,7 +131,12 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
             
             // Upload avatar if new file selected
             if (avatarFile) {
-                avatarUrl = await uploadAvatar(avatarFile);
+                try {
+                    avatarUrl = await uploadAvatar(avatarFile);
+                } catch (avatarError) {
+                    console.error('Avatar upload failed:', avatarError);
+                    // Continue without avatar update
+                }
             }
 
             // Update profile
@@ -139,6 +153,9 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
                 .eq('id', user.id);
 
             if (error) throw error;
+
+            // Show success message
+            alert('Profile updated successfully!');
 
             // Refresh profile data
             await refreshUserProfile(user);

@@ -27,14 +27,13 @@ const ReferEarnModal = ({ isOpen, onClose }) => {
             // Get referral stats
             const { data: referrals, error: referralError } = await supabase
                 .from('referrals')
-                .select(`
-                    *,
-                    referred:profiles!referrals_referred_id_fkey(username, created_at)
-                `)
+                .select('*')
                 .eq('referrer_id', user.id)
                 .order('created_at', { ascending: false });
 
-            if (referralError) throw referralError;
+            if (referralError && referralError.code !== 'PGRST116') {
+                throw referralError;
+            }
 
             const totalReferrals = referrals?.length || 0;
             const totalEarnings = referrals?.reduce((sum, ref) => sum + (ref.coins_awarded || 0), 0) || 0;
@@ -43,6 +42,8 @@ const ReferEarnModal = ({ isOpen, onClose }) => {
             setReferralHistory(referrals || []);
         } catch (error) {
             console.error('Error fetching referral data:', error);
+            setReferralStats({ total: 0, earnings: 0 });
+            setReferralHistory([]);
         } finally {
             setLoading(false);
         }

@@ -1,159 +1,102 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import ProfileUpdateModal from './ProfileUpdateModal';
-import LanguageSelectionModal from './LanguageSelectionModal';
-import NotificationPermissionModal from './NotificationPermissionModal';
-import DailyStreakModal from './DailyStreakModal';
+import { supabase } from '@/lib/customSupabaseClient';
+import { Button } from '@/components/ui/button';
+import { X } from 'lucide-react';
+
+// Simple Modal component for demonstration
+const OnboardingModal = ({ title, children, showCloseButton = true, onClose }) => (
+  <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md relative animate-in fade-in-90 slide-in-from-bottom-10">
+      <h2 className="text-xl font-bold mb-4 text-center">{title}</h2>
+      {children}
+      {showCloseButton && (
+        <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-gray-700 transition-colors">
+          <X className="w-5 h-5" />
+        </button>
+      )}
+    </div>
+  </div>
+);
+
+// Language Selection Modal
+const LanguageSelectionModal = ({ onClose }) => {
+  const { user, refreshUserProfile } = useAuth();
+  const [selectedLang, setSelectedLang] = useState('hindi');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!user) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ preferred_language: selectedLang })
+      .eq('id', user.id);
+    
+    if (!error) {
+      await refreshUserProfile(user);
+      onClose();
+    } else {
+      console.error("Failed to save language", error);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <OnboardingModal title="Choose Your Language" showCloseButton={false}>
+      <div className="space-y-2">
+        {['hindi', 'english'].map(lang => (
+          <button 
+            key={lang}
+            onClick={() => setSelectedLang(lang)}
+            className={`w-full p-3 rounded-lg border-2 text-left font-medium ${selectedLang === lang ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200 hover:bg-gray-50'}`}
+          >
+            {lang.charAt(0).toUpperCase() + lang.slice(1)}
+          </button>
+        ))}
+      </div>
+      <Button onClick={handleSave} disabled={saving} className="w-full mt-4">
+        {saving ? 'Saving...' : 'Save and Continue'}
+      </Button>
+    </OnboardingModal>
+  );
+};
 
 const OnboardingFlow = () => {
-    const { user, userProfile, supabase } = useAuth();
-    const [currentStep, setCurrentStep] = useState(null);
-    const [streakData, setStreakData] = useState(null);
-    const [loading, setLoading] = useState(false);
+  const { user, userProfile, refreshUserProfile } = useAuth();
+  const [activeStep, setActiveStep] = useState(null);
 
-    useEffect(() => {
-        if (user && userProfile !== null) {
+  // FIX: `checkOnboardingStatus` is now defined *before* it is used in `useEffect`.
+  // It's also wrapped in `useCallback` to prevent it from changing on every render.
+  const checkOnboardingStatus = useCallback(() => {
+    if (!userProfile) return;
+
+    // This logic assumes profile completion (name, mobile) is handled elsewhere (as seen in App.jsx)
+    // It checks for secondary onboarding steps, like choosing a language.
+    if (userProfile.is_profile_complete && userProfile.preferred_language === null) {
+      setActiveStep('language');
+    } else {
+      setActiveStep(null);
+    }
+  }, [userProfile]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        if (userProfile) {
             checkOnboardingStatus();
         }
-    }, [user, userProfile]);
+    }, 1500); // 1.5 second delay so it's not too intrusive.
 
-    const checkOnboardingStatus = async () => {
-        if (!user || !userProfile) return;
+    return () => clearTimeout(timer);
+  }, [userProfile, checkOnboardingStatus]);
 
-        // Check if this is a new user (no preferred language set)
-        if (!userProfile.preferred_language) {
-            setCurrentStep('language');
-            return;
-        }
+  if (!userProfile || !activeStep) return null;
 
-        // Check if profile is incomplete
-        if (!userProfile.is_profile_complete || !userProfile.username || !userProfile.mobile_number) {
-            setCurrentStep('profile');
-            return;
-        }
+  if (activeStep === 'language') {
+    return <LanguageSelectionModal onClose={() => setActiveStep(null)} />;
+  }
 
-        // Check if notification permission not set
-        if (userProfile.notification_enabled === null) {
-            setCurrentStep('notification');
-            return;
-        }
-
-        // Check daily login streak
-        await checkDailyLogin();
-    };
-
-    const checkDailyLogin = async () => {
-        if (!user) return;
-
-        setLoading(true);
-        try {
-            const { data, error } = await supabase.rpc('handle_daily_login', {
-                user_uuid: user.id
-            });
-
-            if (error) throw error;
-
-            if (data && !data.error) {
-                setStreakData(data);
-                if (data.is_new_login) {
-                    setCurrentStep('streak');
-                }
-            }
-        } catch (error) {
-            console.error('Daily login check error:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleLanguageComplete = () => {
-        setCurrentStep('profile');
-    };
-
-    const handleProfileComplete = () => {
-        setCurrentStep('notification');
-    };
-
-    const handleNotificationComplete = async () => {
-        setCurrentStep(null);
-        // Check daily login after onboarding
-        await checkDailyLogin();
-    };
-
-    const handleStreakComplete = () => {
-        setCurrentStep(null);
-    };
-
-    // Handle referral processing for new users
-    useEffect(() => {
-        if (user && userProfile?.is_profile_complete && !userProfile.referred_by) {
-            const urlParams = new URLSearchParams(window.location.search);
-            const refCode = urlParams.get('ref');
-            
-            if (refCode && refCode !== userProfile.referral_code) {
-                processReferral(refCode);
-            }
-        }
-    }, [user, userProfile]);
-
-    const processReferral = async (referralCode) => {
-        try {
-            const { data, error } = await supabase.rpc('handle_referral_bonus', {
-                referred_user_uuid: user.id,
-                referrer_code: referralCode
-            });
-
-            if (error) throw error;
-
-            if (data && data.success) {
-                // Show success notification or toast
-                console.log('Referral processed successfully:', data);
-            }
-        } catch (error) {
-            console.error('Referral processing error:', error);
-        }
-    };
-
-    if (loading) {
-        return (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg p-6 text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                    <p>Loading...</p>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <>
-            {/* Language Selection Modal */}
-            <LanguageSelectionModal
-                isOpen={currentStep === 'language'}
-                onComplete={handleLanguageComplete}
-            />
-
-            {/* Profile Update Modal */}
-            <ProfileUpdateModal
-                isOpen={currentStep === 'profile'}
-                onClose={handleProfileComplete}
-                isFirstTime={true}
-            />
-
-            {/* Notification Permission Modal */}
-            <NotificationPermissionModal
-                isOpen={currentStep === 'notification'}
-                onComplete={handleNotificationComplete}
-            />
-
-            {/* Daily Streak Modal */}
-            <DailyStreakModal
-                isOpen={currentStep === 'streak'}
-                onClose={handleStreakComplete}
-                streakData={streakData}
-            />
-        </>
-    );
+  return null;
 };
 
 export default OnboardingFlow;

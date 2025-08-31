@@ -34,7 +34,7 @@ export default function ProfileUpdate() {
   useEffect(() => {
     if (userProfile && !prefilledRef.current) {
       setFullName(userProfile.full_name || '');
-      setPhoneNumber(userProfile.phone_number || '');
+      setPhoneNumber(userProfile.mobile_number || '');
       setUsername(userProfile.username || '');
       setAvatarUrl(userProfile.avatar_url || '');
       prefilledRef.current = true;
@@ -137,7 +137,8 @@ export default function ProfileUpdate() {
 
   const updates = {
         full_name: fullName.trim(),
-  phone_number: phoneNumber,
+        mobile_number: phoneNumber,
+        is_profile_complete: true,
         updated_at: new Date().toISOString(),
       };
   // store validated username (lowercase)

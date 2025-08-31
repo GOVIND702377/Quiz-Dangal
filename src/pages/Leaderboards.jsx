@@ -85,7 +85,7 @@ export default function Leaderboards() {
             level: r.level,
             coins: Number(r.coins_earned || 0),
             referrals: Number(r.referrals || 0),
-            streak: Number(r.streak_count || 0),
+            streak: Number(r.current_streak || 0),
             badges: r.badges,
           }));
         } else if (period === 'monthly') {
@@ -101,7 +101,7 @@ export default function Leaderboards() {
             level: r.level,
             coins: Number(r.coins_earned || 0),
             referrals: Number(r.referrals || 0),
-            streak: Number(r.streak_count || 0),
+            streak: Number(r.current_streak || 0),
             badges: r.badges,
           }));
         } else {
@@ -120,7 +120,7 @@ export default function Leaderboards() {
             level: r.level,
             coins: Number((r.grand_total ?? r.coins_earned) || 0),
             referrals: Number(r.referrals || 0),
-            streak: Number(r.streak_count || 0),
+            streak: Number(r.current_streak || 0),
             badges: r.badges,
           }));
         }

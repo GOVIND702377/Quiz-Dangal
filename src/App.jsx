@@ -47,7 +47,7 @@ function App() {
 
   if (!user) {
     return (
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Helmet>
           <title>Quiz Dangal - Login</title>
           <meta name="description" content="Login to Quiz Dangal and start playing opinion-based quizzes." />
@@ -63,7 +63,7 @@ function App() {
   
   if (user && user.app_metadata?.provider === 'email' && !user.email_confirmed_at) {
      return (
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Helmet>
           <title>Quiz Dangal - Confirm Email</title>
           <meta name="description" content="Confirm your email to continue." />
@@ -78,10 +78,10 @@ function App() {
   }
 
   
-  // Gate profile completion: require username + full name + phone number
-  if (user && userProfile && (!userProfile.full_name || !userProfile.username || !userProfile.phone_number)) {
+  // Gate profile completion: require username + mobile number + profile complete flag
+  if (user && userProfile && (!userProfile.username || !userProfile.mobile_number || !userProfile.is_profile_complete)) {
     return (
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Routes>
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/profile-update" element={<ProfileUpdate />} />
@@ -94,7 +94,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <Router>
+      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-800">
           <Helmet>
             <title>Quiz Dangal - Opinion Based Quiz App</title>
