@@ -5,19 +5,18 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Coins, Share2, Copy, Check, ExternalLink, Gift } from 'lucide-react';
+import { Coins, Share2, Gift } from 'lucide-react';
+import ReferEarnModal from '@/components/ReferEarnModal';
 
 const Wallet = () => {
   const { toast } = useToast();
   const { user, userProfile } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sharing, setSharing] = useState(false);
-  const [showShareOptions, setShowShareOptions] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [bouncing, setBouncing] = useState(false);
   const [burstKey, setBurstKey] = useState(0);
   const [rippleKey, setRippleKey] = useState(0);
+  const [showReferEarn, setShowReferEarn] = useState(false);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -46,8 +45,6 @@ const Wallet = () => {
     fetchTransactions();
   }, [user]);
 
-  // Add Money / Withdraw removed as per new wallet design
-
   const walletBalance = Number(userProfile?.wallet_balance || 0);
 
   // Bounce animate coin when balance increases
@@ -60,59 +57,6 @@ const Wallet = () => {
     }
     setPrevBalance(walletBalance);
   }, [walletBalance, prevBalance]);
-
-  // Refer & Earn (migrated from Rewards)
-  const getReferralLink = () => {
-    const code = userProfile?.referral_code || user?.id || '';
-    return `${window.location.origin}?ref=${encodeURIComponent(code)}`;
-  };
-
-  const handleShareInvite = async () => {
-    if (!user) {
-      toast({ title: 'Login required', description: 'Please login to share your referral link.' });
-      return;
-    }
-    setSharing(true);
-    const shareUrl = getReferralLink();
-    const shareText = 'Join me on Quiz Dangal — Play daily quizzes, win coins and redeem rewards! Use my link to sign up:';
-    try {
-      const shareData = { title: 'Quiz Dangal - Refer & Earn', text: `${shareText} ${shareUrl}`, url: shareUrl };
-      try {
-        const res = await fetch('/android-chrome-512x512.png');
-        const blob = await res.blob();
-        const file = new File([blob], 'quiz-dangal.png', { type: blob.type || 'image/png' });
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-          shareData.files = [file];
-        }
-      } catch {}
-      if (navigator.share) {
-        await navigator.share(shareData);
-        toast({ title: 'Thanks for sharing!', description: 'Your referral link has been shared.' });
-        setShowShareOptions(false);
-      } else {
-        await navigator.clipboard.writeText(shareUrl);
-        setCopied(true);
-        setShowShareOptions(true);
-        setTimeout(() => setCopied(false), 1500);
-        toast({ title: 'Link copied', description: 'Share via your favorite app below.' });
-      }
-    } catch (e) {
-      setShowShareOptions(true);
-      toast({ title: 'Share failed', description: e.message || 'Please try again.', variant: 'destructive' });
-    } finally {
-      setSharing(false);
-    }
-  };
-
-  const shareUrl = getReferralLink();
-  const encodedUrl = encodeURIComponent(shareUrl);
-  const encodedText = encodeURIComponent('Join me on Quiz Dangal — Play daily quizzes, win coins and redeem rewards!');
-  const shareLinks = [
-    { name: 'WhatsApp', href: `https://wa.me/?text=${encodedText}%20${encodedUrl}` },
-    { name: 'Facebook', href: `https://www.facebook.com/sharer/sharer.php?u=${encodedUrl}` },
-    { name: 'Telegram', href: `https://t.me/share/url?url=${encodedUrl}&text=${encodedText}` },
-    { name: 'X (Twitter)', href: `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedText}` },
-  ];
 
   return (
     <div className="container mx-auto px-4 py-0">
@@ -264,33 +208,11 @@ const Wallet = () => {
                 <div className="text-sm opacity-90">Invite friends, they join — you earn rewards</div>
               </div>
             </div>
-            <Button onClick={handleShareInvite} className="bg-white text-indigo-700 hover:bg-white/90 px-2.5 py-1.5 text-sm">
-              <Share2 className="w-4 h-4 mr-2" /> {sharing ? 'Sharing…' : 'Invite & Earn'}
+            <Button onClick={() => setShowReferEarn(true)} className="bg-white text-indigo-700 hover:bg-white/90 px-2.5 py-1.5 text-sm">
+              <Share2 className="w-4 h-4 mr-2" /> Refer & Earn
             </Button>
           </div>
-          {showShareOptions && (
-            <div className="mt-4 border-t border-white/30 pt-3">
-              <div className="text-sm mb-2">Share via:</div>
-              <div className="flex flex-wrap gap-2">
-                {shareLinks.map((s) => (
-                  <a key={s.name} href={s.href} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white/95 hover:bg-white">
-                    <ExternalLink className="w-3.5 h-3.5" /> {s.name}
-                  </a>
-                ))}
-                <button
-                  onClick={async () => {
-                    await navigator.clipboard.writeText(shareUrl);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 1500);
-                  }}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-sm bg-white/95 hover:bg-white"
-                >
-                  {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />} {copied ? 'Copied' : 'Copy link'}
-                </button>
-              </div>
-              <div className="text-[11px] opacity-90 mt-2">Tip: Instagram direct share works best via the native share sheet on mobile.</div>
-            </div>
-          )}
+
         </motion.div>
 
         {/* Recent Activity - glass card + skeletons */}
@@ -368,6 +290,12 @@ const Wallet = () => {
           )}
         </motion.div>
       </motion.div>
+
+      {/* Refer & Earn Modal */}
+      <ReferEarnModal
+        isOpen={showReferEarn}
+        onClose={() => setShowReferEarn(false)}
+      />
     </div>
   );
 };

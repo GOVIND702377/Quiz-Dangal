@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Globe, Share2, Award, Sparkles } from 'lucide-react';
 import ProfileUpdateModal from '@/components/ProfileUpdateModal';
 import ReferEarnModal from '@/components/ReferEarnModal';
+import LanguageSelectionModal from '@/components/LanguageSelectionModal';
 
 // Removed StatCard and stats grid as requested
 
@@ -17,6 +18,7 @@ export default function Profile() {
   const [showBadges, setShowBadges] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [showReferEarn, setShowReferEarn] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
   const fileInputRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -130,18 +132,18 @@ export default function Profile() {
     { label: 'Contact Us', href: '/contact-us', icon: Mail },
     { label: 'Terms & Conditions', href: '/terms-conditions', icon: FileText },
     { label: 'Privacy Policy', href: '/privacy-policy', icon: Shield },
-    { label: 'Language', href: '/language', icon: Globe },
+    { label: 'Language', onClick: () => setShowLanguageModal(true), icon: Globe },
   ];
 
   return (
     <div className="min-h-[100svh] bg-indigo-50">
-      <div className="container mx-auto px-2 md:px-3 py-0 max-w-3xl space-y-3">
+      <div className="container mx-auto px-2 md:px-3 py-0 max-w-3xl space-y-2">
         {/* Header */}
         <div className="group relative overflow-hidden rounded-3xl p-4 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
           {/* subtle decorative gradient */}
           <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 h-56 w-56 rounded-full bg-gradient-to-tr from-indigo-200/60 via-fuchsia-200/50 to-transparent blur-3xl" />
           <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-24 h-56 w-56 rounded-full bg-gradient-to-tr from-purple-200/50 via-pink-200/40 to-transparent blur-3xl" />
-          <div className="flex flex-col gap-4 relative">
+          <div className="flex flex-col gap-3 relative">
             {/* Left: Avatar + Email */}
             <div className="flex items-start gap-2">
               <div className="flex flex-col items-center -ml-2">
@@ -170,7 +172,7 @@ export default function Profile() {
                   <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onAvatarSelected} />
                 </div>
                 {/* Email under avatar */}
-                <div className="mt-2 text-center">
+                <div className="mt-1.5 text-center">
                   <div className="text-[11px] text-gray-500">Email</div>
                   <div className="text-sm font-medium text-gray-800 whitespace-nowrap overflow-x-auto">{profile?.email || sessionUser.email}</div>
                 </div>
@@ -182,7 +184,7 @@ export default function Profile() {
                 </div>
                 <div className="text-sm font-semibold text-gray-800 truncate">{profile?.username ? `@${profile.username}` : 'Username not set'}</div>
                 {/* Quick stats: only Earned */}
-                <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                <div className="mt-1.5 flex flex-wrap gap-2 text-xs">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
                     <Award className="w-3.5 h-3.5" />
                     <span className="font-medium">{Number(profile?.total_earned ?? 0).toLocaleString()} Earned</span>
@@ -192,20 +194,20 @@ export default function Profile() {
             </div>
             {/* Right: Level + Progress (keep stacked like mobile) */}
             <div className="w-full">
-              <div className="mt-2 inline-flex items-center gap-2">
+              <div className="mt-1.5 inline-flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-100">Level {profile?.level ?? '—'}</span>
                 <span className="px-2 py-0.5 rounded-full text-[11px] bg-gray-50 text-gray-600 border border-gray-200">{getLevelTitle(profile?.level)}</span>
               </div>
-              <div className="mt-2 relative h-2.5 bg-gray-200/70 rounded-full overflow-hidden">
+              <div className="mt-1.5 relative h-2.5 bg-gray-200/70 rounded-full overflow-hidden">
                 <div className="absolute inset-0 bg-white/30" />
                 <div className="relative h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 shadow-[0_0_12px_rgba(99,102,241,0.35)]" style={{ width: `${getLevelProgress(profile?.total_earned)}%` }} />
                 <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-gray-600">{getLevelProgress(profile?.total_earned)}%</span>
               </div>
               <div className="mt-1 text-[11px] text-gray-500">to next level</div>
-              <button onClick={() => setShowBadges((v) => !v)} className="mt-2 text-xs text-indigo-700 hover:text-indigo-800 underline">{showBadges ? 'Hide badges' : 'View badges'}</button>
+              <button onClick={() => setShowBadges((v) => !v)} className="mt-1.5 text-xs text-indigo-700 hover:text-indigo-800 underline">{showBadges ? 'Hide badges' : 'View badges'}</button>
             </div>
             {/* Bottom-left action */}
-            <div className="pt-3 mt-1 w-full border-t border-gray-100">
+            <div className="pt-2 mt-1 w-full border-t border-gray-100">
               <button
                 onClick={() => setEditingProfile(true)}
                 className="inline-flex items-center px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow hover:shadow-md text-sm transition"
@@ -219,11 +221,11 @@ export default function Profile() {
         {/* Badges Section */}
         {showBadges && (
           <div className="rounded-3xl p-4 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
-            <div className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+            <div className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
               <Award className="w-4 h-4 text-amber-600" />
               <span>Your Badges</span>
             </div>
-            <div className="flex flex-wrap gap-2 mb-3">
+            <div className="flex flex-wrap gap-2 mb-2">
               {unlocked.length > 0 ? (
                 unlocked.map((b, i) => (
                   <span key={`u-${i}`} className="px-2.5 py-1.5 text-[11px] rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 text-indigo-700 shadow-sm">
@@ -300,6 +302,15 @@ export default function Profile() {
         <ReferEarnModal
           isOpen={showReferEarn}
           onClose={() => setShowReferEarn(false)}
+        />
+
+        {/* Language Selection Modal */}
+        <LanguageSelectionModal
+          isOpen={showLanguageModal}
+          onComplete={() => {
+            setShowLanguageModal(false);
+            load(); // Refresh profile data
+          }}
         />
       </div>
     </div>

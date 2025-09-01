@@ -10,6 +10,8 @@ export default defineConfig({
 	base: '/',
 	server: {
 		cors: true,
+		host: true,     // Allow both localhost and network access
+		port: 5173,     // Default Vite port
 		headers: {
 			'Cross-Origin-Embedder-Policy': 'credentialless',
 		},

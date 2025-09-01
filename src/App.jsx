@@ -133,7 +133,7 @@ const MainLayout = () => {
   return (
     <>
       <Header />
-      <main className="flex-1 pb-24 pt-16">
+      <main className="flex-1 pb-24 pt-4">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/my-quizzes" element={<MyQuizzes />} />
