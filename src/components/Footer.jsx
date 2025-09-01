@@ -21,27 +21,25 @@ const Footer = () => {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
-            
+
             return (
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
-                className="flex flex-col items-center justify-center py-2 px-1 min-w-0"
+                className="flex flex-col items-center justify-center py-2 px-1 min-w-0 transition-all duration-200 ease-in-out hover:scale-110 active:scale-95"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                <Icon 
-                  size={24} 
-                  className={`mb-1 ${
-                    isActive 
-                      ? 'text-blue-600' 
+                <Icon
+                  size={24}
+                  className={`mb-1 ${isActive
+                      ? 'text-blue-600'
                       : 'text-gray-500'
-                  }`}
+                    }`}
                 />
-                <span className={`text-xs ${
-                  isActive 
-                    ? 'text-blue-600 font-medium' 
+                <span className={`text-xs ${isActive
+                    ? 'text-blue-600 font-medium'
                     : 'text-gray-500'
-                }`}>
+                  }`}>
                   {item.label}
                 </span>
               </button>

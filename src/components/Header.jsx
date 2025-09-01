@@ -8,7 +8,8 @@ import StreakModal from '@/components/StreakModal';
 
 const Header = () => {
   const { user, userProfile, refreshUserProfile } = useAuth();
-  const wallet = Number(userProfile?.wallet_balance || 0);
+  // Use total_coins if available to keep display consistent with leaderboards
+  const wallet = Number((userProfile?.total_coins ?? userProfile?.wallet_balance) || 0);
 
   const [streakModal, setStreakModal] = useState({ open: false, day: 0, coins: 0 });
 
@@ -47,7 +48,7 @@ const Header = () => {
       <motion.header
         initial={{ y: -40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
         className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 border-b border-white/20 shadow-[0_8px_32px_rgba(0,0,0,0.12)]"
       >
         {/* subtle gradient underline */}

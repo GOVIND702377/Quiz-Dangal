@@ -18,6 +18,10 @@ const Wallet = () => {
   const [rippleKey, setRippleKey] = useState(0);
   const [showReferEarn, setShowReferEarn] = useState(false);
 
+  // Allow only known transaction types and define positive ones
+  const allowedTypes = ['daily_login','referral_bonus','quiz_reward','credit','debit','refund','purchase','redeem','referral','reward','bonus'];
+  const positiveTypes = ['reward','bonus','credit','referral','refund','daily_login','referral_bonus','quiz_reward'];
+
   useEffect(() => {
     const fetchTransactions = async () => {
       if (!user) return;
@@ -27,13 +31,27 @@ const Wallet = () => {
           .from('transactions')
           .select('*')
           .eq('user_id', user.id)
+          .in('type', allowedTypes)
+          .not('type', 'is', null) // Exclude null types
+          .not('amount', 'is', null) // Exclude null amounts
+          .neq('amount', 0) // Exclude zero amounts
           .order('created_at', { ascending: false })
           .limit(10);
 
         if (error) {
           console.error('Error fetching transactions:', error);
         } else {
-          setTransactions(data || []);
+          // Additional filtering to remove fake/test/manual transactions
+          const blacklist = /(test|dummy|fake|seed|add coin|manual)/i;
+          const validTransactions = (data || []).filter(t => {
+            const hasValidAmount = t.amount != null && Math.abs(Number(t.amount)) > 0;
+            const hasValidType = typeof t.type === 'string' && t.type.trim() !== '';
+            const hasValidDate = !!t.created_at;
+            const isBlacklisted = blacklist.test(String(t.description || '')) || blacklist.test(String(t.type || ''));
+            return hasValidAmount && hasValidType && hasValidDate && !isBlacklisted;
+          });
+          
+          setTransactions(validTransactions);
         }
       } catch (error) {
         console.error('Error fetching transactions:', error);
@@ -45,7 +63,7 @@ const Wallet = () => {
     fetchTransactions();
   }, [user]);
 
-  const walletBalance = Number(userProfile?.wallet_balance || 0);
+  const walletBalance = Number((userProfile?.total_coins ?? userProfile?.wallet_balance) || 0);
 
   // Bounce animate coin when balance increases
   const [prevBalance, setPrevBalance] = useState(walletBalance);
@@ -280,9 +298,9 @@ const Wallet = () => {
                     </div>
                   </div>
                   <div className={`font-semibold ${
-                    ['reward','bonus','credit','referral','refund'].includes(transaction.type) ? 'text-green-600' : 'text-red-600'
+                    positiveTypes.includes((transaction.type || '').toLowerCase()) ? 'text-green-600' : 'text-red-600'
                   }`}>
-                    {['reward','bonus','credit','referral','refund'].includes(transaction.type) ? '+' : '-'}{Math.abs(Number(transaction.amount) || 0)} coins
+                    {positiveTypes.includes((transaction.type || '').toLowerCase()) ? '+' : '-'}{Math.abs(Number(transaction.amount) || 0)} coins
                   </div>
                 </motion.div>
               ))}

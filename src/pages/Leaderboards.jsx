@@ -81,6 +81,7 @@ export default function Leaderboards() {
           // Map to unified shape
           data = data.map((r, idx) => ({
             rank: idx + 1,
+            user_id: r.user_id,
             name: r.full_name,
             level: r.level,
             coins: Number(r.coins_earned || 0),
@@ -97,6 +98,7 @@ export default function Leaderboards() {
           data.sort((a, b) => Number(b.coins_earned || 0) - Number(a.coins_earned || 0));
           data = data.map((r, idx) => ({
             rank: idx + 1,
+            user_id: r.user_id,
             name: r.full_name,
             level: r.level,
             coins: Number(r.coins_earned || 0),
@@ -116,6 +118,7 @@ export default function Leaderboards() {
           data.sort((a, b) => Number(b.grand_total || b.coins_earned || 0) - Number(a.grand_total || a.coins_earned || 0));
           data = data.map((r, idx) => ({
             rank: idx + 1,
+            user_id: r.user_id,
             name: r.full_name,
             level: r.level,
             coins: Number((r.grand_total ?? r.coins_earned) || 0),
@@ -148,9 +151,25 @@ export default function Leaderboards() {
   }, [rows, search]);
 
   const myIndex = useMemo(() => {
-    const n = (userProfile?.full_name || '').toLowerCase();
-    if (!n) return -1;
-    return rows.findIndex((r) => (r.name || '').toLowerCase() === n);
+    if (!userProfile?.id) return -1;
+    
+    // First try to match by user ID
+    let index = rows.findIndex((r) => r.user_id === userProfile.id);
+    
+    // If not found, try matching by username
+    if (index === -1 && userProfile.username) {
+      index = rows.findIndex((r) => r.name === userProfile.username);
+    }
+    
+    // If still not found, try matching by full name
+    if (index === -1) {
+      const myName = (userProfile?.full_name || '').toLowerCase().trim();
+      if (myName) {
+        index = rows.findIndex((r) => (r.name || '').toLowerCase().trim() === myName);
+      }
+    }
+    
+    return index;
   }, [rows, userProfile]);
   const myRow = myIndex >= 0 ? rows[myIndex] : null;
   const myRank = myIndex >= 0 ? myIndex + 1 : null;

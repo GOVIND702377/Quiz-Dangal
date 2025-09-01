@@ -187,7 +187,7 @@ export default function Profile() {
                 <div className="mt-1.5 flex flex-wrap gap-2 text-xs">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
                     <Award className="w-3.5 h-3.5" />
-                    <span className="font-medium">{Number(profile?.total_earned ?? 0).toLocaleString()} Earned</span>
+                    <span className="font-medium">{Number((profile?.total_coins ?? profile?.wallet_balance ?? 0)).toLocaleString()} Coins</span>
                   </div>
                 </div>
               </div>

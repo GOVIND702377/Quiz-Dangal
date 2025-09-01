@@ -14,11 +14,14 @@ ADD COLUMN IF NOT EXISTS notification_enabled BOOLEAN DEFAULT FALSE,
 ADD COLUMN IF NOT EXISTS referral_code TEXT UNIQUE,
 ADD COLUMN IF NOT EXISTS referred_by UUID REFERENCES public.profiles(id),
 ADD COLUMN IF NOT EXISTS total_coins INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS wallet_balance INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS current_streak INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS max_streak INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS last_login_date DATE,
 ADD COLUMN IF NOT EXISTS streak_month INTEGER DEFAULT EXTRACT(MONTH FROM NOW()),
-ADD COLUMN IF NOT EXISTS streak_year INTEGER DEFAULT EXTRACT(YEAR FROM NOW());
+ADD COLUMN IF NOT EXISTS streak_year INTEGER DEFAULT EXTRACT(YEAR FROM NOW()),
+ADD COLUMN IF NOT EXISTS level INTEGER DEFAULT 1,
+ADD COLUMN IF NOT EXISTS badges TEXT[];
 
 -- 2. CREATE DAILY LOGIN STREAKS TABLE
 CREATE TABLE IF NOT EXISTS public.daily_streaks (
@@ -54,33 +57,37 @@ CREATE TABLE IF NOT EXISTS public.referrals (
     UNIQUE(referrer_id, referred_id)
 );
 
--- 5. CREATE LEADERBOARDS VIEW
-CREATE OR REPLACE VIEW public.leaderboards AS
+-- 5. CREATE TRANSACTIONS TABLE (ALIAS FOR COMPATIBILITY)
+CREATE OR REPLACE VIEW public.transactions AS
+SELECT 
+    id,
+    user_id,
+    transaction_type as type,
+    coins_amount as amount,
+    description,
+    reference_id,
+    created_at
+FROM public.coins_transactions;
+
+-- 6. CREATE LEADERBOARD VIEWS
+CREATE OR REPLACE VIEW public.leaderboard_weekly AS
 SELECT 
     p.id,
+    p.id as user_id,
     p.username,
+    p.full_name,
     p.avatar_url,
-    p.total_coins,
+    p.level,
     p.current_streak,
     p.max_streak,
-    ROW_NUMBER() OVER (ORDER BY p.total_coins DESC, p.created_at ASC) as all_time_rank,
-    ROW_NUMBER() OVER (
-        ORDER BY 
-        COALESCE(weekly_coins.coins, 0) DESC, 
-        p.created_at ASC
-    ) as weekly_rank,
-    ROW_NUMBER() OVER (
-        ORDER BY 
-        COALESCE(monthly_coins.coins, 0) DESC, 
-        p.created_at ASC
-    ) as monthly_rank,
-    COALESCE(weekly_coins.coins, 0) as weekly_coins,
-    COALESCE(monthly_coins.coins, 0) as monthly_coins
+    COALESCE(r.referrals, 0) as referrals,
+    COALESCE(weekly_coins.coins_earned, 0) as coins_earned,
+    p.badges
 FROM public.profiles p
 LEFT JOIN (
     SELECT 
         user_id, 
-        SUM(coins_amount) as coins
+        SUM(coins_amount) as coins_earned
     FROM public.coins_transactions 
     WHERE created_at >= DATE_TRUNC('week', NOW())
     AND coins_amount > 0
@@ -88,15 +95,70 @@ LEFT JOIN (
 ) weekly_coins ON p.id = weekly_coins.user_id
 LEFT JOIN (
     SELECT 
+        referrer_id,
+        COUNT(*) as referrals
+    FROM public.referrals
+    WHERE created_at >= DATE_TRUNC('week', NOW())
+    GROUP BY referrer_id
+) r ON p.id = r.referrer_id
+WHERE p.is_profile_complete = TRUE;
+
+CREATE OR REPLACE VIEW public.leaderboard_monthly AS
+SELECT 
+    p.id,
+    p.id as user_id,
+    p.username,
+    p.full_name,
+    p.avatar_url,
+    p.level,
+    p.current_streak,
+    p.max_streak,
+    COALESCE(r.referrals, 0) as referrals,
+    COALESCE(monthly_coins.coins_earned, 0) as coins_earned,
+    p.badges
+FROM public.profiles p
+LEFT JOIN (
+    SELECT 
         user_id, 
-        SUM(coins_amount) as coins
+        SUM(coins_amount) as coins_earned
     FROM public.coins_transactions 
     WHERE created_at >= DATE_TRUNC('month', NOW())
     AND coins_amount > 0
     GROUP BY user_id
 ) monthly_coins ON p.id = monthly_coins.user_id
-WHERE p.is_profile_complete = TRUE
-ORDER BY p.total_coins DESC;
+LEFT JOIN (
+    SELECT 
+        referrer_id,
+        COUNT(*) as referrals
+    FROM public.referrals
+    WHERE created_at >= DATE_TRUNC('month', NOW())
+    GROUP BY referrer_id
+) r ON p.id = r.referrer_id
+WHERE p.is_profile_complete = TRUE;
+
+CREATE OR REPLACE VIEW public.all_time_leaderboard AS
+SELECT 
+    p.id,
+    p.id as user_id,
+    p.username,
+    p.full_name,
+    p.avatar_url,
+    p.level,
+    p.current_streak,
+    p.max_streak,
+    COALESCE(r.referrals, 0) as referrals,
+    p.total_coins as coins_earned,
+    p.total_coins as grand_total,
+    p.badges
+FROM public.profiles p
+LEFT JOIN (
+    SELECT 
+        referrer_id,
+        COUNT(*) as referrals
+    FROM public.referrals
+    GROUP BY referrer_id
+) r ON p.id = r.referrer_id
+WHERE p.is_profile_complete = TRUE;
 
 -- 6. ENABLE RLS FOR NEW TABLES
 ALTER TABLE public.daily_streaks ENABLE ROW LEVEL SECURITY;
@@ -285,7 +347,10 @@ CREATE INDEX IF NOT EXISTS idx_coins_transactions_created_at ON public.coins_tra
 CREATE INDEX IF NOT EXISTS idx_referrals_referrer_id ON public.referrals(referrer_id);
 
 -- 14. GRANT PERMISSIONS
-GRANT SELECT ON public.leaderboards TO authenticated;
+GRANT SELECT ON public.transactions TO authenticated;
+GRANT SELECT ON public.leaderboard_weekly TO authenticated;
+GRANT SELECT ON public.leaderboard_monthly TO authenticated;
+GRANT SELECT ON public.all_time_leaderboard TO authenticated;
 GRANT EXECUTE ON FUNCTION public.handle_daily_login(UUID) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.handle_referral_bonus(UUID, TEXT) TO authenticated;
 

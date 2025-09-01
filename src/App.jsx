@@ -24,6 +24,7 @@ import Results from '@/pages/Results';
 import Leaderboards from '@/pages/Leaderboards';
 import Redemptions from '@/pages/Redemptions';
 import Language from '@/pages/Language';
+import PWAInstallButton from '@/components/PWAInstallButton';
 
 const UnconfirmedEmail = () => (
   <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -40,7 +41,10 @@ function App() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-indigo-500"></div>
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600"></div>
+          <div className="text-indigo-600 font-medium animate-pulse">Loading Quiz Dangal...</div>
+        </div>
       </div>
     );
   }
@@ -95,7 +99,7 @@ function App() {
   return (
     <ErrorBoundary>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-800">
+        <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-800 transition-all duration-300 ease-in-out">
           <Helmet>
             <title>Quiz Dangal - Opinion Based Quiz App</title>
             <meta name="description" content="Join Quiz Dangal for exciting opinion-based quizzes with real prizes!" />
@@ -119,7 +123,7 @@ function AdminRoute({ children }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-indigo-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-3 border-indigo-200 border-t-indigo-600"></div>
       </div>
     );
   }
@@ -133,21 +137,21 @@ const MainLayout = () => {
   return (
     <>
       <Header />
-      <main className="flex-1 pb-24 pt-4">
+      <main className="flex-1 pb-24 pt-4 page-transition">
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/my-quizzes" element={<MyQuizzes />} />
-          <Route path="/wallet" element={<Wallet />} />
-          <Route path="/profile" element={<Profile />} />
-          <Route path="/leaderboards" element={<Leaderboards />} />
-          <Route path="/language" element={<Language />} />
+          <Route path="/" element={<div className="page-transition"><Home /></div>} />
+          <Route path="/my-quizzes" element={<div className="page-transition"><MyQuizzes /></div>} />
+          <Route path="/wallet" element={<div className="page-transition"><Wallet /></div>} />
+          <Route path="/profile" element={<div className="page-transition"><Profile /></div>} />
+          <Route path="/leaderboards" element={<div className="page-transition"><Leaderboards /></div>} />
+          <Route path="/language" element={<div className="page-transition"><Language /></div>} />
           <Route path="/rewards" element={<Navigate to="/wallet" replace />} />
-          <Route path="/redemptions" element={<Redemptions />} />
-          <Route path="/about-us" element={<AboutUs />} />
-          <Route path="/contact-us" element={<ContactUs />} />
-          <Route path="/terms-conditions" element={<TermsConditions />} />
-          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/admin" element={<AdminRoute><Admin /></AdminRoute>} />
+          <Route path="/redemptions" element={<div className="page-transition"><Redemptions /></div>} />
+          <Route path="/about-us" element={<div className="page-transition"><AboutUs /></div>} />
+          <Route path="/contact-us" element={<div className="page-transition"><ContactUs /></div>} />
+          <Route path="/terms-conditions" element={<div className="page-transition"><TermsConditions /></div>} />
+          <Route path="/privacy-policy" element={<div className="page-transition"><PrivacyPolicy /></div>} />
+          <Route path="/admin" element={<AdminRoute><div className="page-transition"><Admin /></div></AdminRoute>} />
           {/* Back-compat redirects to single admin with tab param */}
           <Route path="/admin/users" element={<Navigate to="/admin?tab=users" replace />} />
           <Route path="/admin/leaderboards" element={<Navigate to="/admin?tab=leaderboards" replace />} />
@@ -158,6 +162,9 @@ const MainLayout = () => {
         </Routes>
       </main>
       <Footer />
+      
+      {/* PWA Install Button */}
+      <PWAInstallButton />
       
       {/* Onboarding Flow */}
       <OnboardingFlow />

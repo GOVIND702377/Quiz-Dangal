@@ -121,12 +121,7 @@ FOR SELECT USING (
     )
 );
 
--- 10. SAMPLE DATA (Optional)
-INSERT INTO public.quiz_schedule (title, description, start_time, end_time, entry_fee, prize_pool, max_participants) VALUES
-('Daily Quiz - General Knowledge', 'Test your general knowledge with exciting questions!', NOW() + INTERVAL '1 hour', NOW() + INTERVAL '2 hours', 10.00, 500.00, 50),
-('Weekly Quiz - Sports', 'Are you a sports expert? Prove it!', NOW() + INTERVAL '1 day', NOW() + INTERVAL '1 day' + INTERVAL '2 hours', 20.00, 1000.00, 100),
-('Monthly Quiz - Technology', 'Tech enthusiasts, this is for you!', NOW() + INTERVAL '7 days', NOW() + INTERVAL '7 days' + INTERVAL '3 hours', 50.00, 2500.00, 200)
-ON CONFLICT DO NOTHING;
+-- 10. SAMPLE DATA REMOVED (Do not insert any sample rows in production)
 
 -- 11. CREATE INDEXES FOR BETTER PERFORMANCE
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles(email);

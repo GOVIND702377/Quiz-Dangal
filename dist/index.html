@@ -12,14 +12,45 @@
 	<link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png">
 	<meta name="generator" content="Quiz Dangal" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<title>Quiz Dangal - Opinion Based Quiz App</title>
-  <script type="module" crossorigin src="/assets/index-b4c195e7.js"></script>
-  <link rel="stylesheet" href="/assets/index-28341258.css">
+	<meta name="theme-color" content="#6366f1" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+	<meta name="apple-mobile-web-app-title" content="Quiz Dangal" />
+	<meta name="description" content="Opinion Based Quiz App with Real Prizes" />
+	<title>Quiz Dangal</title>
+  <script type="module" crossorigin src="/assets/index-1c6dc3d7.js"></script>
+  <link rel="stylesheet" href="/assets/index-8bb412d1.css">
 </head>
 
 <body>
 	<div id="root"></div>
-			
+	
+	<script>
+		// Register service worker for PWA functionality
+		if ('serviceWorker' in navigator) {
+			window.addEventListener('load', () => {
+				navigator.serviceWorker.register('/sw.js')
+					.then((registration) => {
+						console.log('SW registered: ', registration);
+
+						// Check for updates
+						registration.addEventListener('updatefound', () => {
+							const newWorker = registration.installing;
+							newWorker.addEventListener('statechange', () => {
+								if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+									// New update available
+									newWorker.postMessage({ type: 'SKIP_WAITING' });
+									window.location.reload();
+								}
+							});
+						});
+					})
+					.catch((registrationError) => {
+						console.log('SW registration failed: ', registrationError);
+					});
+			});
+		}
+	</script>
 </body>
 
 </html>

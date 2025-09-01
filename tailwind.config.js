@@ -93,6 +93,18 @@ module.exports = {
 					'0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
 					'50%': { transform: 'translateY(-8px) rotate(0.5deg)' },
 				},
+				'fadeIn': {
+					'0%': { opacity: '0' },
+					'100%': { opacity: '1' },
+				},
+				'slideUp': {
+					'0%': { opacity: '0', transform: 'translateY(20px)' },
+					'100%': { opacity: '1', transform: 'translateY(0)' },
+				},
+				'bounceGentle': {
+					'0%, 100%': { transform: 'translateY(0)' },
+					'50%': { transform: 'translateY(-5px)' },
+				},
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
@@ -102,6 +114,9 @@ module.exports = {
 				'float': 'float 6s ease-in-out infinite',
 				'float-delayed': 'float-delayed 8s ease-in-out infinite',
 				'float-slow': 'float-slow 10s ease-in-out infinite',
+				'fade-in': 'fadeIn 0.3s ease-out',
+				'slide-up': 'slideUp 0.3s ease-out',
+				'bounce-gentle': 'bounceGentle 0.6s ease-out',
 			},
 			backgroundSize: {
 				'300%': '300%',
