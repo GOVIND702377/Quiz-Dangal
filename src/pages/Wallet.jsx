@@ -63,7 +63,7 @@ const Wallet = () => {
     fetchTransactions();
   }, [user]);
 
-  const walletBalance = Number((userProfile?.total_coins ?? userProfile?.wallet_balance) || 0);
+  const walletBalance = Number(userProfile?.wallet_balance || 0);
 
   // Bounce animate coin when balance increases
   const [prevBalance, setPrevBalance] = useState(walletBalance);
@@ -220,7 +220,7 @@ const Wallet = () => {
         >
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
-              <img src="/android-chrome-512x512.png" alt="Quiz Dangal" className="w-9 h-9 rounded-xl ring-2 ring-white/40" />
+              <img src="/logo.svg" alt="Quiz Dangal" className="w-9 h-9 rounded-xl ring-2 ring-white/40" onError={(e) => { e.currentTarget.src='/android-chrome-512x512.png'; }} />
               <div>
                 <div className="text-base font-bold">Refer & Earn</div>
                 <div className="text-sm opacity-90">Invite friends, they join — you earn rewards</div>

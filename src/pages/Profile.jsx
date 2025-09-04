@@ -30,7 +30,7 @@ export default function Profile() {
       if (u) {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, email, full_name, username, avatar_url, wallet_balance, total_earned, total_spent, badges, level')
+          .select('*')
           .eq('id', u.id)
           .single();
         if (error) throw error;
@@ -92,8 +92,8 @@ export default function Profile() {
     if (n >= 5) return 'Explorer';
     return 'Rookie';
   };
-  const getLevelProgress = (totalEarned) => {
-    const earned = Number(totalEarned || 0);
+  const getLevelProgress = (totalCoins) => {
+    const earned = Number(totalCoins || 0);
     const target = 100; // assumption: 100 coins per level
     const pct = Math.max(0, Math.min(100, Math.round((earned % target) / target * 100)));
     return pct;
@@ -187,7 +187,7 @@ export default function Profile() {
                 <div className="mt-1.5 flex flex-wrap gap-2 text-xs">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
                     <Award className="w-3.5 h-3.5" />
-                    <span className="font-medium">{Number((profile?.total_coins ?? profile?.wallet_balance ?? 0)).toLocaleString()} Coins</span>
+                    <span className="font-medium">{Number(profile?.wallet_balance ?? 0).toLocaleString()} Coins</span>
                   </div>
                 </div>
               </div>
@@ -200,8 +200,8 @@ export default function Profile() {
               </div>
               <div className="mt-1.5 relative h-2.5 bg-gray-200/70 rounded-full overflow-hidden">
                 <div className="absolute inset-0 bg-white/30" />
-                <div className="relative h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 shadow-[0_0_12px_rgba(99,102,241,0.35)]" style={{ width: `${getLevelProgress(profile?.total_earned)}%` }} />
-                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-gray-600">{getLevelProgress(profile?.total_earned)}%</span>
+                <div className="relative h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 shadow-[0_0_12px_rgba(99,102,241,0.35)]" style={{ width: `${getLevelProgress(profile?.total_coins)}%` }} />
+                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-gray-600">{getLevelProgress(profile?.total_coins)}%</span>
               </div>
               <div className="mt-1 text-[11px] text-gray-500">to next level</div>
               <button onClick={() => setShowBadges((v) => !v)} className="mt-1.5 text-xs text-indigo-700 hover:text-indigo-800 underline">{showBadges ? 'Hide badges' : 'View badges'}</button>

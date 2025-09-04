@@ -3,7 +3,7 @@
 // Is file ka poora purana code delete karke yeh naya code paste karen.
 // ========================================================================
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 
 const AuthContext = createContext();
@@ -13,6 +13,7 @@ export const AuthProvider = ({ children }) => {
     const [userProfile, setUserProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isRecoveryFlow, setIsRecoveryFlow] = useState(false);
+    const initProfileRef = useRef(false);
 
     // Dev bypass: allow running app without Supabase for local UI testing
     const _bypass = String(import.meta.env.VITE_BYPASS_AUTH || '').toLowerCase();
@@ -136,39 +137,44 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
         return () => clearInterval(id);
     }, [user]);
 
-    // Auto-create/upsert profile row for new users if not exists + referral attribution
+    // Auto-create/upsert profile row for new users if not exists + referral attribution (via secure RPC)
     useEffect(() => {
         if (!user || loading) return;
+
+        // Guard double execution in React 18 StrictMode in dev
+        if (initProfileRef.current) return;
+        initProfileRef.current = true;
 
         const params = new URLSearchParams(window.location.search);
         const refParam = params.get('ref');
 
         const payload = {
             id: user.id,
-            email: user.email,
             full_name: user.user_metadata?.full_name || '',
-            phone_number: ''
+            mobile_number: ''
         };
-
-        // First time insert: include referred_by if present and not self
-        if (!userProfile && refParam && refParam !== user.id) {
-            payload.referred_by = refParam;
-        }
 
         supabase
             .from('profiles')
             .upsert([payload], { onConflict: 'id' })
             .then(async () => {
-                // Existing profile without referral: set it once (no-op if already set)
-                if (userProfile && !userProfile.referred_by && refParam && refParam !== user.id) {
-                    await supabase
-                        .from('profiles')
-                        .update({ referred_by: refParam })
-                        .eq('id', user.id);
+                // Process referral once via SECURITY DEFINER function to avoid RLS trigger issues
+                const refFlag = `qd_referral_processed_${user.id}`;
+                const alreadyProcessed = (() => { try { return sessionStorage.getItem(refFlag) === '1'; } catch { return false; } })();
+                if (!alreadyProcessed && refParam && refParam !== user.id) {
+                    try {
+                        await supabase.rpc('handle_referral_bonus', {
+                            referred_user_uuid: user.id,
+                            referrer_code: refParam,
+                        });
+                        try { sessionStorage.setItem(refFlag, '1'); } catch {}
+                    } catch {
+                        // ignore referral errors so profile init continues
+                    }
                 }
             })
             .catch(() => {
-                // Ignore upsert/update errors here; UI can still function and retries will happen on next auth state change
+                // Ignore upsert errors here; UI can still function and retries will happen on next auth state change
             })
             .finally(() => {
                 // Refresh local profile state so navbar and UI update immediately

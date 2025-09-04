@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -8,10 +8,10 @@ import StreakModal from '@/components/StreakModal';
 
 const Header = () => {
   const { user, userProfile, refreshUserProfile } = useAuth();
-  // Use total_coins if available to keep display consistent with leaderboards
-  const wallet = Number((userProfile?.total_coins ?? userProfile?.wallet_balance) || 0);
+  const wallet = Number(userProfile?.wallet_balance || 0);
 
   const [streakModal, setStreakModal] = useState({ open: false, day: 0, coins: 0 });
+  const claimingRef = useRef(false);
 
   // Auto-claim daily streak once per day on first app open after login
   useEffect(() => {
@@ -24,6 +24,8 @@ const Header = () => {
     } catch { }
 
     (async () => {
+      if (claimingRef.current) return;
+      claimingRef.current = true;
       try {
         const { data, error } = await supabase.rpc('handle_daily_login', { user_uuid: user.id });
         if (!error && data && (data.success || data.already_logged)) {
@@ -37,8 +39,10 @@ const Header = () => {
           // Refresh profile to reflect new balances and streak
           await refreshUserProfile(user);
         }
-      } catch {
-        // silent; UI still works, user can try again later
+      } catch (e) {
+        // suppress; no-op
+      } finally {
+        claimingRef.current = false;
       }
     })();
   }, [user, userProfile, refreshUserProfile]);
@@ -60,8 +64,14 @@ const Header = () => {
             <Link to="/" className="flex items-center gap-2 group">
               <img
                 src="/android-chrome-512x512.png"
+                srcSet="/android-chrome-192x192.png 192w, /android-chrome-512x512.png 512w"
+                sizes="(min-width: 640px) 48px, 44px"
                 alt="Quiz Dangal Logo"
-                className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl shadow-sm group-hover:scale-105 transition"
+                width="48"
+                height="48"
+                decoding="async"
+                className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl shadow-sm object-contain"
+                style={{ imageRendering: 'auto' }}
               />
               <div className="leading-tight whitespace-nowrap">
                 <div className="text-xl sm:text-2xl font-extrabold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent group-hover:from-indigo-700 group-hover:to-purple-700 transition-colors">

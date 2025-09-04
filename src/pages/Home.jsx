@@ -265,7 +265,7 @@ const Home = () => {
         <div className="text-center mb-6 sm:mb-8 relative">
           {/* Simple Logo */}
           <div className="flex justify-center mb-6">
-            <img src="/android-chrome-512x512.png" alt="Quiz Dangal Logo" className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl shadow-lg" />
+            <img src="/logo.svg" alt="Quiz Dangal Logo" className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl shadow-lg" onError={(e) => { e.currentTarget.src='/android-chrome-512x512.png'; }} />
           </div>
 
           {/* Simple Title */}

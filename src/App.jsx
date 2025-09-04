@@ -11,7 +11,6 @@ import Home from '@/pages/Home';
 import MyQuizzes from '@/pages/MyQuizzes';
 import Wallet from '@/pages/Wallet';
 import Profile from '@/pages/Profile';
-import ProfileUpdate from '@/pages/ProfileUpdate';
 import Login from '@/pages/Login';
 import ResetPassword from '@/pages/ResetPassword';
 import AboutUs from '@/pages/AboutUs';
@@ -35,6 +34,8 @@ const UnconfirmedEmail = () => (
   </div>
 );
 
+const Page = ({ children }) => <div className="page-transition">{children}</div>;
+
 function App() {
   const { user, userProfile, loading } = useAuth();
 
@@ -49,53 +50,6 @@ function App() {
     );
   }
 
-  if (!user) {
-    return (
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Helmet>
-          <title>Quiz Dangal - Login</title>
-          <meta name="description" content="Login to Quiz Dangal and start playing opinion-based quizzes." />
-        </Helmet>
-        <Routes>
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="*" element={<Login />} />
-        </Routes>
-        <Toaster />
-      </Router>
-    );
-  }
-  
-  if (user && user.app_metadata?.provider === 'email' && !user.email_confirmed_at) {
-     return (
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Helmet>
-          <title>Quiz Dangal - Confirm Email</title>
-          <meta name="description" content="Confirm your email to continue." />
-        </Helmet>
-        <Routes>
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="*" element={<UnconfirmedEmail />} />
-        </Routes>
-        <Toaster />
-      </Router>
-    );
-  }
-
-  
-  // Gate profile completion: require username + mobile number + profile complete flag
-  if (user && userProfile && (!userProfile.username || !userProfile.mobile_number || !userProfile.is_profile_complete)) {
-    return (
-      <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <Routes>
-          <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/profile-update" element={<ProfileUpdate />} />
-          <Route path="*" element={<Navigate to="/profile-update" replace />} />
-        </Routes>
-        <Toaster />
-      </Router>
-    );
-  }
-
   return (
     <ErrorBoundary>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
@@ -105,10 +59,23 @@ function App() {
             <meta name="description" content="Join Quiz Dangal for exciting opinion-based quizzes with real prizes!" />
           </Helmet>
           <Routes>
-            <Route path="/reset-password" element={<ResetPassword />} />
-             <Route path="/quiz/:id" element={<Quiz />} />
-             <Route path="/results/:id" element={<Results />} />
-             <Route path="/*" element={<MainLayout />} />
+            {!user ? (
+              <>
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="*" element={<Login />} />
+              </>
+            ) : user.app_metadata?.provider === 'email' && !user.email_confirmed_at ? (
+              <>
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="*" element={<UnconfirmedEmail />} />
+              </>
+            ) : (
+              <>
+                <Route path="/quiz/:id" element={<Quiz />} />
+                <Route path="/results/:id" element={<Results />} />
+                <Route path="/*" element={<MainLayout />} />
+              </>
+            )}
           </Routes>
           <Toaster />
         </div>
@@ -117,7 +84,6 @@ function App() {
   );
 }
 
-// AdminRoute: sirf admin users ke liye
 function AdminRoute({ children }) {
   const { userProfile, loading } = useAuth();
   if (loading) {
@@ -137,22 +103,21 @@ const MainLayout = () => {
   return (
     <>
       <Header />
-      <main className="flex-1 pb-24 pt-4 page-transition">
+      <main className="flex-1 pb-24 pt-4">
         <Routes>
-          <Route path="/" element={<div className="page-transition"><Home /></div>} />
-          <Route path="/my-quizzes" element={<div className="page-transition"><MyQuizzes /></div>} />
-          <Route path="/wallet" element={<div className="page-transition"><Wallet /></div>} />
-          <Route path="/profile" element={<div className="page-transition"><Profile /></div>} />
-          <Route path="/leaderboards" element={<div className="page-transition"><Leaderboards /></div>} />
-          <Route path="/language" element={<div className="page-transition"><Language /></div>} />
+          <Route path="/" element={<Page><Home /></Page>} />
+          <Route path="/my-quizzes" element={<Page><MyQuizzes /></Page>} />
+          <Route path="/wallet" element={<Page><Wallet /></Page>} />
+          <Route path="/profile" element={<Page><Profile /></Page>} />
+          <Route path="/leaderboards" element={<Page><Leaderboards /></Page>} />
+          <Route path="/language" element={<Page><Language /></Page>} />
           <Route path="/rewards" element={<Navigate to="/wallet" replace />} />
-          <Route path="/redemptions" element={<div className="page-transition"><Redemptions /></div>} />
-          <Route path="/about-us" element={<div className="page-transition"><AboutUs /></div>} />
-          <Route path="/contact-us" element={<div className="page-transition"><ContactUs /></div>} />
-          <Route path="/terms-conditions" element={<div className="page-transition"><TermsConditions /></div>} />
-          <Route path="/privacy-policy" element={<div className="page-transition"><PrivacyPolicy /></div>} />
-          <Route path="/admin" element={<AdminRoute><div className="page-transition"><Admin /></div></AdminRoute>} />
-          {/* Back-compat redirects to single admin with tab param */}
+          <Route path="/redemptions" element={<Page><Redemptions /></Page>} />
+          <Route path="/about-us" element={<Page><AboutUs /></Page>} />
+          <Route path="/contact-us" element={<Page><ContactUs /></Page>} />
+          <Route path="/terms-conditions" element={<Page><TermsConditions /></Page>} />
+          <Route path="/privacy-policy" element={<Page><PrivacyPolicy /></Page>} />
+          <Route path="/admin" element={<AdminRoute><Page><Admin /></Page></AdminRoute>} />
           <Route path="/admin/users" element={<Navigate to="/admin?tab=users" replace />} />
           <Route path="/admin/leaderboards" element={<Navigate to="/admin?tab=leaderboards" replace />} />
           <Route path="/admin/redemptions" element={<Navigate to="/admin?tab=redemptions" replace />} />
@@ -162,11 +127,7 @@ const MainLayout = () => {
         </Routes>
       </main>
       <Footer />
-      
-      {/* PWA Install Button */}
       <PWAInstallButton />
-      
-      {/* Onboarding Flow */}
       <OnboardingFlow />
     </>
   );

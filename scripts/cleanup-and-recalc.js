@@ -20,9 +20,9 @@ dotenv.config({ path: '.env.local' });
   const patterns = ['test', 'dummy', 'fake', 'seed', 'manual', 'add coin', 'demo'];
   try {
     for (const p of patterns) {
-      const orFilter = `transaction_type.ilike.%${p}%,description.ilike.%${p}%`;
+      const orFilter = `type.ilike.%${p}%,description.ilike.%${p}%`;
       const { error } = await supabase
-        .from('coins_transactions')
+        .from('transactions')
         .delete()
         .or(orFilter);
       if (error) console.warn(`⚠️  Delete by pattern '${p}' warning:`, error.message);
@@ -30,11 +30,11 @@ dotenv.config({ path: '.env.local' });
     }
     // Delete absurdly high amounts
     const { error: highErr } = await supabase
-      .from('coins_transactions')
+      .from('transactions')
       .delete()
-      .gt('coins_amount', 1000000);
+      .gt('amount', 1000000);
     if (highErr) console.warn('⚠️  Delete high-amount rows warning:', highErr.message);
-    else console.log('🧹 Deleted transactions with coins_amount > 1,000,000');
+    else console.log('🧹 Deleted transactions with amount > 1,000,000');
   } catch (e) {
     console.warn('⚠️  Cleanup step had issues:', e.message);
   }
@@ -42,16 +42,18 @@ dotenv.config({ path: '.env.local' });
   // 2) Recalculate totals per user and update profiles
   // Preferred: run a single SQL UPDATE via exec_sql if available
   const recalcSQL = `
-    with sums as (
-      select user_id,
-             coalesce(sum(coins_amount) filter (where transaction_type in ('daily_login','referral_bonus','quiz_reward','reward','credit','refund','referral')),0) as credits,
-             coalesce(sum(coins_amount) filter (where transaction_type in ('debit','purchase','redeem','withdraw','spend')),0) as debits
-        from public.coins_transactions
-       group by user_id
+    WITH sums AS (
+      SELECT
+        user_id,
+        COALESCE(SUM(amount) FILTER (WHERE amount > 0), 0) AS credits,
+        COALESCE(SUM(ABS(amount)) FILTER (WHERE amount < 0), 0) AS debits
+      FROM public.transactions
+      GROUP BY user_id
     )
     update public.profiles p
-       set total_coins = greatest(0, coalesce(s.credits,0) - coalesce(s.debits,0)),
-           wallet_balance = greatest(0, coalesce(s.credits,0) - coalesce(s.debits,0))
+       set total_earned = s.credits,
+           total_spent = s.debits,
+           wallet_balance = s.credits - s.debits
       from sums s
      where p.id = s.user_id;
   `;
@@ -74,30 +76,31 @@ dotenv.config({ path: '.env.local' });
       // Pull minimal fields to aggregate
       const { data: tx, error: txErr } = await supabase
         .from('coins_transactions')
-        .select('user_id, transaction_type, coins_amount');
+        .select('user_id, amount');
       if (txErr) throw txErr;
 
-      const posTypes = new Set(['daily_login','referral_bonus','quiz_reward','reward','credit','refund','referral']);
-      const negTypes = new Set(['debit','purchase','redeem','withdraw','spend']);
       const totals = new Map();
 
       for (const row of tx || []) {
         const uid = row.user_id;
-        const amt = Number(row.coins_amount) || 0;
-        let cur = totals.get(uid) || 0;
-        const t = String(row.transaction_type || '').toLowerCase();
-        if (posTypes.has(t)) cur += Math.abs(amt);
-        else if (negTypes.has(t)) cur -= Math.abs(amt);
-        totals.set(uid, cur);
+        const amt = Number(row.amount) || 0;
+        let userTotals = totals.get(uid) || { earned: 0, spent: 0 };
+        if (amt > 0) {
+          userTotals.earned += amt;
+        } else {
+          userTotals.spent += Math.abs(amt);
+        }
+        totals.set(uid, userTotals);
       }
 
       // Batch updates
       let i = 0;
-      for (const [userId, total] of totals.entries()) {
-        const val = Math.max(0, Math.trunc(total));
+      for (const [userId, userTotals] of totals.entries()) {
+        const { earned, spent } = userTotals;
+        const balance = earned - spent;
         const { error: updErr } = await supabase
           .from('profiles')
-          .update({ total_coins: val, wallet_balance: val })
+          .update({ total_earned: earned, total_spent: spent, wallet_balance: balance })
           .eq('id', userId);
         if (updErr) console.warn(`⚠️  Update profile ${userId} failed:`, updErr.message);
         if (++i % 100 === 0) console.log(`...updated ${i} profiles`);

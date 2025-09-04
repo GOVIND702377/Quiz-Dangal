@@ -14,6 +14,7 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<meta name="theme-color" content="#6366f1" />
 	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<meta name="mobile-web-app-capable" content="yes" />
 	<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 	<meta name="apple-mobile-web-app-title" content="Quiz Dangal" />
 	<meta name="description" content="Opinion Based Quiz App with Real Prizes" />
@@ -24,30 +25,29 @@
 	<div id="root"></div>
 	<script type="module" src="/src/main.jsx"></script>
 	<script>
-		// Register service worker for PWA functionality
-		if ('serviceWorker' in navigator) {
-			window.addEventListener('load', () => {
-				navigator.serviceWorker.register('/sw.js')
-					.then((registration) => {
-						console.log('SW registered: ', registration);
-
-						// Check for updates
-						registration.addEventListener('updatefound', () => {
-							const newWorker = registration.installing;
-							newWorker.addEventListener('statechange', () => {
+		// Register service worker only outside localhost to avoid dev cache issues
+		(function() {
+			var isLocal = /(^localhost$)|(^127\.0\.0\.1$)/.test(window.location.hostname);
+			if ('serviceWorker' in navigator && !isLocal) {
+				window.addEventListener('load', function() {
+					navigator.serviceWorker.register('/sw.js').then(function(registration) {
+						console.log('SW registered:', registration);
+						registration.addEventListener('updatefound', function() {
+							var newWorker = registration.installing;
+							if (!newWorker) return;
+							newWorker.addEventListener('statechange', function() {
 								if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-									// New update available
-									newWorker.postMessage({ type: 'SKIP_WAITING' });
+									try { newWorker.postMessage({ type: 'SKIP_WAITING' }); } catch (e) {}
 									window.location.reload();
 								}
 							});
 						});
-					})
-					.catch((registrationError) => {
-						console.log('SW registration failed: ', registrationError);
+					}).catch(function(err) {
+						console.log('SW registration failed:', err);
 					});
-			});
-		}
+				});
+			}
+		})();
 	</script>
 </body>
 

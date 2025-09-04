@@ -24,19 +24,15 @@ function LeaderboardRow({ rank, name, level, coins, referrals, streak, badges, h
           rank === 1 ? 'bg-yellow-100 text-yellow-700' : rank === 2 ? 'bg-gray-100 text-gray-700' : rank === 3 ? 'bg-orange-100 text-orange-700' : 'bg-indigo-50 text-indigo-700'
         }`}>{medal}</div>
         <div className="min-w-0">
-          <div className="font-semibold text-gray-800 truncate max-w-[160px] sm:max-w-[240px]">{name || 'Anonymous'}</div>
-          <div className="text-xs text-gray-500">Level: {level || '—'}</div>
+        <div className="font-semibold text-gray-800 truncate max-w-[160px] sm:max-w-[240px]">{name ? `@${name}` : 'Anonymous'}</div>
+        <div className="text-xs text-gray-500">Streak: {streak || 0}</div>
         </div>
       </div>
       <div className="flex items-center space-x-6 text-sm">
         <div className="text-right">
           <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">🪙 {coins}</div>
         </div>
-        <div className="text-right hidden sm:block">
-          <div className="text-gray-900 font-semibold">{referrals ?? 0}</div>
-          <div className="text-gray-500 text-xs">Referrals</div>
-        </div>
-        <div className="text-right hidden sm:block">
+                <div className="text-right hidden sm:block">
           <div className="text-gray-900 font-semibold">{streak ?? 0}</div>
           <div className="text-gray-500 text-xs">Streak</div>
         </div>
@@ -82,10 +78,10 @@ export default function Leaderboards() {
           data = data.map((r, idx) => ({
             rank: idx + 1,
             user_id: r.user_id,
-            name: r.full_name,
+            name: r.username,
             level: r.level,
             coins: Number(r.coins_earned || 0),
-            referrals: Number(r.referrals || 0),
+            referrals: undefined,
             streak: Number(r.current_streak || 0),
             badges: r.badges,
           }));
@@ -99,10 +95,10 @@ export default function Leaderboards() {
           data = data.map((r, idx) => ({
             rank: idx + 1,
             user_id: r.user_id,
-            name: r.full_name,
+            name: r.username,
             level: r.level,
             coins: Number(r.coins_earned || 0),
-            referrals: Number(r.referrals || 0),
+            referrals: undefined,
             streak: Number(r.current_streak || 0),
             badges: r.badges,
           }));
@@ -119,10 +115,10 @@ export default function Leaderboards() {
           data = data.map((r, idx) => ({
             rank: idx + 1,
             user_id: r.user_id,
-            name: r.full_name,
+            name: r.username,
             level: r.level,
             coins: Number((r.grand_total ?? r.coins_earned) || 0),
-            referrals: Number(r.referrals || 0),
+            referrals: undefined,
             streak: Number(r.current_streak || 0),
             badges: r.badges,
           }));
@@ -222,8 +218,8 @@ export default function Leaderboards() {
             return (
               <div key={pos} className={`rounded-2xl p-4 text-center shadow bg-white/80 border ${isGold?'border-yellow-200':'border-gray-200/60'}`}>
                 <div className={`mx-auto w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold ${isGold?'bg-yellow-100 text-yellow-700':isSilver?'bg-gray-100 text-gray-700':'bg-orange-100 text-orange-700'}`}>{pos===1?'🥇':pos===2?'🥈':'🥉'}</div>
-                <div className="mt-2 font-semibold text-gray-800 truncate">{r.name || 'Anonymous'}</div>
-                <div className="text-xs text-gray-500">Coins: {r.coins}</div>
+                <div className="mt-2 font-semibold text-gray-800 truncate">{r.name ? `@${r.name}` : 'Anonymous'}</div>
+                <div className="text-xs text-gray-500">Coins: {r.coins} • Streak: {r.streak || 0}</div>
               </div>
             );
           })}
@@ -237,7 +233,7 @@ export default function Leaderboards() {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">{myRank}</div>
               <div>
-                <div className="font-semibold text-gray-800">{myRow.name || 'You'}</div>
+                <div className="font-semibold text-gray-800">{myRow.name ? `@${myRow.name}` : 'You'}</div>
                 <div className="text-xs text-gray-500">Your position</div>
               </div>
             </div>

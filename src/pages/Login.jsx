@@ -73,18 +73,6 @@ const Login = () => {
           variant: "destructive"
         });
       } else {
-        // Profile row insert logic
-        if (data?.user) {
-          await supabase.from('profiles').insert([
-            {
-              id: data.user.id,
-              email: data.user.email,
-              full_name: '', // Optionally, user input
-              phone_number: '', // Optionally, user input
-              referred_by: referralCode || null
-            }
-          ]);
-        }
         setEmailSent(true);
         toast({
           title: "Confirmation email sent!",
@@ -191,8 +179,9 @@ const Login = () => {
           className="text-center mb-8"
         >
           <img 
-            src="/android-chrome-512x512.png" 
-            alt="Quiz Dangal Logo" 
+            src="/logo.svg"
+            alt="Quiz Dangal Logo"
+            onError={(e) => { e.currentTarget.src='/android-chrome-512x512.png'; }}
             className="w-20 h-20 mx-auto mb-4 rounded-full shadow-lg"
           />
           <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
