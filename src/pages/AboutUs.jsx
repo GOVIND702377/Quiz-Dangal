@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { Target, Users, Trophy, Shield, CheckCircle, Star } from 'lucide-react';
 
 const AboutUs = () => {

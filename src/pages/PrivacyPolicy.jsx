@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { FileText, Calendar, Shield, Users, Info, Mail, Database, EyeOff, CheckCircle, Repeat } from 'lucide-react';
 
 const PrivacyPolicy = () => {

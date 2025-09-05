@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { AuthProvider } from '@/contexts/SupabaseAuthContext';
 import App from '@/App';
 import '@/index.css';
+import { HelmetProvider } from 'react-helmet-async';
 
 const rootEl = document.getElementById('root');
 if (!rootEl) {
@@ -13,7 +14,9 @@ if (!rootEl) {
 ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <AuthProvider>
-      <App />
+      <HelmetProvider>
+        <App />
+      </HelmetProvider>
     </AuthProvider>
   </React.StrictMode>
 );

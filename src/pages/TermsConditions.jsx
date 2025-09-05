@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Helmet } from 'react-helmet';
+import { Helmet } from 'react-helmet-async';
 import { Shield, Users, CreditCard, AlertTriangle, CheckCircle, FileText, Calendar, Gavel, EyeOff, Copyright, Info, MessageSquare, Repeat } from 'lucide-react';
 
 const TermsConditions = () => {
