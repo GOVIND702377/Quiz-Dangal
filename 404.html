@@ -1,56 +1,40 @@
 <!doctype html>
 <html lang="en">
-
 <head>
-	<meta charset="UTF-8" />
-	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
-	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
-	<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
-	<link rel="icon" type="image/x-icon" href="/favicon.ico">
-	<link rel="manifest" href="/site.webmanifest">
-	<link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png">
-	<link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png">
-	<meta name="generator" content="Quiz Dangal" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<meta name="theme-color" content="#6366f1" />
-	<meta name="apple-mobile-web-app-capable" content="yes" />
-	<meta name="mobile-web-app-capable" content="yes" />
-	<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-	<meta name="apple-mobile-web-app-title" content="Quiz Dangal" />
-	<meta name="description" content="Opinion Based Quiz App with Real Prizes" />
-	<title>Quiz Dangal</title>
-  <script type="module" crossorigin src="/assets/index-80605d5a.js"></script>
-  <link rel="stylesheet" href="/assets/index-4009dc47.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Redirecting...</title>
+  <meta http-equiv="refresh" content="0; url=/#/" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 2rem; color: #1f2937; }
+    .box { max-width: 640px; margin: 10vh auto; padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
+    code { background: #f3f4f6; padding: 0.15rem 0.35rem; border-radius: 0.35rem; }
+  </style>
 </head>
-
 <body>
-	<div id="root"></div>
-	
-	<script>
-		// Register service worker only outside localhost to avoid dev cache issues
-		(function() {
-			var isLocal = /(^localhost$)|(^127\.0\.0\.1$)/.test(window.location.hostname);
-			if ('serviceWorker' in navigator && !isLocal) {
-				window.addEventListener('load', function() {
-					navigator.serviceWorker.register('/sw.js').then(function(registration) {
-						console.log('SW registered:', registration);
-						registration.addEventListener('updatefound', function() {
-							var newWorker = registration.installing;
-							if (!newWorker) return;
-							newWorker.addEventListener('statechange', function() {
-								if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-									try { newWorker.postMessage({ type: 'SKIP_WAITING' }); } catch (e) {}
-									window.location.reload();
-								}
-							});
-						});
-					}).catch(function(err) {
-						console.log('SW registration failed:', err);
-					});
-				});
-			}
-		})();
-	</script>
+  <div class="box">
+    <h1>Redirecting…</h1>
+    <p>Taking you to the correct page.</p>
+    <p>If you are not redirected automatically, <a id="link" href="/">click here</a>.</p>
+  </div>
+  <script>
+    (function() {
+      try {
+        var loc = window.location;
+        // Preserve path + query + existing hash
+        var path = loc.pathname.replace(/^\//, '');
+        var query = loc.search || '';
+        var hash = loc.hash || '';
+        // Build SPA hash URL: /#/path?query#hash
+        var newUrl = '/#/' + path + query + hash;
+        document.getElementById('link').setAttribute('href', newUrl);
+        // Hard navigate to ensure SPA handles it
+        loc.replace(newUrl);
+      } catch (e) {
+        // Fallback to root
+        window.location.replace('/#/');
+      }
+    })();
+  </script>
 </body>
-
 </html>
