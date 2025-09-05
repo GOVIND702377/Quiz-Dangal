@@ -15,7 +15,7 @@ const Header = () => {
 
   // Auto-claim daily streak once per day on first app open after login
   useEffect(() => {
-    if (!user || !userProfile) return;
+    if (!user) return;
     const today = new Date().toISOString().slice(0, 10);
     const key = `qd_streak_last_claim_${user.id}`;
     try {
@@ -28,24 +28,27 @@ const Header = () => {
       claimingRef.current = true;
       try {
         const { data, error } = await supabase.rpc('handle_daily_login', { user_uuid: user.id });
+        if (error) {
+          // eslint-disable-next-line no-console
+          console.error('handle_daily_login RPC error:', error);
+        }
         if (!error && data && (data.success || data.already_logged)) {
           try { localStorage.setItem(key, today); } catch { }
           const day = Number(data.streak_day || userProfile?.current_streak || 1);
           const coins = Number(data.coins_earned || Math.min(50, 10 + Math.max(0, day - 1) * 5));
-          // Show popup only if this was a new claim
           if (data.success && data.is_new_login) {
             setStreakModal({ open: true, day, coins });
           }
-          // Refresh profile to reflect new balances and streak
           await refreshUserProfile(user);
         }
       } catch (e) {
-        // suppress; no-op
+        // eslint-disable-next-line no-console
+        console.error('handle_daily_login RPC exception:', e);
       } finally {
         claimingRef.current = false;
       }
     })();
-  }, [user, userProfile, refreshUserProfile]);
+  }, [user?.id]);
 
   return (
     <>

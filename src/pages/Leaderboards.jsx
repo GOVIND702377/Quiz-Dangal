@@ -67,9 +67,11 @@ export default function Leaderboards() {
       try {
         let data = [];
         if (period === 'weekly') {
-          const { data: d, error: e } = await supabase
-            .from('leaderboard_weekly')
-            .select('*');
+          const { data: d, error: e } = await supabase.rpc('get_leaderboard', {
+            p_period: 'weekly',
+            limit_rows: 100,
+            offset_rows: 0,
+          });
           if (e) throw e;
           data = d || [];
           // Sort by coins_earned desc
@@ -86,9 +88,11 @@ export default function Leaderboards() {
             badges: r.badges,
           }));
         } else if (period === 'monthly') {
-          const { data: d, error: e } = await supabase
-            .from('leaderboard_monthly')
-            .select('*');
+          const { data: d, error: e } = await supabase.rpc('get_leaderboard', {
+            p_period: 'monthly',
+            limit_rows: 100,
+            offset_rows: 0,
+          });
           if (e) throw e;
           data = d || [];
           data.sort((a, b) => Number(b.coins_earned || 0) - Number(a.coins_earned || 0));
@@ -105,9 +109,11 @@ export default function Leaderboards() {
         } else {
           // all-time
           // Prefer materialized view data via view all_time_leaderboard
-          const { data: d, error: e } = await supabase
-            .from('all_time_leaderboard')
-            .select('*');
+          const { data: d, error: e } = await supabase.rpc('get_leaderboard', {
+            p_period: 'all_time',
+            limit_rows: 100,
+            offset_rows: 0,
+          });
           if (e) throw e;
           data = d || [];
           // Default sort by grand_total if present, else coins_earned
