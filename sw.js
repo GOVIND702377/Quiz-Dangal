@@ -26,7 +26,6 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Network-first for navigation requests to avoid 404s being cached
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const isNavigate = req.mode === 'navigate' || (req.method === 'GET' && req.headers.get('accept')?.includes('text/html'));
@@ -38,7 +37,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for others
   event.respondWith(
     caches.match(req).then((cached) => cached || fetch(req))
   );
@@ -48,4 +46,31 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+// Push Notification Event Listener
+self.addEventListener('push', function(event) {
+  console.log('[Service Worker] Push Received.');
+  console.log(`[Service Worker] Push had this data: "${event.data.text()}"`);
+
+  let pushData;
+  try {
+    pushData = event.data.json();
+  } catch (e) {
+    pushData = {
+      title: 'Quiz Dangal',
+      body: event.data.text(),
+    };
+  }
+
+  const title = pushData.title || 'New Notification';
+  const options = {
+    body: pushData.body || 'You have a new message.',
+    icon: '/android-chrome-192x192.png',
+    badge: '/favicon-32x32.png'
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
 });
