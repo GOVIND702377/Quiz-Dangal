@@ -76,6 +76,24 @@ function AdminNotificationsSection() {
         </div>
       </div>
 
+      {/* New section for sending Push Notifications */}
+      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg mb-6">
+        <h3 className="text-xl font-bold text-gray-800 mb-4">Send Push Notification</h3>
+        <form onSubmit={handleSendPushNotification} className="space-y-3">
+          <div>
+            <Label htmlFor="pushTitle">Push Notification Title *</Label>
+            <Input id="pushTitle" value={pushTitle} onChange={(e) => setPushTitle(e.target.value)} placeholder="e.g., New Quiz Alert!" required />
+          </div>
+          <div>
+            <Label htmlFor="pushMessage">Push Notification Message *</Label>
+            <Textarea id="pushMessage" value={pushMessage} onChange={(e) => setPushMessage(e.target.value)} placeholder="Don't miss out on today's quiz!" required />
+          </div>
+          <Button type="submit" disabled={sendingPush} className="bg-purple-600 hover:bg-purple-700">
+            {sendingPush ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Sending Push...</>) : 'Send Push Notification'}
+          </Button>
+        </form>
+      </div>
+
       <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
         <form onSubmit={submit} className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
