@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Loader2, Trophy, ChevronRight, Search } from 'lucide-react';
+import { Loader2, Trophy, ChevronRight, Search, Percent, Zap } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const periods = [
-  { key: 'all', label: 'All-time' },
+  { key: 'all_time', label: 'All-time' },
   { key: 'monthly', label: 'Monthly' },
   { key: 'weekly', label: 'Weekly' },
 ];
@@ -15,7 +15,7 @@ function useQuery() {
   return useMemo(() => new URLSearchParams(search), [search]);
 }
 
-function LeaderboardRow({ rank, name, level, coins, referrals, streak, badges, highlight = false }) {
+function LeaderboardRow({ rank, name, leaderboard_score, win_rate, streak, highlight = false }) {
   const medal = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
   return (
     <div className={`flex items-center justify-between p-3 rounded-xl bg-white/80 border ${highlight ? 'border-indigo-300 ring-1 ring-indigo-200' : 'border-gray-200/50'} shadow-sm hover:shadow-md transition`}>
@@ -24,25 +24,17 @@ function LeaderboardRow({ rank, name, level, coins, referrals, streak, badges, h
           rank === 1 ? 'bg-yellow-100 text-yellow-700' : rank === 2 ? 'bg-gray-100 text-gray-700' : rank === 3 ? 'bg-orange-100 text-orange-700' : 'bg-indigo-50 text-indigo-700'
         }`}>{medal}</div>
         <div className="min-w-0">
-        <div className="font-semibold text-gray-800 truncate max-w-[160px] sm:max-w-[240px]">{name ? `@${name}` : 'Anonymous'}</div>
-        <div className="text-xs text-gray-500">Streak: {streak || 0}</div>
+          <div className="font-semibold text-gray-800 truncate max-w-[160px] sm:max-w-[240px]">{name ? `@${name}` : 'Anonymous'}</div>
+          <div className="text-xs text-gray-500 flex items-center space-x-2">
+            <span className="flex items-center"><Percent className="w-3 h-3 mr-1" /> {win_rate.toFixed(1)}%</span>
+            <span className="flex items-center"><Zap className="w-3 h-3 mr-1" /> {streak || 0}</span>
+          </div>
         </div>
       </div>
-      <div className="flex items-center space-x-6 text-sm">
+      <div className="flex items-center space-x-4 text-sm">
         <div className="text-right">
-          <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 font-semibold border border-amber-200">🪙 {coins}</div>
-        </div>
-                <div className="text-right hidden sm:block">
-          <div className="text-gray-900 font-semibold">{streak ?? 0}</div>
-          <div className="text-gray-500 text-xs">Streak</div>
-        </div>
-        <div className="hidden md:flex items-center space-x-1 text-xs text-indigo-600">
-          {Array.isArray(badges) && badges.slice(0, 3).map((b, i) => (
-            <span key={i} className="px-2 py-0.5 rounded-full bg-indigo-50 border border-indigo-100">{b}</span>
-          ))}
-          {Array.isArray(badges) && badges.length > 3 && (
-            <span className="text-gray-500">+{badges.length - 3}</span>
-          )}
+          <div className="font-bold text-indigo-600">{leaderboard_score.toFixed(2)}</div>
+          <div className="text-xs text-gray-500">Score</div>
         </div>
       </div>
     </div>
@@ -53,7 +45,7 @@ export default function Leaderboards() {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
   const query = useQuery();
-  const period = query.get('period') || 'all';
+  const period = query.get('period') || 'all_time';
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -65,71 +57,17 @@ export default function Leaderboards() {
       setLoading(true);
       setError('');
       try {
-        let data = [];
-        if (period === 'weekly') {
-          const { data: d, error: e } = await supabase.rpc('get_leaderboard', {
-            p_period: 'weekly',
-            limit_rows: 100,
-            offset_rows: 0,
-          });
-          if (e) throw e;
-          data = d || [];
-          // Sort by coins_earned desc
-          data.sort((a, b) => Number(b.coins_earned || 0) - Number(a.coins_earned || 0));
-          // Map to unified shape
-          data = data.map((r, idx) => ({
-            rank: idx + 1,
-            user_id: r.user_id,
-            name: r.username,
-            level: r.level,
-            coins: Number(r.coins_earned || 0),
-            referrals: undefined,
-            streak: Number(r.current_streak || 0),
-            badges: r.badges,
-          }));
-        } else if (period === 'monthly') {
-          const { data: d, error: e } = await supabase.rpc('get_leaderboard', {
-            p_period: 'monthly',
-            limit_rows: 100,
-            offset_rows: 0,
-          });
-          if (e) throw e;
-          data = d || [];
-          data.sort((a, b) => Number(b.coins_earned || 0) - Number(a.coins_earned || 0));
-          data = data.map((r, idx) => ({
-            rank: idx + 1,
-            user_id: r.user_id,
-            name: r.username,
-            level: r.level,
-            coins: Number(r.coins_earned || 0),
-            referrals: undefined,
-            streak: Number(r.current_streak || 0),
-            badges: r.badges,
-          }));
-        } else {
-          // all-time
-          // Prefer materialized view data via view all_time_leaderboard
-          const { data: d, error: e } = await supabase.rpc('get_leaderboard', {
-            p_period: 'all_time',
-            limit_rows: 100,
-            offset_rows: 0,
-          });
-          if (e) throw e;
-          data = d || [];
-          // Default sort by grand_total if present, else coins_earned
-          data.sort((a, b) => Number(b.grand_total || b.coins_earned || 0) - Number(a.grand_total || a.coins_earned || 0));
-          data = data.map((r, idx) => ({
-            rank: idx + 1,
-            user_id: r.user_id,
-            name: r.username,
-            level: r.level,
-            coins: Number((r.grand_total ?? r.coins_earned) || 0),
-            referrals: undefined,
-            streak: Number(r.current_streak || 0),
-            badges: r.badges,
-          }));
+        const { data, error } = await supabase.rpc('get_leaderboard', {
+          p_period: period,
+          limit_rows: 100,
+          offset_rows: 0,
+        });
+
+        if (error) throw error;
+        if (isMounted) {
+          // The data is already sorted by the backend function
+          setRows(data || []);
         }
-        if (isMounted) setRows(data.slice(0, 100));
       } catch (err) {
         if (isMounted) setError(err.message || 'Failed to load leaderboard');
       } finally {
@@ -149,30 +87,14 @@ export default function Leaderboards() {
   const filteredRows = useMemo(() => {
     const s = search.trim().toLowerCase();
     if (!s) return rows;
-    return rows.filter((r) => (r.name || '').toLowerCase().includes(s));
+    return rows.filter((r) => (r.username || '').toLowerCase().includes(s));
   }, [rows, search]);
 
   const myIndex = useMemo(() => {
     if (!userProfile?.id) return -1;
-    
-    // First try to match by user ID
-    let index = rows.findIndex((r) => r.user_id === userProfile.id);
-    
-    // If not found, try matching by username
-    if (index === -1 && userProfile.username) {
-      index = rows.findIndex((r) => r.name === userProfile.username);
-    }
-    
-    // If still not found, try matching by full name
-    if (index === -1) {
-      const myName = (userProfile?.full_name || '').toLowerCase().trim();
-      if (myName) {
-        index = rows.findIndex((r) => (r.name || '').toLowerCase().trim() === myName);
-      }
-    }
-    
-    return index;
+    return rows.findIndex((r) => r.user_id === userProfile.id);
   }, [rows, userProfile]);
+
   const myRow = myIndex >= 0 ? rows[myIndex] : null;
   const myRank = myIndex >= 0 ? myIndex + 1 : null;
 
@@ -183,7 +105,7 @@ export default function Leaderboards() {
           <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center">
             <Trophy className="mr-2" /> Leaderboards
           </h1>
-          <p className="text-gray-600 text-sm">Top players by coins and activity</p>
+          <p className="text-gray-600 text-sm">Top players by skill and activity</p>
         </div>
       </div>
 
@@ -224,8 +146,8 @@ export default function Leaderboards() {
             return (
               <div key={pos} className={`rounded-2xl p-4 text-center shadow bg-white/80 border ${isGold?'border-yellow-200':'border-gray-200/60'}`}>
                 <div className={`mx-auto w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold ${isGold?'bg-yellow-100 text-yellow-700':isSilver?'bg-gray-100 text-gray-700':'bg-orange-100 text-orange-700'}`}>{pos===1?'🥇':pos===2?'🥈':'🥉'}</div>
-                <div className="mt-2 font-semibold text-gray-800 truncate">{r.name ? `@${r.name}` : 'Anonymous'}</div>
-                <div className="text-xs text-gray-500">Coins: {r.coins} • Streak: {r.streak || 0}</div>
+                <div className="mt-2 font-semibold text-gray-800 truncate">{r.username ? `@${r.username}` : 'Anonymous'}</div>
+                <div className="text-xs text-gray-500">Score: {r.leaderboard_score.toFixed(2)}</div>
               </div>
             );
           })}
@@ -239,11 +161,14 @@ export default function Leaderboards() {
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">{myRank}</div>
               <div>
-                <div className="font-semibold text-gray-800">{myRow.name ? `@${myRow.name}` : 'You'}</div>
+                <div className="font-semibold text-gray-800">{myRow.username ? `@${myRow.username}` : 'You'}</div>
                 <div className="text-xs text-gray-500">Your position</div>
               </div>
             </div>
-            <div className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200">🪙 {myRow.coins}</div>
+            <div className="text-right">
+                <div className="font-bold text-indigo-600">{myRow.leaderboard_score.toFixed(2)}</div>
+                <div className="text-xs text-gray-500">Score</div>
+            </div>
           </div>
         </div>
       )}
@@ -261,7 +186,7 @@ export default function Leaderboards() {
         ) : (
           <div className="space-y-2">
             {filteredRows.map((r) => (
-              <LeaderboardRow key={r.rank} {...r} highlight={myRank === r.rank} />
+              <LeaderboardRow key={r.rank} {...r} name={r.username} highlight={myRank === r.rank} />
             ))}
             <div className="flex justify-end text-xs text-gray-500 mt-2">
               Showing {filteredRows.length} of {rows.length}

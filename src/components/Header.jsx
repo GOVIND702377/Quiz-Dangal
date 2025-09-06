@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Coins, Flame, Sparkles } from 'lucide-react';
 import StreakModal from '@/components/StreakModal';
+import NotificationBell from '@/components/NotificationBell';
 
 const Header = () => {
   const { user, userProfile, refreshUserProfile } = useAuth();
@@ -15,40 +16,42 @@ const Header = () => {
 
   // Auto-claim daily streak once per day on first app open after login
   useEffect(() => {
-    if (!user) return;
-    const today = new Date().toISOString().slice(0, 10);
-    const key = `qd_streak_last_claim_${user.id}`;
-    try {
-      const last = localStorage.getItem(key);
-      if (last === today) return; // already claimed today
-    } catch { }
+    // Only run if a user is logged in
+    if (!user || claimingRef.current) return;
 
-    (async () => {
-      if (claimingRef.current) return;
+    const claimStreak = async () => {
       claimingRef.current = true;
       try {
         const { data, error } = await supabase.rpc('handle_daily_login', { user_uuid: user.id });
+
         if (error) {
-          // eslint-disable-next-line no-console
-          console.error('handle_daily_login RPC error:', error);
+          console.error('Error handling daily login:', error);
+          return;
         }
-        if (!error && data && (data.success || data.already_logged)) {
-          try { localStorage.setItem(key, today); } catch { }
-          const day = Number(data.streak_day || userProfile?.current_streak || 1);
-          const coins = Number(data.coins_earned || Math.min(50, 10 + Math.max(0, day - 1) * 5));
-          if (data.success && data.is_new_login) {
-            setStreakModal({ open: true, day, coins });
-          }
+
+        // The backend now tells us if it's a new login. Only show modal then.
+        if (data && data.is_new_login) {
+          // Refresh the user profile to get the new coin balance immediately
           await refreshUserProfile(user);
+          // Show the popup with data directly from the RPC response
+          setStreakModal({
+            open: true,
+            day: data.streak_day,
+            coins: data.coins_earned,
+          });
         }
       } catch (e) {
-        // eslint-disable-next-line no-console
-        console.error('handle_daily_login RPC exception:', e);
+        console.error('Exception handling daily login:', e);
       } finally {
         claimingRef.current = false;
       }
-    })();
-  }, [user?.id]);
+    };
+
+    // Use a small timeout to ensure the app has settled after login before claiming
+    const timer = setTimeout(claimStreak, 1500);
+    return () => clearTimeout(timer);
+
+  }, [user, refreshUserProfile]);
 
   return (
     <>
@@ -86,6 +89,7 @@ const Header = () => {
 
             {/* Actions */}
             <div className="flex items-center gap-2">
+              <NotificationBell />
               {/* Enhanced Coins indicator */}
               <Link
                 to="/wallet"

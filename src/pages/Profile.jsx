@@ -2,12 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/customSupabaseClient";
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Globe, Share2, Award, Sparkles } from 'lucide-react';
+import { usePushNotifications } from "@/hooks/usePushNotifications";
+import { Button } from "@/components/ui/button";
+import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Globe, Share2, Award, Sparkles, BellRing } from 'lucide-react';
 import ProfileUpdateModal from '@/components/ProfileUpdateModal';
 import ReferEarnModal from '@/components/ReferEarnModal';
 import LanguageSelectionModal from '@/components/LanguageSelectionModal';
-
-// Removed StatCard and stats grid as requested
 
 export default function Profile() {
   const { signOut } = useAuth();
@@ -20,6 +20,7 @@ export default function Profile() {
   const [showReferEarn, setShowReferEarn] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const fileInputRef = useRef(null);
+  const { isSubscribed, subscribeToPush, error: pushError } = usePushNotifications();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,8 +52,6 @@ export default function Profile() {
     await signOut();
   };
 
-
-
   const onChooseAvatar = () => fileInputRef.current?.click();
   const onAvatarSelected = async (e) => {
     const file = e.target.files?.[0];
@@ -77,13 +76,12 @@ export default function Profile() {
     }
   };
 
-  // Level ring + meta
   const getLevelRingClass = (lvl) => {
     const n = Number(lvl || 0);
-    if (n >= 20) return 'ring-[#8b5cf6]'; // purple/diamond
-    if (n >= 10) return 'ring-[#f59e0b]'; // gold
-    if (n >= 5) return 'ring-[#9ca3af]'; // silver
-    return 'ring-[#cd7f32]'; // bronze
+    if (n >= 20) return 'ring-[#8b5cf6]';
+    if (n >= 10) return 'ring-[#f59e0b]';
+    if (n >= 5) return 'ring-[#9ca3af]';
+    return 'ring-[#cd7f32]';
   };
   const getLevelTitle = (lvl) => {
     const n = Number(lvl || 0);
@@ -94,7 +92,7 @@ export default function Profile() {
   };
   const getLevelProgress = (totalCoins) => {
     const earned = Number(totalCoins || 0);
-    const target = 100; // assumption: 100 coins per level
+    const target = 100;
     const pct = Math.max(0, Math.min(100, Math.round((earned % target) / target * 100)));
     return pct;
   };
@@ -138,17 +136,13 @@ export default function Profile() {
   return (
     <div className="min-h-[100svh] bg-indigo-50">
       <div className="container mx-auto px-2 md:px-3 py-0 max-w-3xl space-y-2">
-        {/* Header */}
         <div className="group relative overflow-hidden rounded-3xl p-4 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
-          {/* subtle decorative gradient */}
           <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 h-56 w-56 rounded-full bg-gradient-to-tr from-indigo-200/60 via-fuchsia-200/50 to-transparent blur-3xl" />
           <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-24 h-56 w-56 rounded-full bg-gradient-to-tr from-purple-200/50 via-pink-200/40 to-transparent blur-3xl" />
           <div className="flex flex-col gap-3 relative">
-            {/* Left: Avatar + Email */}
             <div className="flex items-start gap-2">
               <div className="flex flex-col items-center -ml-2">
                 <div className="relative w-[5.5rem] h-[5.5rem]">
-                  {/* soft animated glow */}
                   <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-400/20 via-fuchsia-400/20 to-transparent blur-[3px] animate-spin" style={{ animationDuration: '9s' }} />
                   <div className={`relative w-[5.5rem] h-[5.5rem] rounded-full overflow-hidden flex items-center justify-center text-gray-700 font-bold ring-2 ring-offset-2 ${getLevelRingClass(profile?.level)} bg-gradient-to-br from-gray-50 to-gray-100 shadow-md`}>
                     {profile?.avatar_url ? (
@@ -171,7 +165,6 @@ export default function Profile() {
                   </button>
                   <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onAvatarSelected} />
                 </div>
-                {/* Email under avatar */}
                 <div className="mt-1.5 text-center">
                   <div className="text-[11px] text-gray-500">Email</div>
                   <div className="text-sm font-medium text-gray-800 whitespace-nowrap overflow-x-auto">{profile?.email || sessionUser.email}</div>
@@ -183,7 +176,6 @@ export default function Profile() {
                   <span>Welcome back</span>
                 </div>
                 <div className="text-sm font-semibold text-gray-800 truncate">{profile?.username ? `@${profile.username}` : 'Username not set'}</div>
-                {/* Quick stats: only Earned */}
                 <div className="mt-1.5 flex flex-wrap gap-2 text-xs">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
                     <Award className="w-3.5 h-3.5" />
@@ -192,7 +184,6 @@ export default function Profile() {
                 </div>
               </div>
             </div>
-            {/* Right: Level + Progress (keep stacked like mobile) */}
             <div className="w-full">
               <div className="mt-1.5 inline-flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-100">Level {profile?.level ?? '—'}</span>
@@ -206,7 +197,6 @@ export default function Profile() {
               <div className="mt-1 text-[11px] text-gray-500">to next level</div>
               <button onClick={() => setShowBadges((v) => !v)} className="mt-1.5 text-xs text-indigo-700 hover:text-indigo-800 underline">{showBadges ? 'Hide badges' : 'View badges'}</button>
             </div>
-            {/* Bottom-left action */}
             <div className="pt-2 mt-1 w-full border-t border-gray-100">
               <button
                 onClick={() => setEditingProfile(true)}
@@ -218,7 +208,6 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Badges Section */}
         {showBadges && (
           <div className="rounded-3xl p-4 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
             <div className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
@@ -245,7 +234,31 @@ export default function Profile() {
           </div>
         )}
 
-        {/* Menu (vertical list with simple icons) */}
+        {/* Push Notifications Section */}
+        <div className="rounded-3xl p-4 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+               <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-50 to-green-50 text-blue-600 flex items-center justify-center shadow-sm border border-blue-100">
+                <BellRing className="w-4 h-4" />
+              </span>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">Push Notifications</h3>
+                <p className="text-xs text-gray-500">
+                  {isSubscribed ? "You are subscribed to notifications." : "Enable to get alerts for new quizzes."}
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={subscribeToPush}
+              disabled={isSubscribed}
+              size="sm"
+            >
+              {isSubscribed ? "Subscribed" : "Enable"}
+            </Button>
+          </div>
+          {pushError && <p className="text-xs text-red-500 mt-2">Error: {pushError}</p>}
+        </div>
+
         <div className="rounded-3xl p-3 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
           <div className="flex flex-col gap-3">
             {menuItems.map((item, idx) => {
@@ -273,7 +286,6 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Logout (styled like menu items, keep red palette) */}
         <div className="rounded-3xl p-3 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
           <button onClick={handleSignOut} className="w-full text-left focus:outline-none focus:ring-2 focus:ring-red-200 rounded-2xl">
             <div className="group w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border border-red-100 bg-white/80 hover:bg-white transition shadow-sm hover:shadow-md text-sm text-red-600 cursor-pointer">
@@ -288,28 +300,25 @@ export default function Profile() {
           </button>
         </div>
 
-        {/* Profile Edit Modal */}
         <ProfileUpdateModal
           isOpen={editingProfile}
           onClose={() => {
             setEditingProfile(false);
-            load(); // Refresh profile data
+            load();
           }}
           isFirstTime={false}
         />
 
-        {/* Refer & Earn Modal */}
         <ReferEarnModal
           isOpen={showReferEarn}
           onClose={() => setShowReferEarn(false)}
         />
 
-        {/* Language Selection Modal */}
         <LanguageSelectionModal
           isOpen={showLanguageModal}
           onComplete={() => {
             setShowLanguageModal(false);
-            load(); // Refresh profile data
+            load();
           }}
         />
       </div>

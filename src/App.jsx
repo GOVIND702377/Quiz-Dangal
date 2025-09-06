@@ -24,6 +24,7 @@ import Leaderboards from '@/pages/Leaderboards';
 import Redemptions from '@/pages/Redemptions';
 import Language from '@/pages/Language';
 import PWAInstallButton from '@/components/PWAInstallButton';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 const UnconfirmedEmail = () => (
   <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -38,6 +39,7 @@ const Page = ({ children }) => <div className="page-transition">{children}</div>
 
 function App() {
   const { user, userProfile, loading } = useAuth();
+  usePushNotifications(); // Initialize Push Notifications
 
   if (loading) {
     return (
