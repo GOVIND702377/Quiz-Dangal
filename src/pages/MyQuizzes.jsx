@@ -53,79 +53,34 @@ const MyQuizzes = () => {
 
   const fetchMyQuizzes = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
-
-    const { data: participations, error: pError } = await supabase
-      .from('quiz_participants')
-      .select('quiz_id')
-      .eq('user_id', user.id);
-
-    if (pError) {
-      console.error(pError);
-      setLoading(false);
-      return;
-    }
-
-    const quizIds = participations.map(p => p.quiz_id);
-    if (quizIds.length === 0) {
-        setQuizzes([]);
-        setLoading(false);
-        return;
-    }
-
-    let scheduleData = [];
-    let sError = null;
     try {
-      const res = await supabase
-  .from('quizzes')
-        .select('*')
-        .in('id', quizIds)
-        .order('start_time', { ascending: false });
-      scheduleData = res.data || [];
-      sError = res.error;
-    } catch (err) {
-      sError = err;
-      scheduleData = [];
-    }
-    if (sError) {
-      if (sError.code === '42P01' || (sError.message && sError.message.includes('quiz_schedule'))) {
+      // **FIX**: अब हम सीधे 'my_quizzes_view' से डेटा लाएंगे।
+      // RLS अपने आप सही डेटा फ़िल्टर कर देगा।
+      const { data, error } = await supabase
+        .from('my_quizzes_view')
+        .select('*');
+
+      if (error) {
+        console.error('Error fetching my quizzes view:', error);
         setQuizzes([]);
-        setLoading(false);
-        return;
-      } else {
-        console.error(sError);
-        setLoading(false);
         return;
       }
-    }
-    
-    const { data: resultsData, error: rError } = await supabase
-        .from('quiz_results')
-        .select('*')
-        .in('quiz_id', quizIds);
-
-    if (rError) {
-        console.error(rError);
-    }
-    
-    const resultsMap = (resultsData || []).reduce((acc, r) => {
-        acc[r.quiz_id] = r;
-        return acc;
-    }, {});
 
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-    const combinedData = scheduleData.map(s => {
-        const result = resultsMap[s.id];
+    // **FIX**: अब डेटा को कंबाइन करने की जरूरत नहीं है, क्योंकि व्यू से सब कुछ एक साथ आता है।
+    const combinedData = (data || []).map(s => {
         // Hide result if it's older than 1 hour
-        if (result && new Date(result.result_shown_at) < oneHourAgo) {
-            return { ...s, result: null, resultExpired: true };
+        if (s.leaderboard && new Date(s.result_shown_at) < oneHourAgo) {
+            return { ...s, leaderboard: null, resultExpired: true };
         }
-        return { ...s, result: result };
+        return { ...s };
     });
 
     setQuizzes(combinedData);
-    setLoading(false);
+    } catch (err) {
+      console.error(err);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -134,7 +89,7 @@ const MyQuizzes = () => {
       Notification.requestPermission().catch(() => {});
     }
 
-    const channel = supabase.channel('quiz-results')
+    const resultsChannel = supabase.channel('quiz-results-channel')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'quiz_results' }, (payload) => {
         fetchMyQuizzes();
         // Notify user when results are out
@@ -146,14 +101,21 @@ const MyQuizzes = () => {
       })
       .subscribe();
     
-    fetchMyQuizzes();
+    // **FIX**: Loading state को सही ढंग से मैनेज करने के लिए एक async IIFE का उपयोग करें।
+    const initialFetch = async () => {
+      setLoading(true);
+      await fetchMyQuizzes();
+      setLoading(false);
+    }
+    initialFetch();
+
     const interval = setInterval(fetchMyQuizzes, 60000); // Poll every minute
 
     return () => {
-        supabase.removeChannel(channel);
+        supabase.removeChannel(resultsChannel);
         clearInterval(interval);
     };
-  }, [fetchMyQuizzes]);
+  }, [user, fetchMyQuizzes]);
 
 
   if (loading) {
@@ -192,8 +154,8 @@ const MyQuizzes = () => {
           {quizzes.map((quiz, index) => {
             const now = new Date();
             const resultTime = new Date(quiz.result_time);
-            const isResultOut = now >= resultTime && quiz.result;
-            const userRank = isResultOut ? quiz.result.leaderboard.find(p => p.user_id === user.id) : null;
+            const isResultOut = now >= resultTime && quiz.leaderboard;
+            const userRank = isResultOut ? quiz.leaderboard.find(p => p.user_id === user.id) : null;
             
             return(
               <motion.div key={quiz.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.1 }}
@@ -219,7 +181,7 @@ const MyQuizzes = () => {
                                 </div>
                             </div>
                         )}
-                        <LeaderboardDisplay leaderboard={quiz.result.leaderboard} currentUser={user} />
+                        <LeaderboardDisplay leaderboard={quiz.leaderboard} currentUser={user} />
                     </>
                 ) : quiz.resultExpired ? (
                     <div className="text-center p-4 bg-gray-50/80 rounded-lg">

@@ -41,17 +41,8 @@ const Wallet = () => {
         if (error) {
           console.error('Error fetching transactions:', error);
         } else {
-          // Additional filtering to remove fake/test/manual transactions
-          const blacklist = /(test|dummy|fake|seed|add coin|manual)/i;
-          const validTransactions = (data || []).filter(t => {
-            const hasValidAmount = t.amount != null && Math.abs(Number(t.amount)) > 0;
-            const hasValidType = typeof t.type === 'string' && t.type.trim() !== '';
-            const hasValidDate = !!t.created_at;
-            const isBlacklisted = blacklist.test(String(t.description || '')) || blacklist.test(String(t.type || ''));
-            return hasValidAmount && hasValidType && hasValidDate && !isBlacklisted;
-          });
-          
-          setTransactions(validTransactions);
+          // क्लाइंट-साइड फ़िल्टरिंग को हटा दें। डेटाबेस से ही स्वच्छ डेटा आना चाहिए।
+          setTransactions(data || []);
         }
       } catch (error) {
         console.error('Error fetching transactions:', error);

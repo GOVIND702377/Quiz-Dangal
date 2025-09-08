@@ -219,31 +219,12 @@ const Home = () => {
 
   const handleJoinQuiz = async (quiz) => {
     try {
-      const tries = [
-        () => supabase.rpc('join_quiz', { p_quiz_id: quiz.id, p_user_id: user.id }),
-        () => supabase.rpc('join_quiz', { quiz_id: quiz.id, user_id: user.id }),
-      ];
-      let rpcJoined = false;
-      for (const t of tries) {
-        const { error } = await t();
-        if (!error) { rpcJoined = true; break; }
-      }
+      const { data, error } = await supabase.rpc('join_quiz', { p_quiz_id: quiz.id });
 
-      if (!rpcJoined) {
-        const { data: existingParticipant, error: checkError } = await supabase
-          .from('quiz_participants')
-          .select('quiz_id')
-          .eq('quiz_id', quiz.id)
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (checkError) throw checkError;
-        if (!existingParticipant) {
-          const { error: insError } = await supabase
-            .from('quiz_participants')
-            .insert([{ quiz_id: quiz.id, user_id: user.id, status: 'joined' }]);
-          if (insError) throw insError;
-        }
+      if (error) {
+        throw new Error(error.message);
       }
+      if (data && data !== 'Joined Successfully') throw new Error(data);
 
       toast({ title: "Joined!", description: "Redirecting you to the quiz." });
       navigate(`/quiz/${quiz.id}`);

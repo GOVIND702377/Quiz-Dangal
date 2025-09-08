@@ -5,7 +5,6 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Coins, Flame, Sparkles } from 'lucide-react';
 import StreakModal from '@/components/StreakModal';
-import NotificationBell from '@/components/NotificationBell';
 
 const Header = () => {
   const { user, userProfile, refreshUserProfile } = useAuth();
@@ -13,6 +12,20 @@ const Header = () => {
 
   const [streakModal, setStreakModal] = useState({ open: false, day: 0, coins: 0 });
   const claimingRef = useRef(false);
+
+  const getInitials = (name, email) => {
+    if (name && name.trim()) {
+      const nameParts = name.trim().split(' ');
+      if (nameParts.length > 1) {
+        return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
+      }
+      return name.length > 0 ? name[0].toUpperCase() : '?';
+    }
+    if (email) {
+      return email[0].toUpperCase();
+    }
+    return '?';
+  };
 
   // Auto-claim daily streak once per day on first app open after login
   useEffect(() => {
@@ -88,12 +101,11 @@ const Header = () => {
             </Link>
 
             {/* Actions */}
-            <div className="flex items-center gap-2">
-              <NotificationBell />
-              {/* Enhanced Coins indicator */}
+            <div className="flex items-center gap-3 sm:gap-4">
+              {/* Coins indicator */}
               <Link
                 to="/wallet"
-                className="inline-flex items-center gap-1 md:gap-1.5 px-2 py-1 md:px-3 md:py-1.5 rounded-full border text-xs md:text-sm text-gray-800 shadow-sm bg-gradient-to-r from-yellow-50 via-amber-50 to-orange-50 border-yellow-200 hover:from-yellow-100 hover:to-orange-100 transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100/50 border border-amber-200/80 text-amber-800 shadow-sm hover:bg-amber-100/80 transition-colors"
                 title="Coins Balance"
               >
                 <motion.div
@@ -101,14 +113,14 @@ const Header = () => {
                   animate={{ rotate: [0, 10, -10, 0] }}
                   transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
                 >
-                  <Coins className="w-3.5 h-3.5 md:w-4 md:h-4 text-yellow-500" />
+                  <Coins className="w-5 h-5 text-yellow-500" />
                 </motion.div>
-                <span className="font-semibold bg-gradient-to-r from-yellow-600 to-amber-600 bg-clip-text text-transparent">
-                  {wallet.toLocaleString()} coins
+                <span className="font-bold text-sm">
+                  {wallet.toLocaleString()}
                 </span>
               </Link>
 
-              {/* Enhanced Streak Display */}
+              {/* Streak Display */}
               <button
                 type="button"
                 onClick={() => {
@@ -116,20 +128,29 @@ const Header = () => {
                   const coins = Math.min(50, 10 + Math.max(0, day - 1) * 5);
                   setStreakModal({ open: true, day, coins });
                 }}
-                className="inline-flex items-center gap-1 md:gap-1.5 px-2 py-1 md:px-3 md:py-1.5 rounded-full border text-xs md:text-sm text-gray-800 shadow-sm bg-gradient-to-r from-orange-50 via-amber-50 to-yellow-50 border-amber-200 hover:from-orange-100 hover:to-yellow-100 transition"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-100/50 border border-orange-200/80 text-orange-800 shadow-sm hover:bg-orange-100/80 transition-colors"
                 title="Daily Streak"
               >
                 <motion.div
                   initial={{ scale: 1 }}
                   animate={{ scale: [1, 1.1, 1] }}
                   transition={{ repeat: Infinity, duration: 2.5 }}
-                  className="relative"
                 >
-                  <Flame className="w-3.5 h-3.5 md:w-4 md:h-4 text-orange-500" />
-                  <Sparkles className="w-2.5 h-2.5 text-amber-500 absolute -top-0.5 -right-0.5" />
+                  <Flame className="w-5 h-5 text-orange-500" />
                 </motion.div>
-                <span className="font-bold text-orange-700">Day {userProfile?.current_streak || 0}</span>
+                <span className="font-bold text-sm">{userProfile?.current_streak || 0}</span>
               </button>
+
+              {/* Profile Avatar */}
+              <Link to="/profile" className="block">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gradient-to-br from-indigo-200 to-purple-200 flex items-center justify-center ring-2 ring-white/80 shadow-md hover:ring-purple-300 transition-all">
+                  {userProfile?.avatar_url ? (
+                    <img src={userProfile.avatar_url} alt="User Avatar" className="w-full h-full rounded-full object-cover" />
+                  ) : (
+                    <span className="text-lg font-bold text-indigo-700">{getInitials(userProfile?.full_name, user?.email)}</span>
+                  )}
+                </div>
+              </Link>
             </div>
           </div>
         </div>
