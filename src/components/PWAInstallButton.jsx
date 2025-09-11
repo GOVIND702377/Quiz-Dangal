@@ -3,17 +3,34 @@ import { Download } from 'lucide-react';
 
 const PWAInstallButton = () => {
   const DOWNLOAD_URL = (import.meta.env.VITE_DOWNLOAD_URL || '/quiz-dangal.apk').trim();
+  const usingFallback = !import.meta.env.VITE_DOWNLOAD_URL && DOWNLOAD_URL.endsWith('/quiz-dangal.apk');
   const [show, setShow] = useState(false);
+  const [hasApk, setHasApk] = useState(true);
 
   useEffect(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator.standalone === true);
-  // Always show on web (non-standalone)
-  setShow(!isStandalone);
+    // Always show on web (non-standalone), but only if we actually have an APK available
+    setShow(!isStandalone);
+
+    // Probe fallback path to avoid showing a broken button when no APK exists
+    const probe = async () => {
+      if (!usingFallback) {
+        setHasApk(true);
+        return;
+      }
+      try {
+        const resp = await fetch(DOWNLOAD_URL, { method: 'HEAD' });
+        setHasApk(resp.ok);
+      } catch {
+        setHasApk(false);
+      }
+    };
+    probe();
 
     const onInstalled = () => setShow(false);
     window.addEventListener('appinstalled', onInstalled);
     return () => window.removeEventListener('appinstalled', onInstalled);
-  }, [DOWNLOAD_URL]);
+  }, [DOWNLOAD_URL, usingFallback]);
 
   const forceDownload = async () => {
     try {
@@ -36,7 +53,7 @@ const PWAInstallButton = () => {
     }
   };
 
-  if (!show) return null;
+  if (!show || !hasApk) return null;
 
   return (
     <button
