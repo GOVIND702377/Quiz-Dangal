@@ -58,15 +58,42 @@ const ReferEarn = () => {
   };
 
   const shareReferralLink = async () => {
-    if (navigator.share) {
+    const shareData = {
+      title: 'Join Quiz Dangal',
+      text: 'Earn coins by playing quizzes! Use my referral to get started.',
+      url: referralLink,
+    };
+
+    // Prefer Web Share API v2
+    if (navigator.share && (!navigator.canShare || navigator.canShare(shareData))) {
       try {
-        await navigator.share({
-          title: 'Join Quiz Dangal',
-          text: 'Earn coins by playing quizzes! Use my referral to get started.',
-          url: referralLink,
-        });
-      } catch { copyToClipboard(referralLink, 'link'); }
-    } else { copyToClipboard(referralLink, 'link'); }
+        await navigator.share(shareData);
+        return;
+      } catch (err) {
+        // If user cancels, just return; otherwise try fallbacks
+        if (err && (err.name === 'AbortError' || err.name === 'NotAllowedError')) return;
+      }
+    }
+
+    // Mobile-friendly fallbacks: WhatsApp, Telegram, then copy
+    try {
+      const encoded = encodeURIComponent(`${shareData.text}\n${shareData.url}`);
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      // Try WhatsApp
+      const wa = isIOS ? `https://wa.me/?text=${encoded}` : `whatsapp://send?text=${encoded}`;
+      const openedWa = window.open(wa, '_blank');
+      if (openedWa) return;
+
+      // Try Telegram
+      const tg = `https://t.me/share/url?url=${encodeURIComponent(shareData.url)}&text=${encodeURIComponent(shareData.text)}`;
+      const openedTg = window.open(tg, '_blank');
+      if (openedTg) return;
+    } catch {}
+
+    // Last resort: copy
+    copyToClipboard(referralLink, 'link');
   };
 
   return (
@@ -138,7 +165,7 @@ const ReferEarn = () => {
         {/* Share + Copy */}
         <div className="flex gap-2">
           <Button onClick={shareReferralLink} className="flex-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 hover:opacity-90 border border-indigo-400/40">
-            <Share2 className="w-4 h-4 mr-2" /> Share Link
+            <Share2 className="w-4 h-4 mr-2" /> Share
           </Button>
           <Button onClick={() => copyToClipboard(referralLink, 'link')} variant="outline" className="flex-1 border-cyan-500/50 text-cyan-200 hover:bg-cyan-900/30">
             {copied === 'link' ? <Check className="w-4 h-4 mr-2 text-emerald-300" /> : <Copy className="w-4 h-4 mr-2 text-cyan-300" />} {copied === 'link' ? 'Copied!' : 'Copy Link'}

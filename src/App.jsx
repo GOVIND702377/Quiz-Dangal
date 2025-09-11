@@ -7,23 +7,24 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
 import OnboardingFlow from '@/components/OnboardingFlow';
-import Home from '@/pages/Home';
-import MyQuizzes from '@/pages/MyQuizzes';
-import Wallet from '@/pages/Wallet';
-import Profile from '@/pages/Profile';
-import Login from '@/pages/Login';
-import ResetPassword from '@/pages/ResetPassword';
-import AboutUs from '@/pages/AboutUs';
-import ContactUs from '@/pages/ContactUs';
-import TermsConditions from '@/pages/TermsConditions';
-import PrivacyPolicy from '@/pages/PrivacyPolicy';
-import Quiz from '@/pages/Quiz';
-import Admin from '@/pages/Admin';
-import Results from '@/pages/Results';
-import Leaderboards from '@/pages/Leaderboards';
-import Redemptions from '@/pages/Redemptions';
-import Language from '@/pages/Language';
-import ReferEarn from '@/pages/ReferEarn';
+import { lazy, Suspense, useEffect } from 'react';
+const Home = lazy(() => import('@/pages/Home'));
+const MyQuizzes = lazy(() => import('@/pages/MyQuizzes'));
+const Wallet = lazy(() => import('@/pages/Wallet'));
+const Profile = lazy(() => import('@/pages/Profile'));
+const Login = lazy(() => import('@/pages/Login'));
+const ResetPassword = lazy(() => import('@/pages/ResetPassword'));
+const AboutUs = lazy(() => import('@/pages/AboutUs'));
+const ContactUs = lazy(() => import('@/pages/ContactUs'));
+const TermsConditions = lazy(() => import('@/pages/TermsConditions'));
+const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
+const Quiz = lazy(() => import('@/pages/Quiz'));
+const Admin = lazy(() => import('@/pages/Admin'));
+const Results = lazy(() => import('@/pages/Results'));
+const Leaderboards = lazy(() => import('@/pages/Leaderboards'));
+const Redemptions = lazy(() => import('@/pages/Redemptions'));
+const Language = lazy(() => import('@/pages/Language'));
+const ReferEarn = lazy(() => import('@/pages/ReferEarn'));
 import PWAInstallButton from '@/components/PWAInstallButton';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
@@ -37,6 +38,11 @@ const UnconfirmedEmail = () => (
 );
 
 const Page = ({ children }) => <div className="page-transition">{children}</div>;
+const Fallback = () => (
+  <div className="min-h-[40vh] flex items-center justify-center">
+    <div className="animate-spin rounded-full h-10 w-10 border-4 border-indigo-200 border-t-indigo-600"></div>
+  </div>
+);
 
 function App() {
   const { user, userProfile, loading } = useAuth();
@@ -62,6 +68,7 @@ function App() {
             <title>Quiz Dangal - Opinion Based Quiz App</title>
             <meta name="description" content="Join Quiz Dangal for exciting opinion-based quizzes with real prizes!" />
           </Helmet>
+          <Suspense fallback={<Fallback />}>
           <Routes>
             {!user ? (
               <>
@@ -81,6 +88,7 @@ function App() {
               </>
             )}
           </Routes>
+          </Suspense>
           <Toaster />
         </div>
       </Router>
@@ -104,31 +112,49 @@ function AdminRoute({ children }) {
 }
 
 const MainLayout = () => {
+  useEffect(() => {
+    const warm = () => {
+      // Warm up a few popular routes in idle time
+      import('@/pages/Leaderboards');
+      import('@/pages/MyQuizzes');
+      import('@/pages/Wallet');
+      import('@/pages/Profile');
+      import('@/pages/ReferEarn');
+    };
+    const ric = (cb) => (window.requestIdleCallback ? window.requestIdleCallback(cb) : setTimeout(cb, 1200));
+    const id = ric(warm);
+    return () => {
+      if (window.cancelIdleCallback && typeof id === 'number') window.cancelIdleCallback(id);
+      // setTimeout fallback can't be reliably cancelled without storing handle; safe to ignore
+    };
+  }, []);
   return (
     <>
       <Header />
   <main className="flex-1 pb-24 pt-4 sm:pt-6">
-        <Routes>
-          <Route path="/" element={<Page><Home /></Page>} />
-          <Route path="/my-quizzes" element={<Page><MyQuizzes /></Page>} />
-          <Route path="/wallet" element={<Page><Wallet /></Page>} />
-          <Route path="/profile" element={<Page><Profile /></Page>} />
-          <Route path="/leaderboards" element={<Page><Leaderboards /></Page>} />
-          <Route path="/language" element={<Page><Language /></Page>} />
-          <Route path="/refer" element={<Page><ReferEarn /></Page>} />
-          <Route path="/rewards" element={<Navigate to="/wallet" replace />} />
-          <Route path="/redemptions" element={<Page><Redemptions /></Page>} />
-          <Route path="/about-us" element={<Page><AboutUs /></Page>} />
-          <Route path="/contact-us" element={<Page><ContactUs /></Page>} />
-          <Route path="/terms-conditions" element={<Page><TermsConditions /></Page>} />
-          <Route path="/privacy-policy" element={<Page><PrivacyPolicy /></Page>} />
-          <Route path="/admin" element={<AdminRoute><Page><Admin /></Page></AdminRoute>} />
-          <Route path="/admin/users" element={<Navigate to="/admin?tab=users" replace />} />
-          <Route path="/admin/leaderboards" element={<Navigate to="/admin?tab=leaderboards" replace />} />
-          <Route path="/admin/redemptions" element={<Navigate to="/admin?tab=redemptions" replace />} />
-          <Route path="/admin/reports" element={<Navigate to="/admin?tab=reports" replace />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={<Fallback />}>
+          <Routes>
+            <Route path="/" element={<Page><Home /></Page>} />
+            <Route path="/my-quizzes" element={<Page><MyQuizzes /></Page>} />
+            <Route path="/wallet" element={<Page><Wallet /></Page>} />
+            <Route path="/profile" element={<Page><Profile /></Page>} />
+            <Route path="/leaderboards" element={<Page><Leaderboards /></Page>} />
+            <Route path="/language" element={<Page><Language /></Page>} />
+            <Route path="/refer" element={<Page><ReferEarn /></Page>} />
+            <Route path="/rewards" element={<Navigate to="/wallet" replace />} />
+            <Route path="/redemptions" element={<Page><Redemptions /></Page>} />
+            <Route path="/about-us" element={<Page><AboutUs /></Page>} />
+            <Route path="/contact-us" element={<Page><ContactUs /></Page>} />
+            <Route path="/terms-conditions" element={<Page><TermsConditions /></Page>} />
+            <Route path="/privacy-policy" element={<Page><PrivacyPolicy /></Page>} />
+            <Route path="/admin" element={<AdminRoute><Page><Admin /></Page></AdminRoute>} />
+            <Route path="/admin/users" element={<Navigate to="/admin?tab=users" replace />} />
+            <Route path="/admin/leaderboards" element={<Navigate to="/admin?tab=leaderboards" replace />} />
+            <Route path="/admin/redemptions" element={<Navigate to="/admin?tab=redemptions" replace />} />
+            <Route path="/admin/reports" element={<Navigate to="/admin?tab=reports" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </main>
       <Footer />
       <PWAInstallButton />

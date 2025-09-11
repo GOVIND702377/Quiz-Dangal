@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Loader2, Trophy, ChevronRight, Search, Crown, Percent, Zap } from 'lucide-react';
+import { Loader2, ChevronRight, Search, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
@@ -82,8 +82,38 @@ export default function Leaderboards() {
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-7">
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-      <Trophy className="w-7 h-7 text-cyan-400 drop-shadow-sm" />
-      <h1 className="text-3xl font-extrabold bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent tracking-tight">Leaderboards</h1>
+          <motion.div
+            className="relative w-8 h-8 shrink-0"
+            initial={{ rotate: -3, y: 0 }}
+            animate={{ rotate: [-3, 3, -3], y: [0, -2, 0] }}
+            transition={{ duration: 2.4, ease: 'easeInOut', repeat: Infinity }}
+          >
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -inset-1 rounded-full bg-[radial-gradient(circle,rgba(255,215,0,0.35),rgba(0,0,0,0))] blur-[2px]"
+              style={{ zIndex: 0 }}
+            />
+            <motion.img
+              src={`${import.meta.env.BASE_URL}Trophy.png`}
+              alt="Trophy"
+              className="absolute inset-0 w-full h-full object-contain drop-shadow-md select-none"
+              onError={(e) => {
+                const triedLower = e.currentTarget.getAttribute('data-tried-lower');
+                if (!triedLower) {
+                  e.currentTarget.setAttribute('data-tried-lower', '1');
+                  e.currentTarget.src = `${import.meta.env.BASE_URL}trophy.png`;
+                } else {
+                  e.currentTarget.src = `${import.meta.env.BASE_URL}android-chrome-512x512.png`;
+                }
+              }}
+              decoding="async"
+              loading="eager"
+              style={{ zIndex: 1 }}
+              whileHover={{ scale: 1.05 }}
+              transition={{ type: 'spring', stiffness: 250, damping: 18 }}
+            />
+          </motion.div>
+          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent tracking-tight">Leaderboards</h1>
         </div>
   <p className="text-slate-200/85 text-sm">Top players by performance & consistency</p>
       </div>
@@ -131,7 +161,11 @@ export default function Leaderboards() {
                     <div className="absolute inset-0 opacity-40 mix-blend-overlay bg-[radial-gradient(circle_at_65%_25%,rgba(124,58,237,0.55),rgba(255,255,255,0)_60%)]" />
                   </div>
                   <div className="relative w-full p-3 flex flex-col items-center gap-2">
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-black shadow-[0_4px_14px_-4px_rgba(0,0,0,0.6)] ring-2 ring-indigo-300/50 backdrop-blur ${medalClasses.circle}`}>{pos===1?'🥇':pos===2?'🥈':'🥉'}</div>
+                    {pos === 1 ? (
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-black shadow-[0_4px_14px_-4px_rgba(0,0,0,0.6)] ring-2 ring-indigo-300/50 backdrop-blur ${medalClasses.circle}`}>🥇</div>
+                    ) : (
+                      <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-black shadow-[0_4px_14px_-4px_rgba(0,0,0,0.6)] ring-2 ring-indigo-300/50 backdrop-blur ${medalClasses.circle}`}>{pos===2?'🥈':'🥉'}</div>
+                    )}
                     <div className="text-[11px] font-semibold tracking-wide text-white max-w-full truncate">{r.username?`@${r.username}`:'Anonymous'}</div>
                     <div className="text-[11px] font-semibold tracking-wider text-slate-100 flex items-center gap-1"><span className="font-mono text-[12px] bg-gradient-to-r from-indigo-200 via-fuchsia-200 to-violet-200 bg-clip-text text-transparent drop-shadow-sm">{r.leaderboard_score.toFixed(2)}</span><span className="text-slate-200/80">SCORE</span></div>
                   </div>
@@ -205,7 +239,7 @@ export default function Leaderboards() {
                     <div className="flex-1 min-w-0">
                       <div className={`font-semibold truncate transition tracking-wide ${highlight? 'text-white':'text-slate-100 group-hover:text-white'}`}>{r.username?`@${r.username}`:'Anonymous'}</div>
                       <div className="mt-1 flex items-center gap-5 text-[11px] text-slate-300/85 font-medium">
-                        <span className="flex items-center gap-1"><Percent className="w-3 h-3 text-indigo-200" /> <span className="tabular-nums font-mono">{r.win_rate?.toFixed(1)}%</span></span>
+                        <span className="flex items-center gap-1"><span className="tabular-nums font-mono">{r.win_rate?.toFixed(1)}%</span></span>
                         <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-fuchsia-200" /> <span className="tabular-nums font-mono">{r.streak || 0}</span></span>
                       </div>
                       <div className="mt-2 h-1.5 w-full rounded-full bg-indigo-100/40 overflow-hidden ring-1 ring-indigo-100/60">

@@ -3,12 +3,20 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Coins } from 'lucide-react';
+import { Coins, Download } from 'lucide-react';
 import StreakModal from '@/components/StreakModal';
 
 const Header = () => {
   const { user, userProfile, refreshUserProfile } = useAuth();
   const wallet = Number(userProfile?.wallet_balance || 0);
+   const DOWNLOAD_URL = (import.meta.env.VITE_DOWNLOAD_URL || '/quiz-dangal.apk').trim(); // Download logic removed
+   const [showDownload] = useState(false); // Download button removed per request; only coin and streak remain
+
+  // Determine if app is installed PWA or running in standalone; then decide to show download button
+  useEffect(() => {
+    // Download logic moved to floating FAB only
+    // Removed download button visibility logic
+  }, [DOWNLOAD_URL]);
 
   const [streakModal, setStreakModal] = useState({ open: false, day: 0, coins: 0 });
   const claimingRef = useRef(false);
@@ -66,6 +74,10 @@ const Header = () => {
 
   }, [user, refreshUserProfile]);
 
+  const handleDownload = async (e) => {
+    // Download logic removed
+  };
+
   return (
     <>
       <motion.header
@@ -102,6 +114,8 @@ const Header = () => {
 
             {/* Actions */}
             <div className="ml-auto flex items-center gap-2 sm:gap-3 translate-x-1 sm:translate-x-0">
+              {/* Download button (shown only if configured) */}
+              {/* Download chip removed; use floating FAB instead */}
               {/* Unified Coin Badge */}
               <div className="hidden sm:inline-flex hd-badge hd-badge-gold" title="Coins" aria-label={`Coins: ${wallet.toLocaleString()}`}>
                 <div className="hd-badge-icon" aria-hidden="true">

@@ -62,8 +62,9 @@ const GoldTrophy = ({ size = 72 }) => {
   const px = typeof size === 'number' ? `${size}px` : size;
   const [srcIdx, setSrcIdx] = useState(0);
   const sources = [
+    `${import.meta.env.BASE_URL}Trophy.png`, // provided image (preferred)
+    `${import.meta.env.BASE_URL}trophy.png`, // lowercase fallback just in case
     `${import.meta.env.BASE_URL}trophy-question.png`,
-    `${import.meta.env.BASE_URL}trophy.png`,
     `${import.meta.env.BASE_URL}trophy-question.webp`,
   ];
   const src = sources[srcIdx] || sources[0];

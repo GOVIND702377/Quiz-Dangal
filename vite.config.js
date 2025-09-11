@@ -24,6 +24,11 @@ export default defineConfig({
 		},
 	},
 	build: {
+		minify: 'esbuild',
+		target: 'es2018',
+		cssTarget: 'es2018',
+		brotliSize: false,
+		sourcemap: false,
 		rollupOptions: {
 			external: [
 				'@babel/parser',
@@ -31,6 +36,16 @@ export default defineConfig({
 				'@babel/generator',
 				'@babel/types',
 			],
+			output: {
+				manualChunks(id) {
+					if (id.includes('node_modules')) {
+						if (id.includes('react') || id.includes('scheduler')) return 'react-vendor';
+						if (id.includes('framer-motion')) return 'motion';
+						if (id.includes('@supabase')) return 'supabase';
+						return 'vendor';
+					}
+				},
+			},
 		},
 	},
 });
