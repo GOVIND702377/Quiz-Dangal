@@ -29,6 +29,8 @@ export default defineConfig({
 		cssTarget: 'es2018',
 		brotliSize: false,
 		sourcemap: false,
+		// Remove manualChunks to avoid circular imports between vendor/react-vendor that can break React at runtime.
+		// Vite/Rollup will choose safe defaults.
 		rollupOptions: {
 			external: [
 				'@babel/parser',
@@ -36,16 +38,6 @@ export default defineConfig({
 				'@babel/generator',
 				'@babel/types',
 			],
-			output: {
-				manualChunks(id) {
-					if (id.includes('node_modules')) {
-						if (id.includes('react') || id.includes('scheduler')) return 'react-vendor';
-						if (id.includes('framer-motion')) return 'motion';
-						if (id.includes('@supabase')) return 'supabase';
-						return 'vendor';
-					}
-				},
-			},
 		},
 	},
 });
