@@ -65,30 +65,30 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-md w-full shadow-xl">
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2 text-center">
+  <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-8 max-w-md w-full shadow-xl text-slate-100">
+        <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-2 text-center">
           Reset Password
         </h1>
     {!inRecovery ? (
-          <div className="text-center text-gray-600">
+          <div className="text-center text-slate-300">
       The reset link is invalid or has expired, or you are already signed in. If you see this by mistake, open the link again or request a new reset from the Sign In screen.
           </div>
         ) : (
           <form onSubmit={handleReset} className="space-y-4">
             <div>
-              <label className="block text-sm text-gray-700 mb-1">New Password</label>
-              <input type="password" className="w-full border rounded-lg px-3 py-2" value={pw1} onChange={(e) => setPw1(e.target.value)} placeholder="Enter new password" required />
+              <label className="block text-sm text-slate-200 mb-1">New Password</label>
+              <input type="password" className="w-full border border-slate-300 bg-white text-black rounded-lg px-3 py-2" value={pw1} onChange={(e) => setPw1(e.target.value)} placeholder="Enter new password" required />
             </div>
             <div>
-              <label className="block text-sm text-gray-700 mb-1">Confirm New Password</label>
-              <input type="password" className="w-full border rounded-lg px-3 py-2" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Re-enter new password" required />
+              <label className="block text-sm text-slate-200 mb-1">Confirm New Password</label>
+              <input type="password" className="w-full border border-slate-300 bg-white text-black rounded-lg px-3 py-2" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Re-enter new password" required />
             </div>
-            {message && <div className="text-sm text-center text-gray-700">{message}</div>}
-            <button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg py-2.5 font-semibold">
+            {message && <div className="text-sm text-center text-slate-300">{message}</div>}
+            <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-500 hover:to-fuchsia-700 text-white rounded-lg py-2.5 font-semibold">
               {loading ? 'Updating…' : 'Update Password'}
             </button>
-            <button type="button" onClick={() => navigate('/login')} className="w-full border rounded-lg py-2.5 font-medium bg-white hover:bg-gray-50">
+              <button type="button" onClick={() => navigate('/login')} className="w-full bg-white text-black border border-slate-300 hover:bg-slate-50 rounded-lg shadow-md focus:ring-2 focus:ring-indigo-500/40 py-2.5 font-medium">
               Back to Login
             </button>
           </form>

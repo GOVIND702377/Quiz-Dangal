@@ -33,20 +33,34 @@ export const AuthProvider = ({ children }) => {
         return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
     }
 
-        // If Supabase config is missing, show a friendly message and skip auth wiring
-        if (!hasSupabaseConfig) {
-                return (
-                        <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-indigo-100">
-                            <div className="bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-lg w-full shadow-xl text-center">
-                                <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3">Configuration Missing</h2>
-                                <p className="text-gray-700 mb-2">Please create a <code>.env</code> file in the project root with:</p>
-                                <pre className="text-left text-sm bg-gray-100 p-3 rounded-md overflow-auto"><code>VITE_SUPABASE_URL=your_supabase_url
+    // If Supabase config is missing, still provide a context so children using useAuth don't crash.
+    if (!hasSupabaseConfig) {
+        const value = {
+            supabase: null,
+            user: null,
+            userProfile: null,
+            loading: false,
+            isRecoveryFlow: false,
+            hasSupabaseConfig: false,
+            signUp: async () => { throw new Error('Supabase config missing'); },
+            signIn: async () => { throw new Error('Supabase config missing'); },
+            signOut: async () => {},
+            refreshUserProfile: () => {},
+        };
+        return (
+            <AuthContext.Provider value={value}>
+                <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-indigo-100">
+                    <div className="bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-lg w-full shadow-xl text-center">
+                        <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3">Configuration Missing</h2>
+                        <p className="text-gray-700 mb-2">Create a <code>.env</code> file in the project root with:</p>
+                        <pre className="text-left text-sm bg-gray-100 p-3 rounded-md overflow-auto"><code>VITE_SUPABASE_URL=your_supabase_url
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
-                                <p className="text-gray-600 mt-3">Then restart the dev server.</p>
-                            </div>
-                        </div>
-                );
-        }
+                        <p className="text-gray-600 mt-3">Or for local UI only testing set <code>VITE_BYPASS_AUTH=1</code> then restart dev server.</p>
+                    </div>
+                </div>
+            </AuthContext.Provider>
+        );
+    }
 
     // Profile fetch karne ka function
     const refreshUserProfile = async (currentUser) => {
@@ -231,7 +245,8 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
         user,
         userProfile,
         loading,
-    isRecoveryFlow,
+        isRecoveryFlow,
+        hasSupabaseConfig: true,
         signUp,
         signIn,
         signOut: hardSignOut,

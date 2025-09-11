@@ -31,6 +31,24 @@ html, :host {
   --input: 214.3 31.8% 91.4%;
   --ring: 262.1 83.3% 57.8%;
   --radius: 0.75rem;
+  /* Extended vibrant dark theme tokens (softer accessible palette) */
+  --qd-bg-dark: #0c0f17;
+  --qd-bg-grad-1: #12141b; /* was #120c24 */
+  --qd-bg-grad-2: #161b24; /* was #1a1233 */
+  --qd-bg-grad-3: #1c222d; /* was #26163d */
+  --qd-brand-start: #5b7bff; /* was #6a34ff */
+  --qd-brand-mid: #6f6dff;  /* was #a735ff */
+  --qd-brand-end: #ff6fa8;  /* was #ff4d8d */
+  --qd-brand-alt: #f9b25d;  /* was #ffb347 */
+  --qd-surface: rgba(255,255,255,0.08);
+  --qd-surface-alt: rgba(255,255,255,0.04);
+  --qd-border: rgba(255,255,255,0.14);
+  --qd-border-strong: rgba(255,255,255,0.3);
+  --qd-text-primary: #e7edf2; /* soft off-white for readability */
+  --qd-text-dim: #9aa6b4; /* calmer secondary */
+  --qd-danger: #ff4d61;
+  --qd-success: #33d69f;
+  --qd-warning: #ffce3d;
 }
 
 * {
@@ -39,42 +57,23 @@ html, :host {
 
 body {
   font-family: 'Poppins', sans-serif;
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+  background:
+    radial-gradient(circle at 18% 22%,rgba(110,150,200,0.06),rgba(0,0,0,0) 58%),
+    radial-gradient(circle at 82% 70%,rgba(200,120,170,0.05),rgba(0,0,0,0) 55%),
+    linear-gradient(135deg,#10161d 0%, #111b23 45%, #132129 70%, #142630 100%);
+  color: var(--qd-text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
-}
-
-/* Performance optimizations */
-* {
-  box-sizing: border-box;
-}
-
-/* Smooth transitions for all interactive elements */
-button, a, input, select, textarea {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
+html { scroll-behavior: smooth; }
+* { box-sizing: border-box; }
 
 /* Smooth page transitions */
-.page-transition {
-  animation: fadeInUp 0.3s ease-out;
-}
+.page-transition { animation: fadeInUp 0.3s ease-out; }
 
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
+@keyframes fadeInUp { from { opacity:0; transform:translateY(20px);} to { opacity:1; transform:translateY(0);} }
 
 /* Smooth loading animations */
 .loading-pulse {
@@ -158,3 +157,376 @@ input:focus, textarea:focus, select:focus {
   color: #667eea;
   font-weight: 600;
 }
+
+/* =============================================================
+   Quiz Dangal New Vibrant Theme Utilities
+   ============================================================= */
+/* (Removed unused qd-app-bg + qdBlob animation) */
+
+.qd-glass {
+  background: rgba(var(--qd-surface-bg));
+  background: linear-gradient(145deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.08) 100%);
+  backdrop-filter: blur(28px) saturate(140%);
+  -webkit-backdrop-filter: blur(28px) saturate(140%);
+  border: 1px solid rgba(var(--qd-surface-border));
+  box-shadow: 0 8px 24px -6px rgba(0,0,0,0.25), 0 2px 4px rgba(255,255,255,0.2) inset;
+}
+
+.qd-glass-soft {
+  background: linear-gradient(160deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.14) 100%);
+  backdrop-filter: blur(22px) saturate(160%);
+  -webkit-backdrop-filter: blur(22px) saturate(160%);
+  border: 1px solid rgba(255,255,255,0.28);
+  box-shadow: 0 10px 30px -8px rgba(0,0,0,0.35);
+}
+
+.qd-chip {
+  @apply inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold tracking-wide text-white/90 bg-white/20 border border-white/30 backdrop-blur-md shadow-sm;
+}
+
+.qd-gradient-text { 
+  background: linear-gradient(90deg, #ffffff 0%, #ffe5f2 45%, #ffd1ff 70%);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+
+/* ================= Unified Modern Theme Additions ================= */
+.app-page { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:1rem; }
+.app-surface { background:linear-gradient(140deg,rgba(255,255,255,0.26),rgba(255,255,255,0.10)); backdrop-filter:blur(30px) saturate(170%); -webkit-backdrop-filter:blur(30px) saturate(170%); border:1px solid rgba(255,255,255,0.28); border-radius:1.5rem; box-shadow:0 8px 32px -12px rgba(0,0,0,0.55),0 2px 4px rgba(255,255,255,0.2) inset; }
+.app-surface-muted { background:linear-gradient(150deg,rgba(255,255,255,0.18),rgba(255,255,255,0.06)); }
+.heading-gradient { background:linear-gradient(90deg,var(--qd-brand-start),var(--qd-brand-mid) 40%,var(--qd-brand-end)); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 2px 6px rgba(0,0,0,0.45)); }
+.btn-primary-brand { @apply relative inline-flex items-center justify-center font-semibold rounded-xl px-5 py-3 text-sm text-white shadow transition; background:linear-gradient(90deg,#6a34ff,#ff4d8d); box-shadow:0 8px 22px -8px rgba(255,77,141,0.55),0 2px 4px -1px rgba(0,0,0,0.45); }
+.btn-primary-brand:hover { filter:brightness(1.08); box-shadow:0 10px 26px -8px rgba(255,77,141,0.7),0 3px 6px -1px rgba(0,0,0,0.55); }
+.btn-primary-brand:active { transform:translateY(1px); box-shadow:0 6px 18px -6px rgba(255,77,141,0.55),0 2px 4px -1px rgba(0,0,0,0.6); }
+.card-heading { font-weight:700; letter-spacing:.5px; }
+.subtle-divider { height:1px; background:linear-gradient(90deg,rgba(255,255,255,0),rgba(255,255,255,0.35),rgba(255,255,255,0)); }
+
+/* ================= Leaderboard Modern Styles ================= */
+.lb-tabs .lb-tab { position:relative; padding:.55rem 1.05rem; font-size:.7rem; font-weight:600; letter-spacing:.8px; text-transform:uppercase; border-radius:1rem; background:linear-gradient(150deg,rgba(255,255,255,0.16),rgba(255,255,255,0.05)); border:1px solid rgba(255,255,255,0.25); color:rgba(255,255,255,0.7); backdrop-filter:blur(20px) saturate(160%); -webkit-backdrop-filter:blur(20px) saturate(160%); box-shadow:0 4px 14px -6px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.14) inset; transition:background .35s ease, color .35s ease, box-shadow .35s ease; }
+.lb-tabs .lb-tab.active { background:linear-gradient(120deg,#3e5fa8,#5a5fb4 55%,#7c5f9b); color:#e7edf2; box-shadow:0 6px 20px -8px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.12) inset; }
+.lb-tabs .lb-tab:hover:not(.active) { color:#fff; background:linear-gradient(150deg,rgba(255,255,255,0.22),rgba(255,255,255,0.08)); }
+
+.lb-podium { position:relative; }
+.lb-podium-card { position:relative; display:flex; align-items:flex-end; justify-content:center; background:linear-gradient(160deg,rgba(255,255,255,0.20),rgba(255,255,255,0.06)); backdrop-filter:blur(26px) saturate(160%); -webkit-backdrop-filter:blur(26px) saturate(160%); border:1px solid rgba(255,255,255,0.25); border-radius:1.5rem; box-shadow:0 10px 32px -12px rgba(0,0,0,0.65),0 0 0 1px rgba(255,255,255,0.14) inset; overflow:hidden; }
+.lb-podium-card::before { content:""; position:absolute; inset:0; background:radial-gradient(circle at 60% 30%,rgba(255,255,255,0.4),rgba(255,255,255,0) 65%); opacity:.35; }
+.lb-podium-inner { position:relative; width:100%; padding:1rem .75rem 1.1rem; text-align:center; display:flex; flex-direction:column; align-items:center; gap:.25rem; }
+.lb-podium-rank { width:3.25rem; height:3.25rem; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.5rem; background:linear-gradient(140deg,#fff5d2,#ffe48a); color:#9f6a00; font-weight:700; box-shadow:0 2px 8px -2px rgba(0,0,0,0.6),0 0 0 2px rgba(255,255,255,0.30) inset; }
+.lb-podium-rank.silver { background:linear-gradient(140deg,#f5f6fa,#dae0eb); color:#4f5d72; }
+.lb-podium-rank.bronze { background:linear-gradient(140deg,#ffe2c2,#ffba7b); color:#7a3d00; }
+.lb-podium-name { font-size:.8rem; font-weight:600; letter-spacing:.4px; color:#fff; max-width:100%; }
+.lb-podium-score { font-size:.65rem; font-weight:600; letter-spacing:1px; color:rgba(255,255,255,0.65); text-transform:uppercase; }
+
+.lb-my-rank { position:relative; }
+.lb-my-rank-bubble { width:2.6rem; height:2.6rem; border-radius:1rem; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1.05rem; background:linear-gradient(120deg,var(--qd-brand-start),var(--qd-brand-end)); box-shadow:0 4px 14px -6px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.20) inset; }
+
+.lb-list { position:relative; }
+.lb-row::before { content:""; position:absolute; inset:0; background:linear-gradient(120deg,rgba(255,255,255,0.05),rgba(255,255,255,0)); opacity:.5; }
+.lb-row:hover { box-shadow:0 6px 20px -8px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.16) inset; transform:translateY(-2px); }
+.lb-row-active { border-color:rgba(120,160,255,0.45); box-shadow:0 0 0 1px rgba(120,160,255,0.3) inset,0 6px 22px -8px rgba(0,0,0,0.6); }
+.lb-rank-wrap { width:42px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:.95rem; color:#fff; }
+.lb-rank-text { text-shadow:0 1px 2px rgba(0,0,0,0.55); }
+.lb-name { font-size:.9rem; font-weight:600; letter-spacing:.3px; color:#fff; }
+.lb-meta { margin-top:.15rem; font-size:.55rem; letter-spacing:.6px; text-transform:uppercase; color:rgba(255,255,255,0.60); }
+.lb-score { min-width:70px; }
+.lb-score-value { font-weight:700; font-size:.95rem; letter-spacing:.4px; color:#e7edf2; text-shadow:0 1px 2px rgba(0,0,0,0.55); }
+.lb-score-label { font-size:.55rem; letter-spacing:1px; font-weight:600; text-transform:uppercase; color:rgba(255,255,255,0.45); margin-top:2px; }
+
+
+.qd-divider-fade {
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.4) 50%, rgba(255,255,255,0) 100%);
+}
+
+.qd-shadow-ring:hover {
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.25);
+}
+
+.qd-active-underline {
+  position: relative;
+}
+.qd-active-underline::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 36%;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg,#ffe06b,#ff8d8d,#ff73d9);
+  transform: translateX(-50%);
+  box-shadow: 0 2px 6px -1px rgba(0,0,0,0.4);
+}
+
+/* Utility: hide scrollbar for custom scroll areas (keep accessible) */
+.qd-scroll-hide::-webkit-scrollbar { width: 0; height: 0; }
+.qd-scroll-hide { scrollbar-width: none; }
+
+/* Realistic Coin (shared) */
+.coin-real { position:relative; width:100%; height:100%; border-radius:50%; background:
+  radial-gradient(circle at 35% 32%, #FFF8D2 0%, #FFE064 28%, #FFC934 55%, #E7A908 78%, #B77505 100%);
+  box-shadow:
+    0 1px 2px rgba(0,0,0,0.45),
+    0 3px 6px -2px rgba(0,0,0,0.6),
+    inset 0 2px 4px -1px rgba(255,255,255,0.85),
+    inset 0 -3px 4px -1px rgba(0,0,0,0.35),
+    inset 0 0 0 1px rgba(255,255,255,0.35);
+  position:relative;
+  overflow:hidden;
+}
+.coin-real::before { content:""; position:absolute; inset:0; border-radius:50%; background:conic-gradient(from 0deg, rgba(255,255,255,0.45) 0deg, rgba(255,255,255,0) 70deg, rgba(255,255,255,0) 300deg, rgba(255,255,255,0.55) 360deg); mix-blend-mode:overlay; opacity:.65; }
+.coin-real::after { content:""; position:absolute; inset:2px; border-radius:50%; background:radial-gradient(circle at 60% 70%, rgba(0,0,0,0) 55%, rgba(0,0,0,0.35) 95%); opacity:.85; }
+.coin-symbol { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; letter-spacing:1px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.55),0 0 4px rgba(255,220,80,0.55); }
+
+/* Slight hover depth */
+.coin-wrapper:hover .coin-real { transform:translateY(-1px); transition:transform .3s ease; }
+.coin-wrapper .coin-real { transition:transform .35s ease; }
+
+/* =============================================================
+   Home Page Simplified Gradient Theme (matches provided mock)
+   ============================================================= */
+.home-bg { position:fixed; inset:0; z-index:-10; overflow:hidden; background:
+  radial-gradient(circle at 20% 22%,rgba(120,160,255,0.12),rgba(0,0,0,0) 62%),
+  radial-gradient(circle at 78% 78%,rgba(255,155,210,0.12),rgba(0,0,0,0) 58%),
+  linear-gradient(150deg,#14171f 0%, #181e28 48%, #1f262f 100%);
+}
+.home-bg::before, .home-bg::after { content:""; position:absolute; width:640px; height:640px; border-radius:50%; filter:blur(140px); opacity:.35; mix-blend-mode:screen; animation:homeBlob 26s linear infinite; }
+.home-bg::before { top:-180px; left:-160px; background:radial-gradient(circle at 30% 30%,#6a80ff,#6f6dff 60%,rgba(111,109,255,0)); animation-delay:0s; }
+.home-bg::after { bottom:-180px; right:-140px; background:radial-gradient(circle at 70% 65%,#ff8cbf,#ff6fa8 55%,rgba(255,111,168,0)); animation-delay:8s; }
+
+@keyframes homeBlob {
+  0% { transform: translate3d(0,0,0) scale(1); }
+  30% { transform: translate3d(70px,-40px,0) scale(1.06); }
+  60% { transform: translate3d(-40px,60px,0) scale(0.94); }
+  100% { transform: translate3d(0,0,0) scale(1); }
+}
+
+.home-panel {
+  /* Replaced @apply (arbitrary values in shadow / rounded) to avoid Tailwind build 500 error */
+  border-radius: 2rem; /* rounded-[2rem] */
+  background: rgba(255,255,255,0.22); /* bg-white/22 */
+  backdrop-filter: blur(40px) saturate(140%);
+  -webkit-backdrop-filter: blur(40px) saturate(140%);
+  border: 1px solid rgba(255,255,255,0.35); /* border-white/35 */
+  box-shadow: 0 15px 38px -12px rgba(0,0,0,0.35); /* custom shadow */
+}
+
+.home-panel h3, .home-panel p { pointer-events: none; }
+
+/* =============================================================
+   Streak Badge Styles
+   ============================================================= */
+/* Simplified streak badge (matches coin pill style) */
+.streak-badge {
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:4px 14px; /* matches py-1 px similar to coin pill */
+  line-height:1;
+  border-radius:999px;
+  background:linear-gradient(140deg,rgba(255,255,255,0.30),rgba(255,255,255,0.07));
+  border:1px solid rgba(255,255,255,0.55);
+  backdrop-filter:blur(26px) saturate(150%);
+  -webkit-backdrop-filter:blur(26px) saturate(150%);
+  box-shadow:0 4px 14px -6px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.15) inset, 0 0 18px -6px rgba(155,90,255,0.45);
+  position:relative;
+}
+.streak-number {
+  color:#fff;
+  font-weight:600;
+  text-shadow:0 1px 2px rgba(0,0,0,0.55);
+  background:none;
+  backdrop-filter:blur(26px) saturate(155%);
+  -webkit-backdrop-filter:blur(26px) saturate(155%);
+  box-shadow:0 4px 14px -6px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.18) inset;
+  transition: box-shadow .35s ease, transform .28s ease, border-color .35s ease;
+}
+.pill-glass::before { /* inner subtle gloss */
+  content:""; position:absolute; inset:1px; border-radius:inherit; pointer-events:none;
+  background:linear-gradient(180deg,rgba(255,255,255,0.55),rgba(255,255,255,0) 60%);
+  mix-blend-mode:screen; opacity:.9;
+}
+/* (Removed malformed duplicated body & stray content block causing 500 error) */
+.pill-glass:hover { box-shadow:0 6px 20px -6px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.28) inset, 0 0 26px -4px rgba(160,100,255,0.55); }
+.pill-glass:hover::after { animation: pillSheen 1.2s ease; opacity:1; }
+.pill-glass:active { transform:translateY(1px) scale(.97); box-shadow:0 3px 10px -4px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.22) inset; }
+@keyframes pillSheen { 0%{ left:-55px; opacity:0;} 15%{opacity:1;} 55%{ left:120%; opacity:0.85;} 100%{ left:140%; opacity:0;} }
+.pill-sm-tight { padding:4px 14px; gap:8px; }
+
+/* ===================== Streak Mini Flame ===================== */
+/* Smaller, more restrained flame for realistic look */
+.streak-flame-mini { position:relative; width:16px; height:20px; display:flex; align-items:flex-end; justify-content:center; margin:0 3px 0 1px; overflow:visible; }
+.streak-flame-mini svg { width:100%; height:100%; overflow:visible; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 3px rgba(255,140,40,0.45)); transform:scale(1.05) translateY(-1px); transform-origin:50% 85%; }
+.streak-flame-mini .inner-glow { position:absolute; bottom:2px; width:72%; height:56%; left:14%; background:radial-gradient(circle at 50% 70%, rgba(255,249,230,0.92), rgba(255,225,140,0.5) 55%, rgba(255,170,60,0.15) 70%, rgba(255,140,30,0) 80%); filter:blur(2.5px); opacity:.8; animation: flamePulse 3.6s ease-in-out infinite; pointer-events:none; }
+.streak-flame-mini .outer-halo { position:absolute; inset:-6px -7px -7px -7px; background:radial-gradient(circle at 50% 78%, rgba(255,185,90,0.38), rgba(255,120,30,0.08) 58%, rgba(255,120,30,0) 70%); filter:blur(10px); opacity:.65; /* no animation for calmer look */ pointer-events:none; }
+/* (Removed unused haloPulse) */
+@keyframes flamePulse { 0%,100%{ transform:scale(1); opacity:.85;} 50%{ transform:scale(1.12); opacity:1;} }
+.streak-flame-mini .flicker { animation: flameFlicker 3.4s ease-in-out infinite; transform-origin: 50% 90%; }
+@keyframes flameFlicker { 0%,100%{ transform:translateY(0) scale(1);} 40%{ transform:translateY(-2px) scale(1.03);} 70%{ transform:translateY(-1px) scale(.98);} }
+
+/* ===================== Coin Enhancements ===================== */
+.coin-wrapper { position:relative; }
+.coin-wrapper .coin-core { position:relative; }
+/* Calmer coin: reduced glow + no moving white stripe */
+.coin-wrapper .coin-glow { position:absolute; inset:-2px; border-radius:50%; background:radial-gradient(circle at 50% 55%, rgba(255,210,80,0.38), rgba(255,175,0,0)); filter:blur(4px); opacity:.55; }
+/* Static soft highlight instead of animated sheen */
+.coin-wrapper .coin-sheen { position:absolute; inset:0; border-radius:50%; pointer-events:none; background:radial-gradient(circle at 30% 30%, rgba(255,255,255,0.55), rgba(255,255,255,0) 65%); mix-blend-mode:screen; }
+/* Remove tilt animation for realism */
+.coin-tilt { transform-style:preserve-3d; }
+/* (keyframes coinGlow / coinSheen / coinTilt retained above for possible reuse but not applied) */
+@keyframes bounceSlow { 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-4px);} }
+/* bounceSlow kept for reward badge reuse if needed */
+
+/* ===================== Header New Coin & Streak ===================== */
+.hd-coin-pill { background:linear-gradient(135deg, rgba(255,255,255,0.30), rgba(255,255,255,0.06)); border:1px solid rgba(255,255,255,0.5); backdrop-filter:blur(22px) saturate(140%); -webkit-backdrop-filter:blur(22px) saturate(140%); padding:6px 14px 6px 10px; border-radius:999px; box-shadow:0 4px 14px -6px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.15) inset; position:relative; overflow:hidden; }
+.hd-coin-pill::after { content:""; position:absolute; inset:0; background:radial-gradient(circle at 85% 20%,rgba(255,255,255,0.55),rgba(255,255,255,0) 60%); opacity:.4; pointer-events:none; }
+.hd-coin { width:32px; height:32px; position:relative; display:flex; align-items:center; justify-content:center; }
+.hd-coin::before { content:""; position:absolute; inset:0; border-radius:50%; background:linear-gradient(145deg,#FFEFAF,#FFD851 38%,#FFB428 68%,#D67E0A 100%); box-shadow:0 2px 4px rgba(0,0,0,0.55),0 4px 10px -4px rgba(0,0,0,0.6),inset 0 2px 4px -1px rgba(255,255,255,0.85),inset 0 -3px 5px -1px rgba(0,0,0,0.4),inset 0 0 0 1px rgba(255,255,255,0.35); }
+.hd-coin::after { content:""; position:absolute; inset:4px; border-radius:50%; background:radial-gradient(circle at 58% 70%,rgba(0,0,0,0) 55%,rgba(0,0,0,0.4) 100%); opacity:.9; }
+.hd-coin-face { position:absolute; inset:0; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; letter-spacing:0.5px; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.55),0 0 6px rgba(255,210,70,0.55); }
+.hd-coin-symbol { position:relative; z-index:2; }
+.hd-coin-value { font-size:13px; font-weight:600; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.55); }
+.hd-coin-label { font-size:9px; font-weight:600; letter-spacing:1.2px; color:rgba(255,255,255,0.7); margin-top:1px; }
+.hd-coin-pill:hover .hd-coin::before { filter:brightness(1.05) contrast(1.05); }
+.hd-coin-pill:active .hd-coin::before { transform:translateY(1px); }
+
+.hd-streak { position:relative; display:inline-flex; align-items:center; gap:8px; padding:6px 14px 6px 10px; border-radius:999px; background:linear-gradient(150deg,rgba(255,255,255,0.32),rgba(255,255,255,0.08)); border:1px solid rgba(255,255,255,0.5); backdrop-filter:blur(22px) saturate(155%); -webkit-backdrop-filter:blur(22px) saturate(155%); box-shadow:0 4px 16px -6px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.15) inset; cursor:pointer; }
+.hd-streak:hover { box-shadow:0 6px 20px -6px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.25) inset; }
+.hd-streak:active { transform:translateY(1px) scale(.97); }
+.hd-streak-icon { width:26px; height:26px; position:relative; display:flex; align-items:center; justify-content:center; }
+.hd-streak-svg { width:100%; height:100%; filter:drop-shadow(0 1px 2px rgba(0,0,0,0.6)) drop-shadow(0 0 6px rgba(255,120,20,0.55)); }
+.hs-flame-outer { animation:hsFloat 4.2s ease-in-out infinite; }
+.hs-flame-core { animation:hsFloat 3.7s ease-in-out infinite; }
+@keyframes hsFloat { 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-2px);} }
+.hd-streak-num { font-size:14px; font-weight:600; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.55); letter-spacing:0.5px; }
+
+/* ===================== Trophy (Realistic + Animation) ===================== */
+.trophy-wrap { position:relative; display:inline-block; border-radius:50%; }
+.trophy-float { animation: trophyFloat 3.6s ease-in-out infinite; }
+@keyframes trophyFloat { 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-3px);} }
+/* Nested animations so transforms compose cleanly */
+.trophy-sway { animation: trophySway 5.2s ease-in-out infinite; transform-origin:50% 90%; will-change: transform; }
+@keyframes trophySway { 0%,100%{ transform:rotate(0deg);} 50%{ transform:rotate(-2.2deg);} }
+.trophy-pulse { animation: trophyPulse 4.8s ease-in-out infinite; will-change: transform; }
+@keyframes trophyPulse { 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.03);} }
+/* sheen/sparkle removed to keep section background intact */
+
+/* New Generation Header Elements */
+.hd-coin2 { position:relative; display:inline-flex; align-items:center; gap:10px; background:linear-gradient(140deg,rgba(255,255,255,0.32),rgba(255,255,255,0.08)); border:1px solid rgba(255,255,255,0.5); padding:6px 16px 6px 10px; border-radius:999px; backdrop-filter:blur(22px) saturate(160%); -webkit-backdrop-filter:blur(22px) saturate(160%); box-shadow:0 4px 18px -8px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.15) inset; }
+.hd-coin2-core { position:relative; width:34px; height:34px; }
+.hd-coin2 { padding:4px 12px 4px 8px; gap:8px; }
+.hd-coin2-core { width:30px; height:30px; }
+.hd-coin2-icon { width:16px; height:16px; }
+.hd-coin2-value { font-size:12px; }
+.hd-coin2-label { font-size:8px; }
+.hd-coin2-core::before { content:""; position:absolute; inset:0; border-radius:50%; background:linear-gradient(145deg,#FFEFAF,#FFD851 40%,#FFB428 68%,#D67E0A 100%); box-shadow:0 2px 4px rgba(0,0,0,0.55),0 4px 9px -4px rgba(0,0,0,0.65),inset 0 2px 4px -1px rgba(255,255,255,0.85),inset 0 -3px 5px -1px rgba(0,0,0,0.45),inset 0 0 0 1px rgba(255,255,255,0.35); }
+.hd-coin2-rim { position:absolute; inset:3px; border-radius:50%; background:radial-gradient(circle at 50% 55%,rgba(255,255,255,0.65),rgba(255,255,255,0) 70%); mix-blend-mode:screen; opacity:.75; }
+.hd-coin2-front { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+.hd-coin2-icon { width:18px; height:18px; color:#fff; filter:drop-shadow(0 1px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 4px rgba(255,210,90,0.6)); }
+.hd-coin2-shine { position:absolute; inset:0; border-radius:50%; background:conic-gradient(from 0deg,rgba(255,255,255,0.55) 0deg,rgba(255,255,255,0) 80deg,rgba(255,255,255,0.55) 360deg); mix-blend-mode:overlay; opacity:.4; animation:coin2Spin 9s linear infinite; }
+@keyframes coin2Spin { 0%{ transform:rotate(0deg);} 100%{ transform:rotate(360deg);} }
+.hd-coin2-value { font-size:13px; font-weight:600; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.55); line-height:1; }
+.hd-coin2-label { font-size:9px; font-weight:600; letter-spacing:1.1px; color:rgba(255,255,255,0.68); line-height:1; }
+.hd-coin2:hover .hd-coin2-core::before { filter:brightness(1.07) contrast(1.05); }
+.hd-coin2:active .hd-coin2-core::before { transform:translateY(1px); }
+
+.hd-streak-btn { position:relative; display:inline-flex; align-items:center; gap:10px; background:linear-gradient(150deg,rgba(255,255,255,0.34),rgba(255,255,255,0.1)); border:1px solid rgba(255,255,255,0.55); padding:6px 16px 6px 10px; border-radius:999px; backdrop-filter:blur(24px) saturate(165%); -webkit-backdrop-filter:blur(24px) saturate(165%); box-shadow:0 4px 20px -8px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.15) inset; cursor:pointer; }
+.hd-streak-btn:hover { box-shadow:0 6px 24px -8px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.25) inset; }
+.hd-streak-btn:active { transform:translateY(1px) scale(.975); }
+.hd-flame-wrap { position:relative; width:40px; height:40px; }
+.hd-flame-wrap-sm { width:34px; height:34px; }
+.hd-streak-ring { position:absolute; inset:0; }
+.hd-streak-ring .ring-bg { stroke:rgba(255,255,255,0.25); }
+.hd-streak-ring .ring-progress { stroke:#FF9A2A; stroke:url(#ringGrad); stroke-linecap:round; transition:stroke-dashoffset .6s ease; }
+.hd-flame { position:absolute; top:-2px; left:-2px; width:44px; height:44px; overflow:visible; }
+.fl-outer { filter:drop-shadow(0 1px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 6px rgba(255,150,40,0.6)); animation:flFloat 4.6s ease-in-out infinite; }
+.fl-mid { animation:flFloat 4s ease-in-out infinite; }
+.fl-core { animation:flPulse 3.2s ease-in-out infinite; }
+.fl-flick { animation:flFlick 3.8s ease-in-out infinite; filter:drop-shadow(0 0 4px rgba(255,180,70,0.6)); }
+@keyframes flFloat { 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-2px);} }
+@keyframes flPulse { 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.08);} }
+@keyframes flFlick { 0%,100%{ transform:translateY(0) scale(1); } 40%{ transform:translateY(-1.5px) scale(1.04);} 70%{ transform:translateY(-0.5px) scale(.98);} }
+.hd-flame-glow { position:absolute; inset:-8px; background:radial-gradient(circle at 50% 70%,rgba(255,140,40,0.35),rgba(255,120,30,0) 65%); filter:blur(10px); opacity:.8; pointer-events:none; animation:glHalo 5.5s ease-in-out infinite; }
+@keyframes glHalo { 0%,100%{ transform:scale(.9); opacity:.75;} 50%{ transform:scale(1.08); opacity:1;} }
+.hd-streak-info { display:flex; flex-direction:column; line-height:1; }
+.hd-streak-count { font-size:14px; font-weight:600; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.55); letter-spacing:.5px; }
+.hd-streak-info-sm .hd-streak-count { font-size:12px; }
+.hd-streak-info-sm .hd-streak-label { font-size:8px; }
+.hd-streak-label { font-size:9px; font-weight:600; letter-spacing:1.1px; color:rgba(255,255,255,0.68); }
+
+/* ===================== Unified Header Badges (Coin & Streak) ===================== */
+.hd-badge { position:relative; display:inline-flex; align-items:center; gap:5px; padding:2px 8px 2px 6px; border-radius:999px; backdrop-filter:blur(20px) saturate(150%); -webkit-backdrop-filter:blur(20px) saturate(150%); border:1px solid rgba(255,255,255,0.55); background:linear-gradient(150deg,rgba(255,255,255,0.34),rgba(255,255,255,0.06)); box-shadow:0 2px 8px -4px rgba(0,0,0,0.55),0 0 0 1px rgba(255,255,255,0.16) inset; transition:box-shadow .28s ease, transform .22s ease; }
+.hd-badge:hover { box-shadow:0 4px 12px -4px rgba(0,0,0,0.6),0 0 0 1px rgba(255,255,255,0.25) inset; }
+.hd-badge:active { transform:translateY(1px) scale(.95); }
+.hd-badge-icon { position:relative; width:30px; height:30px; display:flex; align-items:center; justify-content:center; }
+/* Remove outer circular ring around header coin and streak icons */
+.hd-badge-gold .hd-badge-icon::before,
+.hd-badge-streak .hd-badge-icon::before { content: none; }
+/* Streak icon now exactly same size as coin */
+.hd-badge-icon-streak, .hd-badge-icon-streak-full { width:30px; height:30px; overflow:visible; position:relative; }
+
+/* Mobile alignment: give brand and actions breathing space */
+@media (max-width: 640px) {
+  .qd-glass-soft .container > .flex { gap:8px; }
+  .hd-badge { padding:1.5px 7px; }
+  .hd-badge-icon,
+  .hd-badge-icon-streak,
+  .hd-badge-icon-streak-full { width:26px; height:26px; }
+  .hd-badge-value { font-size:11px; }
+  .hd-badge-label { font-size:7px; }
+  .streak-emoji { font-size:18px !important; }
+}
+.flame-static { overflow:visible; display:block; filter:drop-shadow(0 1px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 5px rgba(255,150,40,0.45)); }
+.flame-static path { shape-rendering:geometricPrecision; }
+.streak-orb { position:absolute; inset:0; border-radius:50%; background:radial-gradient(circle at 40% 35%, rgba(255,255,255,0.35), rgba(255,180,140,0.15) 55%, rgba(255,120,40,0.05) 70%, rgba(255,120,30,0) 80%); filter:blur(0.5px); }
+.hd-badge-info { display:flex; flex-direction:column; line-height:1; }
+
+/* Inline flame (emoji) minimal animation */
+.inline-flame { display:inline-block; animation:inlineFlameFloat 4.4s ease-in-out infinite; transform-origin:50% 85%; }
+@keyframes inlineFlameFloat { 0%,100% { transform:translateY(0);} 50% { transform:translateY(-2px);} }
+
+.hd-badge-value { font-size:12px; font-weight:600; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,0.55); letter-spacing:.25px; }
+.hd-badge-label { font-size:8px; font-weight:600; letter-spacing:1.2px; color:rgba(255,255,255,0.68); margin-top:1px; }
+
+/* Coin variant */
+/* Make any coin using hd-badge-coin perfectly circular even on mobile */
+.hd-badge-coin { position:relative; border-radius:9999px; overflow:hidden; aspect-ratio:1 / 1; display:inline-block; }
+.hd-badge-gold .hd-badge-coin { position:relative; width:26px; height:26px; }
+/* Ultra shiny coin */
+.hd-badge-coin::before { content:""; position:absolute; inset:0; border-radius:50%; background:
+  radial-gradient(circle at 55% 35%, rgba(255,233,120,0.85) 0%, rgba(255,223,0,0.55) 32%, rgba(255,223,0,0.15) 55%, rgba(255,210,60,0) 68%),
+  linear-gradient(155deg,#FFF3B8 0%, #FFE680 14%, #FFDF00 34%, #FFCF00 48%, #FFB820 65%, #D17A06 100%);
+  box-shadow:0 1px 2px rgba(0,0,0,0.55),0 2px 5px -2px rgba(0,0,0,0.55),inset 0 1px 2px rgba(255,248,200,0.55),inset 0 2px 6px -2px rgba(255,223,0,0.55),inset 0 -2px 4px rgba(0,0,0,0.45),inset 0 0 0 1px rgba(255,205,90,0.6),inset 0 0 0 2px rgba(255,190,40,0.32); }
+.hd-badge-coin::after { content:""; position:absolute; inset:0; border-radius:50%; background:
+  radial-gradient(circle at 28% 30%,rgba(255,245,200,0.95) 0%,rgba(255,238,165,0.55) 18%,rgba(255,225,140,0.18) 42%,rgba(255,215,120,0) 62%),
+  radial-gradient(circle at 70% 75%,rgba(255,170,60,0.35),rgba(255,150,30,0) 55%);
+  mix-blend-mode:screen; opacity:.88; pointer-events:none; }
+.hd-badge-coin-front { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+/* Inner rim glow */
+.hd-badge-coin-front::before { content:""; position:absolute; inset:3px; border-radius:50%; background:radial-gradient(circle at 65% 35%, rgba(255,238,170,0.7), rgba(255,230,140,0) 60%); mix-blend-mode:screen; opacity:.55; }
+/* Sweeping glint */
+.hd-badge-coin-front::after { content:""; position:absolute; top:-15%; left:-70%; width:55%; height:130%; background:linear-gradient(105deg, rgba(255,215,40,0) 0%, rgba(255,223,0,0.9) 48%, rgba(255,200,0,0) 100%); border-radius:50%; transform:rotate(18deg); filter:blur(.6px); opacity:0; animation:coinGlint 5.2s cubic-bezier(.65,.05,.36,1) infinite; pointer-events:none; }
+.hd-badge-coin-icon { width:14px; height:14px; color:#fff8dc; filter:drop-shadow(0 1px 1px rgba(0,0,0,0.55)) drop-shadow(0 0 5px rgba(255,220,130,0.75)); position:relative; z-index:2; }
+.hd-badge-coin-shine { position:absolute; inset:0; border-radius:50%; background:conic-gradient(from 0deg,rgba(255,223,0,0.85) 0deg,rgba(255,223,0,0) 80deg,rgba(255,223,0,0.7) 360deg); mix-blend-mode:overlay; opacity:.5; animation:coinBadgeSpin 7.2s linear infinite; }
+@keyframes coinGlint { 0% { left:-70%; opacity:0; } 8% { opacity:.95; } 30% { left:25%; opacity:.4; } 50% { left:70%; opacity:0; } 100% { left:70%; opacity:0; } }
+@keyframes coinBadgeSpin { 0%{ transform:rotate(0deg);} 100%{ transform:rotate(360deg);} }
+.hd-badge-gold:hover .hd-badge-coin::before { filter:brightness(1.07) contrast(1.05); }
+
+/* Streak variant ring + flame */
+.hd-badge-streak { cursor:pointer; }
+.hd-badge-streak .streak-ring { position:absolute; inset:0; }
+.streak-ring-bg { stroke:rgba(255,255,255,0.25); }
+.streak-ring-progress { stroke:#FF922E; stroke-linecap:round; transition:stroke-dashoffset .6s ease; }
+.hd-badge-streak .flame { position:absolute; top:-2px; left:-2px; width:38px; height:38px; overflow:visible; }
+.flame-outer { filter:drop-shadow(0 1px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 5px rgba(255,150,40,0.5)); animation:flameFloat 4.5s ease-in-out infinite; }
+.flame-core { animation:flamePulse 3.1s ease-in-out infinite; }
+.flame-anim { animation:flameFloat 4.4s ease-in-out infinite; transform-origin:50% 85%; }
+.flame-mid { animation:flameFloat 4s ease-in-out infinite; }
+.flame-core { animation:flamePulse 3.1s ease-in-out infinite; }
+.flame-flick { animation:flameFlick 3.6s ease-in-out infinite; filter:drop-shadow(0 0 4px rgba(255,180,70,0.55)); }
+.flame-glow { position:absolute; inset:-8px; background:radial-gradient(circle at 50% 70%,rgba(255,140,40,0.34),rgba(255,120,30,0) 65%); filter:blur(10px); opacity:.75; pointer-events:none; animation:flameGlow 5.2s ease-in-out infinite; }
+@keyframes flameFloat { 0%,100%{ transform:translateY(0);} 50%{ transform:translateY(-2px);} }
+@keyframes flamePulse { 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.07);} }
+@keyframes flameFlick { 0%,100%{ transform:translateY(0) scale(1);} 40%{ transform:translateY(-1.4px) scale(1.035);} 70%{ transform:translateY(-0.6px) scale(.985);} }
+@keyframes flameGlow { 0%,100%{ transform:scale(.9); opacity:.7;} 50%{ transform:scale(1.08); opacity:1;} }
+
+

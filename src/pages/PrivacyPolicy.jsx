@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { FileText, Calendar, Shield, Users, Info, Mail, Database, EyeOff, CheckCircle, Repeat } from 'lucide-react';
+import { getBrandGradient } from '@/lib/brand';
 
 const PrivacyPolicy = () => {
   const sections = [
@@ -87,7 +88,8 @@ const PrivacyPolicy = () => {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-8 text-black">
+  <div className="min-h-screen text-slate-100">
+      <div className="container mx-auto px-4 py-6 space-y-8">
       <Helmet>
         <title>Privacy Policy – Quiz Dangal</title>
         <meta name="description" content="How Quiz Dangal collects, uses, and protects your personal data." />
@@ -99,12 +101,12 @@ const PrivacyPolicy = () => {
         transition={{ duration: 0.5 }}
         className="text-center mb-8"
       >
-        <h1 className="text-3xl font-bold gradient-text mb-2">Privacy Policy</h1>
-        <div className="flex items-center justify-center space-x-2 text-gray-600 mb-3">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-2">Privacy Policy</h1>
+        <div className="flex items-center justify-center space-x-2 text-slate-300 mb-3">
           <Calendar className="w-4 h-4" />
           <span className="text-sm">Effective Date: August 27, 2025</span>
         </div>
-        <p className="text-lg text-gray-800 leading-relaxed max-w-3xl mx-auto">
+        <p className="text-lg text-slate-300 leading-relaxed max-w-3xl mx-auto">
           At Quiz Dangal, we value your privacy and are committed to protecting your personal data. By using the app, you agree to this Privacy Policy.
         </p>
       </motion.div>
@@ -116,13 +118,13 @@ const PrivacyPolicy = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 + index * 0.05 }}
-            className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6"
+            className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-6"
           >
             <div className="flex items-start space-x-4 mb-4">
-              <div className="bg-gradient-to-r from-pink-500 to-violet-500 p-3 rounded-full flex-shrink-0">
+              <div className={`bg-gradient-to-r ${getBrandGradient(index)} p-3 rounded-full flex-shrink-0`}>
                 <section.icon className="w-6 h-6 text-white" />
               </div>
-              <h2 className="text-xl font-bold gradient-text">{section.title}</h2>
+              <h2 className="text-xl font-bold bg-gradient-to-r from-violet-300 via-indigo-200 to-fuchsia-300 bg-clip-text text-transparent">{section.title}</h2>
             </div>
             <div className="space-y-3 ml-0 md:ml-16">
               {section.content.map((item, i) => (
@@ -133,8 +135,8 @@ const PrivacyPolicy = () => {
                   transition={{ duration: 0.5, delay: 0.3 + i * 0.05 }}
                   className="flex items-start space-x-3"
                 >
-                  <div className="w-2 h-2 bg-gradient-to-r from-pink-500 to-violet-500 rounded-full mt-2 flex-shrink-0"></div>
-                  <p className="text-gray-800 text-sm leading-relaxed">{item}</p>
+                  <div className="w-2 h-2 bg-gradient-to-r from-indigo-600 to-fuchsia-600 rounded-full mt-2 flex-shrink-0"></div>
+                  <p className="text-slate-300 text-sm leading-relaxed">{item}</p>
                 </motion.div>
               ))}
             </div>
@@ -146,13 +148,14 @@ const PrivacyPolicy = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 1.2 }}
-        className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 text-center"
+        className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/60 rounded-2xl p-6 text-center"
       >
-        <FileText className="w-12 h-12 text-pink-500 mx-auto mb-4" />
-        <h3 className="text-xl font-bold gradient-text mb-3">Questions About This Policy?</h3>
-        <p className="text-gray-800 leading-relaxed mb-2">We’re here to help.</p>
-  <p className="text-gray-600 text-sm">Contact: support@quizdangal.com</p>
+        <FileText className="w-12 h-12 text-fuchsia-400 mx-auto mb-4" />
+        <h3 className="text-xl font-bold bg-gradient-to-r from-violet-300 via-indigo-200 to-fuchsia-300 bg-clip-text text-transparent mb-3">Questions About This Policy?</h3>
+        <p className="text-slate-300 leading-relaxed mb-2">We’re here to help.</p>
+  <p className="text-slate-400 text-sm">Contact: support@quizdangal.com</p>
       </motion.div>
+      </div>
     </div>
   );
 };

@@ -6,7 +6,6 @@ import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { Button } from "@/components/ui/button";
 import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Globe, Share2, Award, Sparkles, BellRing } from 'lucide-react';
 import ProfileUpdateModal from '@/components/ProfileUpdateModal';
-import ReferEarnModal from '@/components/ReferEarnModal';
 import LanguageSelectionModal from '@/components/LanguageSelectionModal';
 
 export default function Profile() {
@@ -17,7 +16,7 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
   const [showBadges, setShowBadges] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
-  const [showReferEarn, setShowReferEarn] = useState(false);
+  // Refer & Earn now opens as full page (/refer)
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const fileInputRef = useRef(null);
   const { isSubscribed, subscribeToPush, error: pushError } = usePushNotifications();
@@ -103,48 +102,48 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+  <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-indigo-300" />
       </div>
     );
   }
 
   if (!sessionUser) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-center">
-        <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center mb-3">
+  <div className="flex flex-col items-center justify-center min-h-screen text-center">
+        <div className="w-12 h-12 rounded-full bg-indigo-800/40 text-indigo-300 flex items-center justify-center mb-3 border border-indigo-700/60">
           <Crown className="w-6 h-6" />
         </div>
-        <p className="text-lg text-gray-700">
+        <p className="text-lg text-slate-200">
           You are not logged in or session expired.
           <br />
-          Please <Link to="/login" className="text-indigo-600 underline">login</Link> to view your profile.
+          Please <Link to="/login" className="text-indigo-300 underline">login</Link> to view your profile.
         </p>
       </div>
     );
   }
 
   const menuItems = [
-    { label: 'Refer & Earn', onClick: () => setShowReferEarn(true), icon: Share2 },
     { label: 'About Us', href: '/about-us', icon: Info },
     { label: 'Contact Us', href: '/contact-us', icon: Mail },
     { label: 'Terms & Conditions', href: '/terms-conditions', icon: FileText },
     { label: 'Privacy Policy', href: '/privacy-policy', icon: Shield },
-    { label: 'Language', onClick: () => setShowLanguageModal(true), icon: Globe },
+  { label: 'Language', onClick: () => setShowLanguageModal(true), icon: Globe },
+  { label: 'Refer & Earn', href: '/refer', icon: Share2 },
   ];
 
   return (
-    <div className="min-h-[100svh] bg-indigo-50">
-      <div className="container mx-auto px-2 md:px-3 py-0 max-w-3xl space-y-2">
-        <div className="group relative overflow-hidden rounded-3xl p-4 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
-          <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 h-56 w-56 rounded-full bg-gradient-to-tr from-indigo-200/60 via-fuchsia-200/50 to-transparent blur-3xl" />
-          <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-24 h-56 w-56 rounded-full bg-gradient-to-tr from-purple-200/50 via-pink-200/40 to-transparent blur-3xl" />
+  <div className="relative min-h-[100svh]">
+      <div className="container mx-auto px-2 md:px-3 py-2 max-w-3xl space-y-2">
+        <div className="group relative overflow-hidden rounded-3xl p-4 bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl shadow-xl border border-indigo-700/60">
+          <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 h-56 w-56 rounded-full bg-gradient-to-tr from-indigo-500/20 via-fuchsia-400/15 to-transparent blur-3xl" />
+          <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-24 h-56 w-56 rounded-full bg-gradient-to-tr from-purple-500/15 via-pink-500/10 to-transparent blur-3xl" />
           <div className="flex flex-col gap-3 relative">
             <div className="flex items-start gap-2">
               <div className="flex flex-col items-center -ml-2">
                 <div className="relative w-[5.5rem] h-[5.5rem]">
                   <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-400/20 via-fuchsia-400/20 to-transparent blur-[3px] animate-spin" style={{ animationDuration: '9s' }} />
-                  <div className={`relative w-[5.5rem] h-[5.5rem] rounded-full overflow-hidden flex items-center justify-center text-gray-700 font-bold ring-2 ring-offset-2 ${getLevelRingClass(profile?.level)} bg-gradient-to-br from-gray-50 to-gray-100 shadow-md`}>
+                  <div className={`relative w-[5.5rem] h-[5.5rem] rounded-full overflow-hidden flex items-center justify-center text-slate-100 font-bold ring-2 ring-offset-2 ring-offset-slate-900 ${getLevelRingClass(profile?.level)} bg-gradient-to-br from-slate-800 to-slate-700 shadow-md`}>
                     {profile?.avatar_url ? (
                       <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                     ) : (
@@ -158,7 +157,7 @@ export default function Profile() {
                   <button
                     onClick={onChooseAvatar}
                     disabled={uploading}
-                    className="absolute -bottom-2 -right-2 p-2 rounded-xl bg-white/90 border border-gray-200 shadow-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-60"
+                    className="absolute -bottom-2 -right-2 p-2 rounded-xl bg-slate-900/80 border border-slate-700/60 shadow-sm text-slate-200 hover:bg-slate-800 transition disabled:opacity-60"
                     title={uploading ? 'Uploading…' : 'Change avatar'}
                   >
                     <Camera className="w-4 h-4" />
@@ -166,18 +165,18 @@ export default function Profile() {
                   <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onAvatarSelected} />
                 </div>
                 <div className="mt-1.5 text-center">
-                  <div className="text-[11px] text-gray-500">Email</div>
-                  <div className="text-sm font-medium text-gray-800 whitespace-nowrap overflow-x-auto">{profile?.email || sessionUser.email}</div>
+                  <div className="text-[11px] text-slate-400">Email</div>
+                  <div className="text-sm font-medium text-slate-100 whitespace-nowrap overflow-x-auto">{profile?.email || sessionUser.email}</div>
                 </div>
               </div>
               <div className="min-w-0 -mt-1">
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <Sparkles className="w-4 h-4 text-indigo-500" />
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <Sparkles className="w-4 h-4 text-indigo-300" />
                   <span>Welcome back</span>
                 </div>
-                <div className="text-sm font-semibold text-gray-800 truncate">{profile?.username ? `@${profile.username}` : 'Username not set'}</div>
+                <div className="text-sm font-semibold text-white truncate">{profile?.username ? `@${profile.username}` : 'Username not set'}</div>
                 <div className="mt-1.5 flex flex-wrap gap-2 text-xs">
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-900/20 text-amber-200 border border-amber-500/20">
                     <Award className="w-3.5 h-3.5" />
                     <span className="font-medium">{Number(profile?.wallet_balance ?? 0).toLocaleString()} Coins</span>
                   </div>
@@ -186,16 +185,16 @@ export default function Profile() {
             </div>
             <div className="w-full">
               <div className="mt-1.5 inline-flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-100">Level {profile?.level ?? '—'}</span>
-                <span className="px-2 py-0.5 rounded-full text-[11px] bg-gray-50 text-gray-600 border border-gray-200">{getLevelTitle(profile?.level)}</span>
+                <span className="px-2 py-0.5 rounded-full text-[11px] bg-indigo-900/30 text-indigo-200 border border-indigo-500/30">Level {profile?.level ?? '—'}</span>
+                <span className="px-2 py-0.5 rounded-full text-[11px] bg-slate-800/60 text-slate-200 border border-slate-700/60">{getLevelTitle(profile?.level)}</span>
               </div>
-              <div className="mt-1.5 relative h-2.5 bg-gray-200/70 rounded-full overflow-hidden">
-                <div className="absolute inset-0 bg-white/30" />
+              <div className="mt-1.5 relative h-2.5 bg-slate-800/70 rounded-full overflow-hidden">
+                <div className="absolute inset-0 bg-white/10" />
                 <div className="relative h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 shadow-[0_0_12px_rgba(99,102,241,0.35)]" style={{ width: `${getLevelProgress(profile?.total_coins)}%` }} />
-                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-gray-600">{getLevelProgress(profile?.total_coins)}%</span>
+                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-slate-300">{getLevelProgress(profile?.total_coins)}%</span>
               </div>
-              <div className="mt-1 text-[11px] text-gray-500">to next level</div>
-              <button onClick={() => setShowBadges((v) => !v)} className="mt-1.5 text-xs text-indigo-700 hover:text-indigo-800 underline">{showBadges ? 'Hide badges' : 'View badges'}</button>
+              <div className="mt-1 text-[11px] text-slate-400">to next level</div>
+              <button onClick={() => setShowBadges((v) => !v)} className="mt-1.5 text-xs text-indigo-300 hover:text-indigo-200 underline">{showBadges ? 'Hide badges' : 'View badges'}</button>
             </div>
             <div className="pt-2 mt-1 w-full border-t border-gray-100">
               <button
@@ -209,41 +208,41 @@ export default function Profile() {
         </div>
 
         {showBadges && (
-          <div className="rounded-3xl p-4 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
-            <div className="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-              <Award className="w-4 h-4 text-amber-600" />
+          <div className="rounded-3xl p-4 bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl shadow-xl border border-indigo-700/60">
+            <div className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+              <Award className="w-4 h-4 text-amber-300" />
               <span>Your Badges</span>
             </div>
             <div className="flex flex-wrap gap-2 mb-2">
               {unlocked.length > 0 ? (
                 unlocked.map((b, i) => (
-                  <span key={`u-${i}`} className="px-2.5 py-1.5 text-[11px] rounded-full bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-100 text-indigo-700 shadow-sm">
+                  <span key={`u-${i}`} className="px-2.5 py-1.5 text-[11px] rounded-full bg-indigo-800/40 border border-indigo-500/30 text-indigo-100">
                     ✨ {b}
                   </span>
                 ))
               ) : (
-                <span className="text-xs text-gray-500">No badges unlocked yet</span>
+                <span className="text-xs text-slate-400">No badges unlocked yet</span>
               )}
             </div>
-            <div className="text-xs text-gray-500 mb-1">Locked</div>
+            <div className="text-xs text-slate-400 mb-1">Locked</div>
             <div className="flex flex-wrap gap-2">
               {locked.map((b, i) => (
-                <span key={`l-${i}`} className="px-2.5 py-1.5 text-[11px] rounded-full bg-gray-50 border border-gray-200 text-gray-500">🔒 {b}</span>
+                <span key={`l-${i}`} className="px-2.5 py-1.5 text-[11px] rounded-full bg-slate-800/60 border border-slate-700/60 text-slate-300">🔒 {b}</span>
               ))}
             </div>
           </div>
         )}
 
         {/* Push Notifications Section */}
-        <div className="rounded-3xl p-4 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
+        <div className="rounded-3xl p-4 bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl shadow-xl border border-indigo-700/60 text-slate-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-               <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-50 to-green-50 text-blue-600 flex items-center justify-center shadow-sm border border-blue-100">
+               <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-700/50 to-emerald-700/50 text-emerald-200 flex items-center justify-center shadow-sm border border-emerald-500/30">
                 <BellRing className="w-4 h-4" />
               </span>
               <div>
-                <h3 className="text-sm font-semibold text-gray-900">Push Notifications</h3>
-                <p className="text-xs text-gray-500">
+                <h3 className="text-sm font-semibold text-white">Push Notifications</h3>
+                <p className="text-xs text-slate-400">
                   {isSubscribed ? "You are subscribed to notifications." : "Enable to get alerts for new quizzes."}
                 </p>
               </div>
@@ -256,29 +255,37 @@ export default function Profile() {
               {isSubscribed ? "Subscribed" : "Enable"}
             </Button>
           </div>
-          {pushError && <p className="text-xs text-red-500 mt-2">Error: {pushError}</p>}
+          {pushError && <p className="text-xs text-rose-300 mt-2">Error: {pushError}</p>}
         </div>
 
-        <div className="rounded-3xl p-3 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
+        <div className="rounded-3xl p-3 bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl shadow-xl border border-indigo-700/60">
           <div className="flex flex-col gap-3">
             {menuItems.map((item, idx) => {
+              const iconBg = [
+                'from-indigo-700/60 to-fuchsia-700/60',
+                'from-amber-700/50 to-orange-700/50',
+                'from-cyan-700/50 to-emerald-700/50',
+                'from-fuchsia-700/60 to-pink-700/60',
+                'from-violet-700/60 to-indigo-700/60',
+                'from-amber-700/60 to-yellow-700/60'
+              ][idx % 6];
               const content = (
-                <div className="group w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border border-gray-100/70 bg-white/80 hover:bg-white transition shadow-sm hover:shadow-md text-sm text-gray-800 cursor-pointer">
+                <div className="group w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border border-indigo-700/60 bg-indigo-900/40 hover:bg-indigo-900/60 transition shadow-sm hover:shadow-lg text-sm text-slate-100 cursor-pointer">
                   <div className="flex items-center gap-3">
-                    <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-50 to-purple-50 text-indigo-600 flex items-center justify-center shadow-sm border border-indigo-100 group-hover:scale-[1.03] transition">
+                    <span className={`w-9 h-9 rounded-xl bg-gradient-to-br ${iconBg} text-indigo-100 flex items-center justify-center shadow-sm border border-indigo-500/30 group-hover:scale-[1.03] transition`}>
                       <item.icon className="w-4 h-4" />
                     </span>
                     <span className="font-semibold tracking-wide">{item.label}</span>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-400 transition" />
+                  <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-slate-300 transition" />
                 </div>
               );
               return item.href ? (
-                <Link key={idx} to={item.href} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-indigo-300 rounded-2xl">
+                <Link key={idx} to={item.href} tabIndex={0} className="focus:outline-none focus:ring-2 focus:ring-indigo-500/40 rounded-2xl">
                   {content}
                 </Link>
               ) : (
-                <button key={idx} onClick={item.onClick} className="text-left w-full focus:outline-none focus:ring-2 focus:ring-indigo-300 rounded-2xl">
+                <button key={idx} onClick={item.onClick} className="text-left w-full focus:outline-none focus:ring-2 focus:ring-indigo-500/40 rounded-2xl">
                   {content}
                 </button>
               );
@@ -286,16 +293,16 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="rounded-3xl p-3 bg-white/70 backdrop-blur-xl shadow-xl ring-1 ring-black/5 border border-white/40">
-          <button onClick={handleSignOut} className="w-full text-left focus:outline-none focus:ring-2 focus:ring-red-200 rounded-2xl">
-            <div className="group w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border border-red-100 bg-white/80 hover:bg-white transition shadow-sm hover:shadow-md text-sm text-red-600 cursor-pointer">
+        <div className="rounded-3xl p-3 bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl shadow-xl border border-indigo-700/60">
+          <button onClick={handleSignOut} className="w-full text-left focus:outline-none focus:ring-2 focus:ring-red-500/30 rounded-2xl">
+            <div className="group w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border border-rose-700/40 bg-rose-900/10 hover:bg-rose-900/20 transition shadow-sm hover:shadow-md text-sm text-rose-300 cursor-pointer">
               <div className="flex items-center gap-3">
-                <span className="w-9 h-9 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shadow-sm border border-red-100 group-hover:scale-[1.03] transition">
+                <span className="w-9 h-9 rounded-xl bg-rose-900/30 text-rose-300 flex items-center justify-center shadow-sm border border-rose-700/40 group-hover:scale-[1.03] transition">
                   <LogOut className="w-4 h-4" />
                 </span>
                 <span className="font-semibold tracking-wide">Logout</span>
               </div>
-              <ChevronRight className="w-4 h-4 text-red-300 group-hover:text-red-400 transition" />
+              <ChevronRight className="w-4 h-4 text-rose-400/70 group-hover:text-rose-300 transition" />
             </div>
           </button>
         </div>
@@ -309,10 +316,6 @@ export default function Profile() {
           isFirstTime={false}
         />
 
-        <ReferEarnModal
-          isOpen={showReferEarn}
-          onClose={() => setShowReferEarn(false)}
-        />
 
         <LanguageSelectionModal
           isOpen={showLanguageModal}

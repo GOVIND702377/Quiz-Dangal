@@ -94,14 +94,14 @@ const Login = () => {
 
   if (emailSent) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
+  <div className="min-h-screen flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-md w-full shadow-xl text-center"
+          className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-8 max-w-md w-full shadow-xl text-center text-slate-100"
         >
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">Check your email</h2>
-          <p className="text-gray-600">We've sent a confirmation link to <strong>{email}</strong>. Please click the link to complete your registration.</p>
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-4">Check your email</h2>
+          <p className="text-slate-300">We've sent a confirmation link to <strong>{email}</strong>. Please click the link to complete your registration.</p>
         </motion.div>
       </div>
     );
@@ -109,14 +109,14 @@ const Login = () => {
 
   if (showForgot) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
+  <div className="min-h-screen flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-md w-full shadow-xl text-center"
+          className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-8 max-w-md w-full shadow-xl text-center text-slate-100"
         >
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">Forgot Password</h2>
-          <p className="text-gray-600 mb-4">Enter your email to receive a password reset link.</p>
+          <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-4">Forgot Password</h2>
+          <p className="text-slate-300 mb-4">Enter your email to receive a password reset link.</p>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
@@ -150,12 +150,12 @@ const Login = () => {
               onChange={e => setForgotEmail(e.target.value)}
               placeholder="you@example.com"
               required
-              className="mb-2"
+              className="mb-2 bg-white text-black placeholder-slate-500 border-slate-300"
             />
             <Button type="submit" disabled={forgotLoading} className="w-full">
               {forgotLoading ? "Sending..." : "Send Reset Link"}
             </Button>
-            <Button type="button" variant="outline" className="w-full" onClick={() => setShowForgot(false)}>
+            <Button type="button" variant="outline" className="w-full bg-white text-black border border-slate-300 hover:bg-slate-50 rounded-lg shadow-md focus:ring-2 focus:ring-indigo-500/40" onClick={() => setShowForgot(false)}>
               Back to Login
             </Button>
           </form>
@@ -165,12 +165,12 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
+  <div className="min-h-screen flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-md w-full shadow-xl"
+        className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-8 max-w-md w-full shadow-xl text-slate-100"
       >
         <motion.div
           initial={{ y: -20, opacity: 0 }}
@@ -184,15 +184,15 @@ const Login = () => {
             onError={(e) => { e.currentTarget.src='/android-chrome-512x512.png'; }}
             className="w-20 h-20 mx-auto mb-4 rounded-full shadow-lg"
           />
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-2">
             Quiz Dangal
           </h1>
-          <p className="text-gray-600">Where Minds Clash</p>
+          <p className="text-slate-300">Where Minds Clash</p>
         </motion.div>
 
         {/* Mode label (no box) */}
         <div className="mb-2 text-left">
-          <span className="text-indigo-700 text-sm font-semibold">
+          <span className="text-indigo-300 text-sm font-semibold">
             {isSignUp ? 'Create Account' : 'Sign In'}
           </span>
         </div>
@@ -205,11 +205,11 @@ const Login = () => {
           className="space-y-4"
         >
           <div>
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email address" required />
+            <Label htmlFor="email" className="text-slate-200">Email</Label>
+            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email address" required className="bg-white text-black placeholder-slate-500 border-slate-300" />
           </div>
           <div>
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-slate-200">Password</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -219,13 +219,13 @@ const Login = () => {
                 placeholder="Enter your password"
                 required
                 autoComplete={isSignUp ? "new-password" : "current-password"}
-                className="pr-10"
+                className="pr-10 bg-white text-black placeholder-slate-500 border-slate-300"
               />
               <button
                 type="button"
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 onClick={() => setShowPassword((v) => !v)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-700"
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-600 hover:text-slate-800"
               >
                 {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
@@ -233,7 +233,7 @@ const Login = () => {
             {!isSignUp && (
               <button
                 type="button"
-                className="text-xs text-indigo-600 hover:underline mt-1 float-right"
+                className="text-xs text-indigo-300 hover:underline mt-1 float-right"
                 onClick={() => setShowForgot(true)}
               >
                 Forgot Password?
@@ -242,21 +242,21 @@ const Login = () => {
           </div>
           {isSignUp && (
             <div>
-              <Label htmlFor="referral">Referral Code (optional)</Label>
-              <Input id="referral" type="text" value={referralCode} onChange={(e) => setReferralCode(e.target.value.trim())} placeholder="Enter referral code" />
+              <Label htmlFor="referral" className="text-slate-200">Referral Code (optional)</Label>
+              <Input id="referral" type="text" value={referralCode} onChange={(e) => setReferralCode(e.target.value.trim())} placeholder="Enter referral code" className="bg-white text-black placeholder-slate-500 border-slate-300" />
             </div>
           )}
-          <Button type="submit" disabled={isLoading || isGoogleLoading} className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-semibold py-3 rounded-lg shadow-lg">
+          <Button type="submit" disabled={isLoading || isGoogleLoading} className="w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-500 hover:to-fuchsia-700 text-white font-semibold py-3 rounded-lg shadow-lg">
             {isLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </Button>
         </motion.form>
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t"></span>
+            <span className="w-full border-t border-slate-700/60"></span>
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-white/80 px-2 text-gray-500">Or continue with</span>
+            <span className="bg-slate-900/80 border border-slate-700/60 px-3 py-0.5 text-slate-300 rounded-full tracking-wide">Or continue with</span>
           </div>
         </div>
 
@@ -264,21 +264,27 @@ const Login = () => {
           onClick={handleGoogleLogin}
           disabled={isLoading || isGoogleLoading}
           variant="outline"
-          className="w-full font-semibold py-3 rounded-lg shadow-md"
+          className="w-full font-semibold py-3 rounded-xl shadow-md bg-white text-black border border-slate-300 hover:bg-slate-50 focus:ring-2 focus:ring-indigo-500/40"
+          aria-label="Continue with Google"
         >
           {isGoogleLoading ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black"></div>
           ) : (
-            <div className="flex items-center justify-center">
-              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24"><path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-              Continue with Google
+            <div className="flex items-center justify-center gap-3">
+              <svg className="w-5 h-5" viewBox="0 0 18 18" aria-hidden="true" focusable="false">
+                <path fill="#EA4335" d="M9 3.48c1.69 0 2.82.73 3.47 1.34l2.36-2.36C13.7 1.07 11.68 0 9 0 5.48 0 2.44 1.99.96 4.9l2.83 2.2C4.5 5.04 6.57 3.48 9 3.48z"/>
+                <path fill="#4285F4" d="M17.64 9.2c0-.74-.06-1.28-.19-1.84H9v3.34h4.96c-.1.83-.64 2.08-1.85 2.92l2.84 2.2c1.71-1.57 2.69-3.88 2.69-6.62z"/>
+                <path fill="#FBBC05" d="M3.79 10.59A5.52 5.52 0 0 1 3.48 9c0-.55.09-1.08.28-1.59L.96 5.2A9.01 9.01 0 0 0 0 9c0 1.45.35 2.82.96 4.02l2.83-2.43z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.84-2.2c-.76.5-1.78.85-3.12.85-2.43 0-4.49-1.56-5.21-3.68L.96 13.02C2.44 16.01 5.48 18 9 18z"/>
+              </svg>
+              <span className="font-semibold">Continue with Google</span>
             </div>
           )}
         </Button>
 
-        <p className="mt-6 text-center text-sm text-gray-600">
+        <p className="mt-6 text-center text-sm text-slate-300">
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button onClick={() => setIsSignUp(!isSignUp)} className="font-semibold text-indigo-600 hover:text-indigo-500">
+          <button onClick={() => setIsSignUp(!isSignUp)} className="font-semibold text-indigo-300 hover:text-indigo-200">
             {isSignUp ? 'Sign In' : 'Sign Up'}
           </button>
         </p>

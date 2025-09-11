@@ -4,8 +4,8 @@ import { Helmet } from 'react-helmet-async';
 import { Toaster } from '@/components/ui/toaster';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import Header from '@/components/Header';
 import OnboardingFlow from '@/components/OnboardingFlow';
 import Home from '@/pages/Home';
 import MyQuizzes from '@/pages/MyQuizzes';
@@ -23,6 +23,7 @@ import Results from '@/pages/Results';
 import Leaderboards from '@/pages/Leaderboards';
 import Redemptions from '@/pages/Redemptions';
 import Language from '@/pages/Language';
+import ReferEarn from '@/pages/ReferEarn';
 import PWAInstallButton from '@/components/PWAInstallButton';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
@@ -55,7 +56,8 @@ function App() {
   return (
     <ErrorBoundary>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-800 transition-all duration-300 ease-in-out">
+        <div className="min-h-screen flex flex-col relative text-gray-50 transition-all duration-300 ease-in-out">
+          <div className="home-bg" />
           <Helmet>
             <title>Quiz Dangal - Opinion Based Quiz App</title>
             <meta name="description" content="Join Quiz Dangal for exciting opinion-based quizzes with real prizes!" />
@@ -105,7 +107,7 @@ const MainLayout = () => {
   return (
     <>
       <Header />
-      <main className="flex-1 pb-24 pt-4">
+  <main className="flex-1 pb-24 pt-4 sm:pt-6">
         <Routes>
           <Route path="/" element={<Page><Home /></Page>} />
           <Route path="/my-quizzes" element={<Page><MyQuizzes /></Page>} />
@@ -113,6 +115,7 @@ const MainLayout = () => {
           <Route path="/profile" element={<Page><Profile /></Page>} />
           <Route path="/leaderboards" element={<Page><Leaderboards /></Page>} />
           <Route path="/language" element={<Page><Language /></Page>} />
+          <Route path="/refer" element={<Page><ReferEarn /></Page>} />
           <Route path="/rewards" element={<Navigate to="/wallet" replace />} />
           <Route path="/redemptions" element={<Page><Redemptions /></Page>} />
           <Route path="/about-us" element={<Page><AboutUs /></Page>} />
@@ -124,7 +127,6 @@ const MainLayout = () => {
           <Route path="/admin/leaderboards" element={<Navigate to="/admin?tab=leaderboards" replace />} />
           <Route path="/admin/redemptions" element={<Navigate to="/admin?tab=redemptions" replace />} />
           <Route path="/admin/reports" element={<Navigate to="/admin?tab=reports" replace />} />
-          <Route path="/test" element={<div style={{padding: '20px', color: 'red', fontSize: '24px'}}>TEST PAGE WORKING!</div>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
