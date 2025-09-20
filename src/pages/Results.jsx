@@ -65,14 +65,14 @@ const Results = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-accent-b"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen p-4">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <motion.div
@@ -80,15 +80,15 @@ const Results = () => {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          <h1 className="text-3xl font-bold text-white text-shadow mb-2">
             Quiz Results
           </h1>
-          <p className="text-gray-600">{quiz?.title}</p>
+          <p className="text-slate-300">{quiz?.title}</p>
         </motion.div>
 
         <div className="flex justify-center gap-3 mb-8">
-          <Button variant="outline" onClick={() => navigate('/my-quizzes')}>Back to My Quizzes</Button>
-          <Button onClick={async () => {
+          <Button variant="white" onClick={() => navigate('/my-quizzes')}>Back to My Quizzes</Button>
+          <Button variant="brand" onClick={async () => {
             try {
               const url = window.location.href;
               if (navigator.clipboard?.writeText) {
@@ -108,7 +108,7 @@ const Results = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg mb-8"
+            className="qd-card rounded-2xl p-6 shadow-lg mb-8 text-slate-100"
           >
             <div className="text-center">
               <div className="flex items-center justify-center mb-4">
@@ -122,23 +122,23 @@ const Results = () => {
                   <Users className="h-16 w-16 text-blue-500" />
                 )}
               </div>
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">
+              <h2 className="text-2xl font-bold text-white text-shadow-sm mb-2">
                 Your Result
               </h2>
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
-                  <p className="text-3xl font-bold text-indigo-600">#{userRank.rank}</p>
-                  <p className="text-sm text-gray-600">Rank</p>
+                  <p className="text-3xl font-bold text-accent-b">#{userRank.rank}</p>
+                  <p className="text-sm text-slate-300">Rank</p>
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-green-600">{userRank.score}</p>
-                  <p className="text-sm text-gray-600">Score</p>
+                  <p className="text-3xl font-bold text-green-400">{userRank.score}</p>
+                  <p className="text-sm text-slate-300">Score</p>
                 </div>
                 <div>
-                  <p className="text-3xl font-bold text-purple-600">
+                  <p className="text-3xl font-bold text-purple-300">
                     ₹{userRank.rank <= 3 ? quiz?.prizes?.[userRank.rank - 1] || 0 : 0}
                   </p>
-                  <p className="text-sm text-gray-600">Prize</p>
+                  <p className="text-sm text-slate-300">Prize</p>
                 </div>
               </div>
             </div>
@@ -149,20 +149,20 @@ const Results = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg mb-6"
+          className="qd-card rounded-2xl p-6 shadow-lg mb-6 text-slate-100"
         >
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Prize Distribution</h2>
+          <h2 className="text-xl font-bold text-white mb-4">Prize Distribution</h2>
           {Array.isArray(quiz?.prizes) && quiz.prizes.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {quiz.prizes.map((amount, idx) => (
-                <div key={idx} className="p-4 rounded-lg bg-gray-50 flex items-center justify-between">
-                  <div className="font-medium text-gray-700">{idx === 0 ? '1st' : idx === 1 ? '2nd' : idx === 2 ? '3rd' : `#${idx+1}`}</div>
-                  <div className="text-indigo-600 font-bold">₹{amount}</div>
+                <div key={idx} className="p-4 rounded-lg bg-slate-800/70 flex items-center justify-between">
+                  <div className="font-medium text-slate-100">{idx === 0 ? '1st' : idx === 1 ? '2nd' : idx === 2 ? '3rd' : `#${idx+1}`}</div>
+                  <div className="text-accent-b font-bold">₹{amount}</div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-sm text-gray-500">No prize data available</div>
+            <div className="text-sm text-slate-300">No prize data available</div>
           )}
         </motion.div>
 
@@ -170,11 +170,11 @@ const Results = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg"
+          className="qd-card rounded-2xl p-6 shadow-lg text-slate-100"
         >
           <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-            <Trophy className="mr-2 text-yellow-500" />
-            Leaderboard
+            <Trophy className="mr-2 text-accent-a" />
+            <span className="text-white">Leaderboard</span>
           </h2>
           
           <div className="space-y-4">
@@ -186,12 +186,12 @@ const Results = () => {
                 transition={{ delay: index * 0.1 }}
                 className={`flex items-center justify-between p-4 rounded-lg ${
                   participant.user_id === user.id 
-                    ? 'bg-indigo-100 border-2 border-indigo-300' 
-                    : 'bg-gray-50'
+                    ? 'bg-slate-800/70 border border-accent-b/50' 
+                    : 'bg-slate-800/60 border border-slate-700'
                 }`}
               >
                 <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-bold">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent-b text-white font-bold">
                     {index + 1}
                   </div>
                   <div className="flex items-center gap-3">
@@ -203,11 +203,11 @@ const Results = () => {
                       )}
                     </div>
                     <div>
-                      <p className="font-semibold text-gray-800">
+                      <p className="font-semibold text-white">
                         {participant.profiles?.username || participant.profiles?.full_name || 'Anonymous'}
                       </p>
                       {participant.profiles?.full_name && participant.profiles?.username && (
-                        <p className="text-xs text-gray-600">{participant.profiles.full_name}</p>
+                        <p className="text-xs text-slate-300">{participant.profiles.full_name}</p>
                       )}
                     </div>
                   </div>
@@ -215,14 +215,14 @@ const Results = () => {
                 
                 <div className="flex items-center space-x-6">
                   <div className="text-center">
-                    <p className="text-lg font-bold text-green-600">{participant.score}</p>
-                    <p className="text-xs text-gray-600">Score</p>
+                    <p className="text-lg font-bold text-green-400">{participant.score}</p>
+                    <p className="text-xs text-slate-300">Score</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-lg font-bold text-purple-600">
+                    <p className="text-lg font-bold text-purple-300">
                       ₹{index < 3 ? quiz?.prizes?.[index] || 0 : 0}
                     </p>
-                    <p className="text-xs text-gray-600">Prize</p>
+                    <p className="text-xs text-slate-300">Prize</p>
                   </div>
                   {index < 3 && (
                     <div className="text-2xl">

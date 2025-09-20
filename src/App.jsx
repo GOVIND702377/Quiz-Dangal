@@ -23,13 +23,12 @@ const Admin = lazy(() => import('@/pages/Admin'));
 const Results = lazy(() => import('@/pages/Results'));
 const Leaderboards = lazy(() => import('@/pages/Leaderboards'));
 const Redemptions = lazy(() => import('@/pages/Redemptions'));
-const Language = lazy(() => import('@/pages/Language'));
 const ReferEarn = lazy(() => import('@/pages/ReferEarn'));
 import PWAInstallButton from '@/components/PWAInstallButton';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 const UnconfirmedEmail = () => (
-  <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-indigo-100">
+  <div className="min-h-screen flex items-center justify-center p-4">
     <div className="bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-md w-full shadow-xl text-center">
       <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-4">Check your email</h2>
       <p className="text-gray-600">We've sent a confirmation link to your email address. Please click the link to complete your registration.</p>
@@ -50,7 +49,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+  <div className="min-h-screen flex items-center justify-center">
         <div className="flex flex-col items-center space-y-4">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600"></div>
           <div className="text-indigo-600 font-medium animate-pulse">Loading Quiz Dangal...</div>
@@ -63,7 +62,6 @@ function App() {
     <ErrorBoundary>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <div className="min-h-screen flex flex-col relative text-gray-50 transition-all duration-300 ease-in-out">
-          <div className="home-bg" />
           <Helmet>
             <title>Quiz Dangal - Opinion Based Quiz App</title>
             <meta name="description" content="Join Quiz Dangal for exciting opinion-based quizzes with real prizes!" />
@@ -72,11 +70,17 @@ function App() {
           <Routes>
             {!user ? (
               <>
+                {/* Public policy pages accessible without login and without Header/Footer */}
+                <Route path="/terms-conditions" element={<TermsConditions />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<Login />} />
               </>
             ) : user.app_metadata?.provider === 'email' && !user.email_confirmed_at ? (
               <>
+                {/* Public policy pages accessible during unconfirmed email state as well */}
+                <Route path="/terms-conditions" element={<TermsConditions />} />
+                <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<UnconfirmedEmail />} />
               </>
@@ -112,6 +116,8 @@ function AdminRoute({ children }) {
 }
 
 const MainLayout = () => {
+  // Detect if current path is home to tailor layout spacing/overflow
+  const isHome = typeof window !== 'undefined' && window.location && (window.location.hash === '' || window.location.hash === '#/' || window.location.hash === '#');
   useEffect(() => {
     const warm = () => {
       // Warm up a few popular routes in idle time
@@ -131,7 +137,7 @@ const MainLayout = () => {
   return (
     <>
       <Header />
-  <main className="flex-1 pb-24 pt-4 sm:pt-6">
+  <main className={`flex-1 ${isHome ? 'pt-8 sm:pt-10 pb-24 overflow-hidden min-h-0' : 'pb-24 pt-4 sm:pt-6'}`}>
         <Suspense fallback={<Fallback />}>
           <Routes>
             <Route path="/" element={<Page><Home /></Page>} />
@@ -139,7 +145,6 @@ const MainLayout = () => {
             <Route path="/wallet" element={<Page><Wallet /></Page>} />
             <Route path="/profile" element={<Page><Profile /></Page>} />
             <Route path="/leaderboards" element={<Page><Leaderboards /></Page>} />
-            <Route path="/language" element={<Page><Language /></Page>} />
             <Route path="/refer" element={<Page><ReferEarn /></Page>} />
             <Route path="/rewards" element={<Navigate to="/wallet" replace />} />
             <Route path="/redemptions" element={<Page><Redemptions /></Page>} />

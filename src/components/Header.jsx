@@ -86,8 +86,7 @@ const Header = () => {
         transition={{ duration: 0.35, ease: 'easeOut' }}
         className="sticky top-0 z-[60] px-2 pt-2"
       >
-        <div className="qd-glass-soft rounded-3xl overflow-hidden">
-          <div className="h-[3px] w-full bg-gradient-to-r from-[#ffe06b] via-[#ff8d8d] to-[#ff73d9] opacity-80" />
+        <div className="qd-card rounded-3xl overflow-hidden">
 
   <div className="container mx-auto px-2 sm:px-5 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-2 sm:gap-3">

@@ -5,45 +5,34 @@ import { Target, Users, Trophy, Shield, CheckCircle, Star } from 'lucide-react';
 import { getBrandGradient, getBrandText } from '@/lib/brand';
 
 const AboutUs = () => {
-  // Updated copy: "Why Choose Quiz Dangal?" items
+  // Compact: Top benefits
   const features = [
     {
       icon: Target,
       title: 'Daily Quizzes',
-      description: 'Fresh opinion-based and knowledge-based quizzes every day. Learn something new while you play.'
+      description: 'Fresh opinion and knowledge quizzes every day.'
     },
     {
       icon: Trophy,
-      title: 'Competition & Leaderboards',
-      description: 'Improve your rank and prove yourself as the true quiz champion.'
+      title: 'Leaderboards',
+      description: 'Compete, climb ranks, and showcase your skills.'
     },
     {
       icon: Shield,
-      title: 'Coins & Rewards System',
-      description: 'Earn coins for every correct answer and redeem them for exciting rewards.'
-    },
-    {
-      icon: Target,
-      title: 'Daily Login Streaks',
-      description: 'Get bonus coins for logging in every day and maintain your streak.'
+      title: 'Coins & Rewards',
+      description: 'Earn coins for correct answers and redeem rewards.'
     },
     {
       icon: Users,
-      title: 'Refer & Earn Program',
-      description: 'Invite your friends, play together, and earn extra rewards.'
-    },
-    {
-      icon: Shield,
-      title: 'Transparent Results',
-      description: 'Every quiz result and leaderboard is fair and clear, ensuring equal opportunities for all players.'
+      title: 'Refer & Earn',
+      description: 'Invite friends and unlock extra benefits together.'
     }
   ];
 
-  // Updated copy: Trust, Safety & Fair Play
+  // Compact: Trust, Safety & Fair Play
   const principles = [
     'Every quiz is fair and transparent.',
-    'User data and transactions are fully secure and protected.',
-    'Every player gets an equal chance to win.'
+    'User data and transactions are securely protected.'
   ];
 
   return (
@@ -81,17 +70,7 @@ const AboutUs = () => {
         </p>
       </motion.div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-  className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-6 space-y-4 shadow-xl"
-      >
-  <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-4">Why Choose Quiz Dangal?</h2>
-  <p className="text-slate-300 leading-relaxed">
-          In today’s fast-paced world, people want entertainment that is also meaningful. That’s why Quiz Dangal brings you a unique blend of fun and rewards.
-        </p>
-      </motion.div>
+      {/* Removed duplicate intro card for "Why Choose" to keep content concise */}
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qd-cache-v2';
+const CACHE_NAME = 'qd-cache-v3';
 const PRECACHE_URLS = [
   '/index.html',
   '/site.webmanifest',
@@ -37,6 +37,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // For app assets like CSS/JS/Fonts, prefer network-first so new deployments reflect immediately.
+  const dest = req.destination;
+  if (dest === 'style' || dest === 'script' || dest === 'font') {
+    event.respondWith(
+      fetch(req)
+        .then((resp) => {
+          // Optionally update cache for offline support
+          const copy = resp.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy)).catch(() => {});
+          return resp;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
+  // Default: cache-first for icons/images and other GETs
   event.respondWith(
     caches.match(req).then((cached) => cached || fetch(req))
   );
@@ -51,15 +68,22 @@ self.addEventListener('message', (event) => {
 // Push Notification Event Listener
 self.addEventListener('push', function(event) {
   console.log('[Service Worker] Push Received.');
-  console.log(`[Service Worker] Push had this data: "${event.data.text()}"`);
+  let raw = null;
+  try { raw = event?.data || null; } catch { raw = null; }
+  if (raw) {
+    try { console.log(`[Service Worker] Push had this data: "${raw.text()}"`); } catch {}
+  }
 
   let pushData;
   try {
-    pushData = event.data.json();
+    pushData = raw ? raw.json() : null;
   } catch (e) {
+    pushData = null;
+  }
+  if (!pushData) {
     pushData = {
       title: 'Quiz Dangal',
-      body: event.data.text(),
+      body: raw ? (()=>{ try { return raw.text(); } catch { return 'You have a new message.'; } })() : 'You have a new message.',
     };
   }
 

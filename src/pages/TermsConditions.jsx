@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { Shield, Users, CreditCard, AlertTriangle, CheckCircle, FileText, Calendar, Gavel, EyeOff, Copyright, Info, MessageSquare, Repeat } from 'lucide-react';
+import { Shield, Users, CreditCard, AlertTriangle, CheckCircle, FileText, Calendar, EyeOff, Copyright, Info, Repeat } from 'lucide-react';
 import { getBrandGradient, getBrandText } from '@/lib/brand';
 
 const TermsConditions = () => {
@@ -10,123 +10,84 @@ const TermsConditions = () => {
       icon: Users,
       title: '1. Eligibility',
       content: [
-        'Users must be 13 years or older to create an account.',
-        'By using this App, you confirm that all details provided (name, username, email) are accurate.',
-        'One person = one account. Multiple or fake accounts are prohibited.'
+        'Users must be 13+ and provide accurate details.',
+        'One user, one account. No fake or duplicate accounts.'
       ]
     },
     {
       icon: Shield,
       title: '2. Registration & Accounts',
       content: [
-        'To use Quiz Dangal, you must register with a unique username, display name, and email.',
-        'You are responsible for maintaining the confidentiality of your account credentials.',
-        'You agree not to share your account or impersonate another person.',
-        'Quiz Dangal is not liable for losses caused by misuse of your login details.'
+        'Register with a unique username and email. Keep your login secure and do not share it.'
       ]
     },
     {
       icon: FileText,
       title: '3. Gameplay Rules',
       content: [
-        'Skill-Based Quizzes – Winners are decided based on performance, knowledge, accuracy, and speed.',
-        'Quiz Timings – Each quiz has a fixed start and end time. Submissions after time expiry will not be valid.',
-        'Results – Once results are declared, they are final and cannot be challenged.',
-        'Fairness – All quizzes are designed to provide equal opportunities to all participants.'
+        'Skill-based quizzes—winners decided by performance, accuracy, and speed.',
+        'Each quiz has fixed start and end time; late submissions are invalid.',
+        'Once results are declared, they are final.'
       ]
     },
     {
       icon: CreditCard,
       title: '4. Rewards & Wallet',
       content: [
-        'All quizzes are free to enter.',
-        'Based on performance, users earn coins/rewards which are stored in their in-app wallet.',
-        'Rewards are for entertainment and recognition. In the future, withdrawal features may be introduced, which may require identity verification (KYC).',
-        'Rewards cannot be transferred or exchanged outside the app unless officially announced.'
+        'All quizzes are free to enter. Earn coins/rewards in your in-app wallet based on performance.',
+        'Withdrawals (if introduced later) may require KYC as per law.'
       ]
     },
     {
       icon: Users,
       title: '5. Referral & Earn Program',
       content: [
-        'Users may invite friends using their unique referral codes.',
-        'Coins are credited once the referred user successfully registers and engages.',
-        'Any misuse of referral (e.g., self-referrals, fake accounts) may lead to account suspension.'
+        'Invite friends via referral. Misuse (self-referrals/fake accounts) may lead to suspension.'
       ]
     },
     {
       icon: AlertTriangle,
       title: '6. Responsible Usage',
       content: [
-        'Quiz Dangal is a platform for fun, learning, and skill development.',
-        'It is not gambling and does not involve betting or wagering real money.',
-        'We encourage users to play responsibly and in moderation.'
+        'For fun and learning—this is not gambling. Play responsibly.'
       ]
     },
     {
       icon: EyeOff,
       title: '7. Fair Play & Security',
       content: [
-        'Users must not: create multiple or fake accounts; use bots, scripts, or cheats; manipulate results in any way.',
-        'Violation may result in: immediate account suspension, loss of rewards, and permanent ban from the platform.'
+        'No bots, scripts, cheats, or result manipulation. Violations may lead to suspension or ban.'
       ]
     },
     {
       icon: Copyright,
       title: '8. Intellectual Property',
       content: [
-        'All app content (questions, designs, logos, data, software) belongs to Quiz Dangal.',
-        'Users cannot copy, resell, or exploit app content without permission.'
+        'All content belongs to Quiz Dangal. Do not copy or resell without permission.'
       ]
     },
     {
       icon: Info,
       title: '9. Limitation of Liability',
       content: [
-        'The platform is provided “as is” and “as available.”',
-        'Quiz Dangal makes no guarantees of uninterrupted or error-free service.',
-        'We are not liable for indirect or incidental losses caused by using the platform.'
+        'Service is provided “as is” and “as available.” We do not guarantee uninterrupted or error-free access.'
       ]
     },
     {
       icon: Repeat,
       title: '10. Changes & Updates',
       content: [
-        'Quiz Dangal may update features, rewards, or terms at any time.',
-        'Major changes will be notified in-app.',
-        'Continued use of the app after updates = acceptance of new terms.'
-      ]
-    },
-    {
-      icon: MessageSquare,
-      title: '11. Contact Us',
-      content: [
-  'For questions, support, or feedback: support@quizdangal.com'
+        'We may update features, rewards, or terms. Continued use means acceptance.'
       ]
     }
   ];
 
+  // Highlights (4 boxes)
   const highlights = [
-    {
-      icon: CheckCircle,
-      title: 'Skill-Based Gaming',
-      description: 'Winners determined by skill, knowledge, and prediction abilities'
-    },
-    {
-      icon: Shield,
-      title: 'Secure Transactions',
-      description: 'KYC compliance and secure payment gateways for all transactions'
-    },
-    {
-      icon: Gavel,
-      title: 'Legal Compliance',
-      description: 'Full adherence to Indian laws and gaming regulations'
-    },
-    {
-      icon: AlertTriangle,
-      title: 'Responsible Gaming',
-      description: 'Tools and resources to promote healthy gaming habits'
-    }
+    { icon: CheckCircle, title: 'Skill-Based', description: 'Win by knowledge and speed' },
+    { icon: Shield, title: 'Secure', description: 'Protected data and fair play' },
+    { icon: AlertTriangle, title: 'Responsible', description: 'Play healthy and safe' },
+    { icon: Repeat, title: 'Daily Quizzes', description: 'Fresh challenges every day' }
   ];
 
   return (
@@ -149,7 +110,7 @@ const TermsConditions = () => {
           <span className="text-sm">Last Updated: August 27, 2025</span>
         </div>
         <p className="text-lg text-slate-300 leading-relaxed">
-          These Terms & Conditions (“Terms”) govern your use of the Quiz Dangal mobile application (“App” or “Platform”). By using Quiz Dangal, you agree to these Terms. Please read them carefully.
+          By using Quiz Dangal, you agree to these Terms. Please read them.
         </p>
       </motion.div>
 
@@ -164,7 +125,7 @@ const TermsConditions = () => {
           <h2 className="text-xl font-bold text-amber-300">Important Notice</h2>
         </div>
         <p className="text-slate-300 leading-relaxed">
-          If you do not agree to these Terms, you must not use the Platform. By continuing to use Quiz Dangal, you acknowledge that you have read, understood, and agree to be bound by these terms and conditions.
+          If you do not agree, please do not use the platform.
         </p>
       </motion.div>
 
@@ -172,7 +133,7 @@ const TermsConditions = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
+  className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
       >
   {highlights.map((highlight, index) => (
           <motion.div
@@ -237,13 +198,10 @@ const TermsConditions = () => {
         </div>
         <div className="space-y-3 text-slate-300">
           <p className="text-sm leading-relaxed">
-            Quiz Dangal operates in full compliance with Indian laws and regulations governing online gaming and skill-based competitions.
+            Quiz Dangal operates in compliance with applicable Indian laws for online skill-based competitions.
           </p>
           <p className="text-sm leading-relaxed">
-            We are committed to maintaining the highest standards of legal and ethical conduct in all our operations.
-          </p>
-          <p className="text-sm leading-relaxed">
-            For any legal queries or concerns, please contact us through our official support channels.
+            For any legal queries, contact us at support@quizdangal.com.
           </p>
         </div>
       </motion.div>

@@ -122,19 +122,26 @@ const PWAInstallButton = () => {
   return (
     <button
       onClick={handleClick}
-      className="w-14 h-14 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center group relative overflow-hidden"
+      className="w-14 h-14 rounded-full btn-fire transition-all duration-300 transform hover:scale-105 flex items-center justify-center group relative overflow-hidden"
       style={{ position: 'fixed', bottom: '100px', right: '20px', zIndex: 9999 }}
       aria-label={hasApk ? 'Download App' : (canInstall ? 'Install App' : 'Get App')}
       title={hasApk ? 'Download App' : (canInstall ? 'Install App' : 'Get App')}
     >
-      <div className="absolute inset-0 bg-gradient-to-t from-red-600 via-orange-500 to-yellow-400 opacity-30 animate-pulse"></div>
-      <div className="absolute inset-0">
-        <div className="absolute top-2 left-3 w-1 h-1 bg-yellow-300 rounded-full animate-bounce" style={{animationDelay: '0s', animationDuration: '1s'}}></div>
-        <div className="absolute top-3 right-2 w-1 h-1 bg-orange-300 rounded-full animate-bounce" style={{animationDelay: '0.3s', animationDuration: '1.2s'}}></div>
-        <div className="absolute bottom-3 left-2 w-1 h-1 bg-red-300 rounded-full animate-bounce" style={{animationDelay: '0.6s', animationDuration: '0.8s'}}></div>
-      </div>
-  <Download className="w-5 h-5 relative z-10" />
-  <span className="hidden group-hover:block absolute right-16 bg-gray-900 text-white px-2 py-1 rounded text-xs whitespace-nowrap">{hasApk ? 'Download App' : (canInstall ? 'Install App' : 'Get App')}</span>
+      {/* decorative small flame at top for vibe */}
+      <svg className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 w-6 h-6 opacity-70" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
+        <path d="M12 2c1.5 2 2 3.5 2 5 0 1.5-.5 3-2 4-1.5-1-2-2.5-2-4 0-1.5.5-3 2-5Z" fill="url(#flameGrad)" />
+        <defs>
+          <linearGradient id="flameGrad" x1="12" y1="2" x2="12" y2="11" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#fde047"/>
+            <stop offset="1" stopColor="#f97316"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="absolute inset-0" />
+      <Download className="w-5 h-5 relative z-10 drop-shadow" />
+      <span className="hidden group-hover:block absolute right-16 bg-gray-900/90 backdrop-blur text-white px-2 py-1 rounded text-xs whitespace-nowrap border border-white/10 shadow">
+        {hasApk ? 'Download App' : (canInstall ? 'Install App' : 'Get App')}
+      </span>
     </button>
   );
 };

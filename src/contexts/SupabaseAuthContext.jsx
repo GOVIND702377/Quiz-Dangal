@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }) => {
         };
         return (
             <AuthContext.Provider value={value}>
-                <div className="min-h-screen flex items-center justify-center p-6 bg-gradient-to-br from-blue-50 to-indigo-100">
+                <div className="min-h-screen flex items-center justify-center p-6">
                     <div className="bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-lg w-full shadow-xl text-center">
                         <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3">Configuration Missing</h2>
                         <p className="text-gray-700 mb-2">Create a <code>.env</code> file in the project root with:</p>

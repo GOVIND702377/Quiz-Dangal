@@ -1,0 +1,246 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"problemMatcher": [
+				"$tsc",
+				"$eslint - stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"problemMatcher": [
+				"$tsc",
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"problemMatcher": [
+				"$tsc",
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"problemMatcher": [
+				"$tsc",
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"problemMatcher": [
+				"$tsc",
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"problemMatcher": [
+				"$tsc",
+				"$eslint-stylish"
+			],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		},
+		{
+			"label": "build-app",
+			"type": "shell",
+			"command": "npm run build",
+			"args": [],
+			"group": "build"
+		}
+	]
+}

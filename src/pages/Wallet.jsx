@@ -64,8 +64,8 @@ const Wallet = () => {
       <div className="absolute inset-0 -z-10 opacity-60 mix-blend-screen [background-image:radial-gradient(circle_at_18%_28%,rgba(99,102,241,0.35),rgba(0,0,0,0)60%),radial-gradient(circle_at_82%_72%,rgba(168,85,247,0.30),rgba(0,0,0,0)65%),radial-gradient(circle_at_50%_50%,rgba(236,72,153,0.18),rgba(0,0,0,0)55%)]" />
       <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:0.5}}>
   <h1 className="text-3xl md:text-4xl font-extrabold text-center mb-4 bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent tracking-tight">My Wallet</h1>
-        {/* Balance Card */}
-        <motion.div initial={{opacity:0,scale:.9}} animate={{opacity:1,scale:1}} transition={{duration:.5,delay:.1}} className="relative overflow-hidden rounded-3xl p-5 mb-6 shadow-xl border border-indigo-700/60 bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl">
+  {/* Balance Card */}
+  <motion.div initial={{opacity:0,scale:.9}} animate={{opacity:1,scale:1}} transition={{duration:.5,delay:.1}} className="relative overflow-hidden rounded-3xl p-5 mb-6 qd-card shadow-2xl">
           {/* decorative blobs removed per request */}
 
           {/* decorative floating coins removed per request */}
@@ -121,7 +121,7 @@ const Wallet = () => {
         </motion.div>
 
   {/* Refer & Earn */}
-  <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:.5,delay:.15}} className="rounded-2xl p-4 shadow-lg mb-6 border border-indigo-700/60 bg-gradient-to-r from-indigo-800/60 via-violet-800/50 to-fuchsia-800/50 backdrop-blur-xl text-slate-100">
+  <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:.5,delay:.15}} className="qd-card rounded-2xl p-4 shadow-xl mb-6 text-slate-100">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
               <img src="/logo.svg" alt="Quiz Dangal" className="w-9 h-9 rounded-xl ring-2 ring-white/40" onError={(e) => { e.currentTarget.src='/android-chrome-512x512.png'; }} />
@@ -138,7 +138,7 @@ const Wallet = () => {
         </motion.div>
 
   {/* Recent Activity */}
-  <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:.5,delay:.2}} className="rounded-3xl p-6 bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl shadow-xl border border-indigo-700/60 relative overflow-hidden">
+  <motion.div initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:.5,delay:.2}} className="qd-card rounded-3xl p-6 shadow-xl relative overflow-hidden">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold bg-gradient-to-r from-indigo-200 via-fuchsia-200 to-violet-200 bg-clip-text text-transparent drop-shadow">Recent Activity</h3>
           </div>

@@ -8,32 +8,42 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { MessageSquare, Brain, Trophy, Clapperboard } from 'lucide-react';
 import StreakModal from '@/components/StreakModal';
 
+// Use same count and names as existing app (styled like the screenshot)
 const HOME_TILES = [
-  { title: 'Opinion', slug: 'opinion', icon: MessageSquare, gradient: 'from-[#f7971e] via-[#ffd200] to-[#f7971e]', accent: 'shadow-[0_6px_18px_-5px_rgba(247,151,30,0.55)]', description: 'Share what you think' },
-  { title: 'G.K Knowledge', slug: 'gk', icon: Brain, gradient: 'from-[#667db6] via-[#0082c8] to-[#667db6]', accent: 'shadow-[0_6px_18px_-5px_rgba(0,130,200,0.55)]', description: 'Boost your facts' },
-  { title: 'Sports', slug: 'sports', icon: Trophy, gradient: 'from-[#43cea2] via-[#185a9d] to-[#43cea2]', accent: 'shadow-[0_6px_18px_-5px_rgba(24,90,157,0.55)]', description: 'Play & win glory' },
-  { title: 'Movies', slug: 'movies', icon: Clapperboard, gradient: 'from-[#fe9a8b] via-[#fd868c] to-[#f9748f]', accent: 'shadow-[0_6px_18px_-5px_rgba(249,116,143,0.55)]', description: 'Cinema & stars' },
+  { title: 'Opinion', slug: 'opinion', icon: MessageSquare },
+  { title: 'G.K Knowledge', slug: 'gk', icon: Brain },
+  { title: 'Sports', slug: 'sports', icon: Trophy },
+  { title: 'Movies', slug: 'movies', icon: Clapperboard },
 ];
 
 // (Removed duplicate streak badge & user header area as per request)
 
+// Gradients removed for minimal solid theme
+
+const accentFor = (i) => ['a','b','c','d'][i % 4];
+const vividFor = (i) => ['1','2','3','4'][i % 4];
 const Tile = ({ tile, quizzes, onJoin, index }) => {
   const quiz = quizzes.find(q => (q.category || '').toLowerCase() === tile.slug.toLowerCase());
+  const Icon = tile.icon;
   return (
-    <motion.button type="button" initial={{ opacity: 0, scale: 0.85 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.35, delay: index * 0.06 }} whileTap={{ scale: 0.95 }} onClick={() => quiz && onJoin(quiz)} className={`relative group aspect-square w-full rounded-3xl overflow-hidden focus:outline-none focus:ring-4 ring-white/30 text-left cursor-pointer shadow-lg ${tile.accent}`}>
-      <div className={`absolute inset-0 bg-gradient-to-br ${tile.gradient} opacity-90 group-hover:opacity-100 transition-opacity duration-300`} />
-      <div className="absolute inset-0 mix-blend-overlay opacity-30 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 25% 25%, rgba(255,255,255,0.4) 0, rgba(255,255,255,0) 60%)' }} />
-      <div className="absolute -top-1/2 -left-1/2 w-[180%] h-[180%] bg-[radial-gradient(circle_at_30%_30%,rgba(255,255,255,0.55),rgba(255,255,255,0)_60%)] opacity-0 group-hover:opacity-70 transition-opacity duration-500" />
-      <div className="relative z-10 p-3 sm:p-4 flex flex-col h-full w-full justify-between">
+    <motion.button
+      type="button"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25, delay: index * 0.05 }}
+      onClick={() => quiz && onJoin(quiz)}
+      className={`qd-tile tile-vivid-${vividFor(index)} group aspect-square w-full focus:outline-none will-change-transform transform-gpu`}
+    >
+      <div className="qd-tile-inner">
         <div className="flex items-start justify-between w-full">
-          <motion.div whileHover={{ rotate: 5 }} className="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center bg-white/15 backdrop-blur-sm border border-white/30 shadow-inner"><tile.icon className="w-6 h-6 text-white drop-shadow" /></motion.div>
-          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} className="px-2 py-1 rounded-full bg-white/20 border border-white/30 backdrop-blur-sm text-[10px] font-semibold tracking-wide uppercase text-white shadow">Play</motion.div>
+          <div className="qd-tile-icon">
+            <Icon className={`w-7 h-7 drop-shadow text-white/95`} />
+          </div>
+          <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold bg-white/20 text-white shadow-sm border border-white/30`}>PLAY</span>
         </div>
-        <div className="space-y-1 select-none">
-          <h3 className="text-white font-extrabold text-sm sm:text-base leading-tight drop-shadow-md">{tile.title}</h3>
-          <p className="text-[10px] sm:text-xs text-white/85 font-medium leading-snug line-clamp-2">{tile.description}</p>
+        <div className="select-none">
+          <h3 className={`font-extrabold text-base leading-tight text-shadow-sm text-white`}>{tile.title}</h3>
         </div>
-        <div className="absolute inset-0 rounded-3xl ring-0 ring-white/0 group-hover:ring-4 transition-all duration-300" />
       </div>
     </motion.button>
   );
@@ -61,10 +71,21 @@ const Home = () => {
   const handleJoinQuiz = async (quiz) => { try { const { data, error } = await supabase.rpc('join_quiz', { p_quiz_id: quiz.id }); if (error) throw error; if (data && data !== 'Joined Successfully') throw new Error(data); toast({ title: 'Joined!', description: 'Redirecting you to the quiz.' }); navigate(`/quiz/${quiz.id}`); } catch (err) { toast({ title: 'Error', description: err.message || 'Could not join quiz.', variant: 'destructive' }); } };
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden">
-      <div className="home-bg" />
-      <div className="relative z-10 max-w-md mx-auto px-4 pb-8 pt-4 sm:pt-6">
-  <div className="grid grid-cols-2 gap-3 mt-2">{loading ? Array.from({ length: 4 }).map((_, i) => (<div key={i} className="aspect-square w-full rounded-3xl bg-white/10 animate-pulse" />)) : HOME_TILES.map((t, i) => (<Tile key={t.slug} tile={t} quizzes={quizzes} onJoin={handleJoinQuiz} index={i} />))}</div>
+    <div className="h-full relative overflow-hidden">
+      <div className="relative z-10 h-full flex items-center justify-center px-4 mt-1 sm:mt-2">
+        <div className="w-full max-w-[420px]">
+          <div className="qd-card rounded-3xl shadow-2xl p-3">
+            <div className="grid grid-cols-2 gap-3">
+            {loading
+              ? Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="aspect-square w-full rounded-2xl bg-slate-800/60 border border-slate-700/60 animate-pulse" />
+              ))
+              : HOME_TILES.map((t, i) => (
+                <Tile key={t.slug} tile={t} quizzes={quizzes} onJoin={handleJoinQuiz} index={i} />
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
       <StreakModal open={streakModal.open} day={streakModal.day} coins={streakModal.coins} onClose={() => setStreakModal(s => ({ ...s, open: false }))} />
     </div>

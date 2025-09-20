@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -98,9 +98,9 @@ const Login = () => {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-8 max-w-md w-full shadow-xl text-center text-slate-100"
+          className="qd-card rounded-2xl p-8 max-w-md w-full shadow-xl text-center text-slate-100"
         >
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-4">Check your email</h2>
+          <h2 className="text-2xl font-bold text-white text-shadow-sm mb-4">Check your email</h2>
           <p className="text-slate-300">We've sent a confirmation link to <strong>{email}</strong>. Please click the link to complete your registration.</p>
         </motion.div>
       </div>
@@ -113,9 +113,9 @@ const Login = () => {
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-8 max-w-md w-full shadow-xl text-center text-slate-100"
+          className="qd-card rounded-2xl p-8 max-w-md w-full shadow-xl text-center text-slate-100"
         >
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-4">Forgot Password</h2>
+          <h2 className="text-2xl font-bold text-white text-shadow-sm mb-4">Forgot Password</h2>
           <p className="text-slate-300 mb-4">Enter your email to receive a password reset link.</p>
           <form
             onSubmit={async (e) => {
@@ -155,7 +155,7 @@ const Login = () => {
             <Button type="submit" disabled={forgotLoading} className="w-full">
               {forgotLoading ? "Sending..." : "Send Reset Link"}
             </Button>
-            <Button type="button" variant="outline" className="w-full bg-white text-black border border-slate-300 hover:bg-slate-50 rounded-lg shadow-md focus:ring-2 focus:ring-indigo-500/40" onClick={() => setShowForgot(false)}>
+            <Button type="button" variant="white" className="w-full rounded-lg focus:ring-2 focus:ring-indigo-500/40" onClick={() => setShowForgot(false)}>
               Back to Login
             </Button>
           </form>
@@ -170,7 +170,7 @@ const Login = () => {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-8 max-w-md w-full shadow-xl text-slate-100"
+  className="qd-card rounded-2xl p-8 max-w-md w-full shadow-xl text-slate-100"
       >
         <motion.div
           initial={{ y: -20, opacity: 0 }}
@@ -184,7 +184,7 @@ const Login = () => {
             onError={(e) => { e.currentTarget.src='/android-chrome-512x512.png'; }}
             className="w-20 h-20 mx-auto mb-4 rounded-full shadow-lg"
           />
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-2">
+          <h1 className="text-3xl font-bold text-white text-shadow mb-2">
             Quiz Dangal
           </h1>
           <p className="text-slate-300">Where Minds Clash</p>
@@ -192,7 +192,7 @@ const Login = () => {
 
         {/* Mode label (no box) */}
         <div className="mb-2 text-left">
-          <span className="text-indigo-300 text-sm font-semibold">
+          <span className="text-accent-b text-sm font-semibold">
             {isSignUp ? 'Create Account' : 'Sign In'}
           </span>
         </div>
@@ -233,7 +233,7 @@ const Login = () => {
             {!isSignUp && (
               <button
                 type="button"
-                className="text-xs text-indigo-300 hover:underline mt-1 float-right"
+                className="text-xs text-accent-b hover:underline mt-1 float-right"
                 onClick={() => setShowForgot(true)}
               >
                 Forgot Password?
@@ -246,10 +246,11 @@ const Login = () => {
               <Input id="referral" type="text" value={referralCode} onChange={(e) => setReferralCode(e.target.value.trim())} placeholder="Enter referral code" className="bg-white text-black placeholder-slate-500 border-slate-300" />
             </div>
           )}
-          <Button type="submit" disabled={isLoading || isGoogleLoading} className="w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-500 hover:to-fuchsia-700 text-white font-semibold py-3 rounded-lg shadow-lg">
+          <Button type="submit" disabled={isLoading || isGoogleLoading} variant="brand" className="w-full font-semibold py-3 rounded-lg shadow-lg">
             {isLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </Button>
         </motion.form>
+
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
@@ -263,8 +264,8 @@ const Login = () => {
         <Button
           onClick={handleGoogleLogin}
           disabled={isLoading || isGoogleLoading}
-          variant="outline"
-          className="w-full font-semibold py-3 rounded-xl shadow-md bg-white text-black border border-slate-300 hover:bg-slate-50 focus:ring-2 focus:ring-indigo-500/40"
+          variant="white"
+          className="w-full font-semibold py-3 rounded-xl shadow-md focus:ring-2 focus:ring-indigo-500/40"
           aria-label="Continue with Google"
         >
           {isGoogleLoading ? (
@@ -282,11 +283,19 @@ const Login = () => {
           )}
         </Button>
 
-        <p className="mt-6 text-center text-sm text-slate-300">
+        <p className="mt-3 text-center text-sm text-slate-300">
           {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <button onClick={() => setIsSignUp(!isSignUp)} className="font-semibold text-indigo-300 hover:text-indigo-200">
+          <button onClick={() => setIsSignUp(!isSignUp)} className="font-semibold text-accent-b hover:opacity-90">
             {isSignUp ? 'Sign In' : 'Sign Up'}
           </button>
+        </p>
+
+        {/* Consent: T&C and Privacy Policy links (tiny, subtle) — placed at the very bottom */}
+        <p className="mt-5 text-[11px] leading-snug text-white text-center">
+          By continuing, you agree to our{' '}
+          <Link to="/terms-conditions" className="underline decoration-dotted underline-offset-2 text-accent-b hover:opacity-90">Terms & Conditions</Link>
+          {' '}and{' '}
+          <Link to="/privacy-policy" className="underline decoration-dotted underline-offset-2 text-accent-b hover:opacity-90">Privacy Policy</Link>.
         </p>
       </motion.div>
     </div>

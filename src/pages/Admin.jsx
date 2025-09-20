@@ -20,6 +20,10 @@ function AdminNotificationsSection() {
   const [sending, setSending] = useState(false);
   const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Push notifications state
+  const [pushTitle, setPushTitle] = useState('');
+  const [pushMessage, setPushMessage] = useState('');
+  const [sendingPush, setSendingPush] = useState(false);
 
   const loadRecent = async () => {
     setLoading(true);
@@ -37,6 +41,28 @@ function AdminNotificationsSection() {
   };
 
   useEffect(() => { loadRecent(); }, []);
+
+  const handleSendPushNotification = async (e) => {
+    e.preventDefault();
+    if (!pushTitle.trim() || !pushMessage.trim()) {
+      toast({ title: 'Title/Message required', variant: 'destructive' });
+      return;
+    }
+    setSendingPush(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-notifications', {
+        body: { title: pushTitle.trim(), message: pushMessage.trim() },
+      });
+      if (error) throw error;
+      toast({ title: 'Push sent', description: 'Notifications queued to subscribers.' });
+      setPushTitle('');
+      setPushMessage('');
+    } catch (err) {
+      toast({ title: 'Push failed', description: err.message || 'Try again later', variant: 'destructive' });
+    } finally {
+      setSendingPush(false);
+    }
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -183,6 +209,8 @@ export default function Admin() {
   const [showQuestions, setShowQuestions] = useState(false);
   const [questions, setQuestions] = useState([]);
 
+  // Removed translation trigger and auto-sync; no-op now
+
   const [quizForm, setQuizForm] = useState({
     title: '', entry_fee: '', prizes: ['', '', ''], start_time: '', end_time: '', result_time: '', category: ''
   });
@@ -224,7 +252,7 @@ export default function Admin() {
     if (!text || !text.trim()) return;
     const { error } = await supabase.from('questions').insert({ quiz_id: selectedQuiz.id, question_text: text.trim() });
     if (error) return toast({ title: 'Add failed', description: error.message, variant: 'destructive' });
-    await fetchQuestions(selectedQuiz.id);
+  await fetchQuestions(selectedQuiz.id);
   };
 
   const saveQuestion = async (qid, text) => {
@@ -232,14 +260,14 @@ export default function Admin() {
     if (!t) return toast({ title: 'Question khaali nahi ho sakta', variant: 'destructive' });
     const { error } = await supabase.from('questions').update({ question_text: t }).eq('id', qid);
     if (error) return toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
-    await fetchQuestions(selectedQuiz.id);
+  await fetchQuestions(selectedQuiz.id);
   };
 
   const deleteQuestion = async (qid) => {
     if (!confirm('Is question aur iske options ko delete karein?')) return;
     const { error } = await supabase.from('questions').delete().eq('id', qid);
     if (error) return toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
-    await fetchQuestions(selectedQuiz.id);
+  await fetchQuestions(selectedQuiz.id);
   };
 
   const addOption = async (qid) => {
@@ -247,7 +275,7 @@ export default function Admin() {
     if (!text || !text.trim()) return;
     const { error } = await supabase.from('options').insert({ question_id: qid, option_text: text.trim() });
     if (error) return toast({ title: 'Add failed', description: error.message, variant: 'destructive' });
-    await fetchQuestions(selectedQuiz.id);
+  await fetchQuestions(selectedQuiz.id);
   };
 
   const saveOption = async (oid, text) => {
@@ -255,14 +283,14 @@ export default function Admin() {
     if (!t) return toast({ title: 'Option khaali nahi ho sakta', variant: 'destructive' });
     const { error } = await supabase.from('options').update({ option_text: t }).eq('id', oid);
     if (error) return toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
-    await fetchQuestions(selectedQuiz.id);
+  await fetchQuestions(selectedQuiz.id);
   };
 
   const deleteOption = async (oid) => {
     if (!confirm('Is option ko delete karein?')) return;
     const { error } = await supabase.from('options').delete().eq('id', oid);
     if (error) return toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
-    await fetchQuestions(selectedQuiz.id);
+  await fetchQuestions(selectedQuiz.id);
   };
 
   const handleCreateQuiz = async (e) => {
@@ -271,7 +299,7 @@ export default function Admin() {
       const prizesArray = quizForm.prizes.filter(p => p).map(p => parseInt(p));
       const prizePool = prizesArray.reduce((sum, prize) => sum + prize, 0);
 
-      const { error } = await supabase
+      const { data: insertData, error } = await supabase
         .from('quizzes')
         .insert([{
           title: quizForm.title,
@@ -283,7 +311,9 @@ export default function Admin() {
           result_time: quizForm.result_time,
           status: 'upcoming',
           category: quizForm.category || null
-        }]);
+        }])
+        .select('id')
+        .single();
 
       if (error) throw error;
 
@@ -345,7 +375,8 @@ export default function Admin() {
         {/* Create Quiz Form */}
         {showCreateQuiz && (
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg mb-8">
-            <h2 className="text-xl font-bold text-gray-800 mb-4">Create New Quiz</h2>
+            <h2 className="text-xl font-bold text-gray-800 mb-1">Create New Quiz</h2>
+            {/* Note removed: translations no longer auto-generated */}
             <form onSubmit={handleCreateQuiz} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>

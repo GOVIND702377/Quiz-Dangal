@@ -113,7 +113,7 @@ export default function Leaderboards() {
               transition={{ type: 'spring', stiffness: 250, damping: 18 }}
             />
           </motion.div>
-          <h1 className="text-3xl font-extrabold bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent tracking-tight">Leaderboards</h1>
+          <h1 className="text-3xl font-extrabold text-white text-shadow tracking-tight">Leaderboards</h1>
         </div>
   <p className="text-slate-200/85 text-sm">Top players by performance & consistency</p>
       </div>
@@ -121,10 +121,10 @@ export default function Leaderboards() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-3">
         <div className="flex flex-wrap items-center gap-2">
           {periods.map(p => (
-            <button
+              <button
               key={p.key}
               onClick={() => onTabClick(p.key)}
-              className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wide border transition shadow-sm ${period===p.key? 'bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 text-white border-indigo-500 shadow-lg':'bg-gradient-to-r from-indigo-900/40 via-violet-900/30 to-fuchsia-900/30 text-slate-200 border-indigo-700 hover:from-indigo-800/50 hover:via-violet-800/40 hover:to-fuchsia-800/40 hover:text-white'} `}
+                className={`px-4 py-2 rounded-full text-xs font-semibold tracking-wide border transition shadow-sm ${period===p.key? 'bg-accent-b text-white border-accent-b shadow':'bg-slate-800/80 text-slate-200 border-slate-700 hover:bg-slate-800'} `}
             >{p.label}</button>
           ))}
         </div>
@@ -134,9 +134,10 @@ export default function Leaderboards() {
             value={search}
             onChange={(e)=>setSearch(e.target.value)}
             placeholder="Search players..."
-            className="pl-9 pr-3 h-11 w-full rounded-xl bg-[linear-gradient(120deg,rgba(55,48,163,0.9),rgba(88,28,135,0.85),rgba(134,25,143,0.80))] border border-indigo-400/70 hover:border-indigo-300/80 focus:border-fuchsia-300 focus:outline-none focus:ring-2 focus:ring-fuchsia-400/60 text-[13px] font-medium text-slate-50 placeholder:text-slate-300/70 shadow-[0_0_0_1px_rgba(129,140,248,0.45),0_4px_20px_-6px_rgba(0,0,0,0.75)] backdrop-blur-md transition"
+            className="pl-9 pr-3 h-11 w-full rounded-xl bg-slate-800/80 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-base sm:text-[13px] font-medium text-slate-100 placeholder:text-slate-400 shadow"
           />
           <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/5" />
+         <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/5" />
         </div>
       </div>
 
@@ -154,7 +155,7 @@ export default function Leaderboards() {
                   ? { circle:'bg-[linear-gradient(145deg,#f5f7fa_0%,#d9e2ec_30%,#c2ccd6_55%,#e4ebf2_85%,#ffffff_100%)] text-slate-700', card:'from-[#42506a40] via-[#bcc7d214] to-[#4a3a7a40]', border:'border-slate-300/50' }
                   : { circle:'bg-[linear-gradient(140deg,#ffe7d0_0%,#ffc891_25%,#f7a350_55%,#ffc891_78%,#ffe7d0_100%)] text-orange-800', card:'from-[#6b3f2640] via-[#ffb77414] to-[#5b367a40]', border:'border-orange-300/50' };
               return (
-                <motion.div key={pos} initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className={`relative flex items-end justify-center rounded-2xl ${heightClass} overflow-hidden border ${medalClasses.border} bg-gradient-to-br ${medalClasses.card} shadow-xl backdrop-blur-xl`}>  
+                <motion.div key={pos} initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className={`relative flex items-end justify-center rounded-2xl ${heightClass} overflow-hidden border ${medalClasses.border} bg-slate-800/80 shadow-xl`}>  
                   {/* sheen */}
                   <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute -top-1/3 left-1/4 w-2/3 h-full rotate-12 bg-gradient-to-b from-white/25 via-transparent to-transparent opacity-40" />
@@ -177,7 +178,7 @@ export default function Leaderboards() {
       </AnimatePresence>
 
       {!loading && !error && myRow && (
-        <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 border border-indigo-600/50 shadow-lg backdrop-blur-sm">
+  <div className="p-4 rounded-2xl qd-card shadow-lg">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-600 text-white font-bold flex items-center justify-center shadow-lg ring-2 ring-indigo-400/40">{myRank}</div>
@@ -194,7 +195,7 @@ export default function Leaderboards() {
         </div>
       )}
 
-  <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 border border-indigo-700/60 shadow-xl backdrop-blur-xl relative overflow-hidden">
+  <div className="p-4 rounded-2xl qd-card shadow-xl relative overflow-hidden">
         <div className="pointer-events-none absolute -top-20 -right-24 w-72 h-72 bg-gradient-to-br from-indigo-500/25 via-violet-500/25 to-fuchsia-500/25 opacity-40 rounded-full blur-3xl" />
         {loading ? (
           <div className="py-12 flex flex-col items-center text-indigo-300/80">
@@ -229,13 +230,13 @@ export default function Leaderboards() {
                   initial={{opacity:0,y:8}}
                   animate={{opacity:1,y:0}}
                   layout
-                  className={`group relative rounded-xl overflow-hidden border bg-gradient-to-r ${baseGrad} pr-4 transition shadow-sm hover:shadow-lg backdrop-blur-sm ${highlight? 'ring-2 ring-indigo-400/60 border-indigo-400':'hover:border-indigo-500/50'} ${borderColor}`}
+                  className={`group relative rounded-xl overflow-hidden border pr-4 transition shadow-sm hover:shadow-lg ${highlight? 'ring-2 ring-indigo-400/60 border-indigo-400':'border-slate-700'} bg-slate-800/70`}
                 >
-      <span className={`absolute inset-y-0 left-0 w-1 ${top3? 'bg-gradient-to-b from-amber-400 via-yellow-400 to-amber-500':'bg-gradient-to-b from-indigo-500 via-violet-500 to-fuchsia-600'} opacity-90`} />
+      <span className={`absolute inset-y-0 left-0 w-1 ${top3? 'bg-amber-400':'bg-indigo-500'} opacity-90`} />
       <span className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-60 transition mix-blend-overlay" style={{background: top3 ? 'radial-gradient(circle_at_70%_35%,rgba(252,211,77,0.4),rgba(0,0,0,0)60%)' : 'linear-gradient(95deg, rgba(99,102,241,0.18), rgba(139,92,246,0.16), rgba(236,72,153,0.14))'}} />
                   {/* Content */}
                   <div className="flex items-center gap-3 flex-1 p-3 pl-4">
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-semibold text-[13px] shadow-lg ${top3? 'bg-[linear-gradient(140deg,#ffe9b0,#f9cf55,#f6b530,#f9cf55,#ffe9b0)] text-amber-900':'bg-[linear-gradient(145deg,#4f46e5,#6d28d9,#9333ea,#c026d3)] text-white'} ${highlight? 'ring-2 ring-indigo-300/60':''}`}>{rank}</div>
+                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-semibold text-[13px] shadow-lg ${top3? 'bg-amber-400 text-amber-900':'bg-indigo-600 text-white'} ${highlight? 'ring-2 ring-indigo-300/60':''}`}>{rank}</div>
                     <div className="flex-1 min-w-0">
                       <div className={`font-semibold truncate transition tracking-wide ${highlight? 'text-white':'text-slate-100 group-hover:text-white'}`}>{r.username?`@${r.username}`:'Anonymous'}</div>
                       <div className="mt-1 flex items-center gap-5 text-[11px] text-slate-300/85 font-medium">

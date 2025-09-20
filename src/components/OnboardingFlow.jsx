@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import LanguageSelectionModal from '@/components/LanguageSelectionModal';
 import ProfileUpdateModal from '@/components/ProfileUpdateModal';
 
 const OnboardingFlow = () => {
@@ -30,11 +29,7 @@ const OnboardingFlow = () => {
       return;
     }
 
-    // Secondary onboarding: language selection (optional)
-    if (userProfile.preferred_language === null) {
-      setActiveStep('language');
-      return;
-    }
+    // Language selection removed
 
     setActiveStep(null);
   }, [userProfile]);
@@ -55,9 +50,7 @@ const OnboardingFlow = () => {
     return <ProfileUpdateModal isOpen={true} onClose={() => setActiveStep(null)} isFirstTime={true} />;
   }
 
-  if (activeStep === 'language') {
-    return <LanguageSelectionModal isOpen={true} onComplete={() => setActiveStep(null)} />;
-  }
+  // No language step
 
   return null;
 };

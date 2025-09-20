@@ -198,17 +198,20 @@ const MyQuizzes = () => {
 
   if (quizzes.length === 0) {
     return (
-  <div className="min-h-screen">
+      <div className="min-h-screen">
         <div className="container mx-auto px-4 py-6">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center text-slate-100">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent mb-8">My Quizzes</h1>
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.2 }}
-              className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-8 max-w-md mx-auto shadow-xl">
+            <h1 className="text-3xl font-bold heading-gradient text-shadow mb-8">My Quizzes</h1>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.15 }}
+              className="qd-card rounded-2xl p-8 max-w-md mx-auto shadow-2xl"
+            >
               <GoldTrophy size={104} />
               <h3 className="text-xl font-semibold text-white mb-2">No Quizzes Yet</h3>
               <p className="text-slate-300 mb-6">You haven't joined any quizzes. Play one to see your history!</p>
-              <Button onClick={() => navigate('/')}
-                className="w-full bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-500 hover:to-fuchsia-700 text-white font-semibold py-3 rounded-lg shadow-lg">
+              <Button onClick={() => navigate('/')} variant="brand" className="w-full rounded-xl">
                 <Play className="w-5 h-5 mr-2" /> Play Now
               </Button>
             </motion.div>
@@ -223,7 +226,7 @@ const MyQuizzes = () => {
       <div className="container mx-auto px-4 py-6">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-center mb-4"><GoldTrophy size={112} /></div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent mb-8 text-center">My Quizzes & Leaderboard</h1>
+          <h1 className="text-3xl font-bold heading-gradient text-shadow mb-8 text-center">My Quizzes & Leaderboard</h1>
           <div className="space-y-4">
           {quizzes.map((quiz, index) => {
             const now = new Date();
@@ -232,8 +235,8 @@ const MyQuizzes = () => {
             const userRank = isResultOut ? quiz.leaderboard.find(p => p.user_id === user.id) : null;
             
             return(
-              <motion.div key={quiz.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.1 }}
-                className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-6 shadow-xl text-slate-100">
+              <motion.div key={quiz.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.06 }}
+                className="qd-card rounded-2xl p-6 shadow-xl text-slate-100">
                 <div className="flex items-center justify-between mb-4">
                    <h3 className="text-xl font-semibold text-white truncate pr-3">{quiz.title}</h3>
                    <div className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium border ${isResultOut ? 'bg-emerald-900/25 text-emerald-200 border-emerald-500/30' : (quiz.resultExpired ? 'bg-slate-800/60 text-slate-300 border-slate-700/60' : 'bg-amber-900/25 text-amber-200 border-amber-500/30')}`}>

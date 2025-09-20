@@ -1,8 +1,12 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
 // Clean Vite config without any Hostinger/Horizons debug injections
+// __dirname is not defined in ESM; derive it from import.meta.url
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
 export default defineConfig({
 	plugins: [react()],
 	// Using a custom domain for this project repo; site is served at domain root.

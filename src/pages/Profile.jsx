@@ -4,9 +4,8 @@ import { supabase } from "../lib/customSupabaseClient";
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { Button } from "@/components/ui/button";
-import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Globe, Share2, Award, Sparkles, BellRing } from 'lucide-react';
+import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Share2, Award, Sparkles, BellRing } from 'lucide-react';
 import ProfileUpdateModal from '@/components/ProfileUpdateModal';
-import LanguageSelectionModal from '@/components/LanguageSelectionModal';
 
 export default function Profile() {
   const { signOut } = useAuth();
@@ -17,7 +16,7 @@ export default function Profile() {
   const [showBadges, setShowBadges] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   // Refer & Earn now opens as full page (/refer)
-  const [showLanguageModal, setShowLanguageModal] = useState(false);
+  // Language modal removed
   const fileInputRef = useRef(null);
   const { isSubscribed, subscribeToPush, error: pushError } = usePushNotifications();
 
@@ -128,14 +127,14 @@ export default function Profile() {
     { label: 'Contact Us', href: '/contact-us', icon: Mail },
     { label: 'Terms & Conditions', href: '/terms-conditions', icon: FileText },
     { label: 'Privacy Policy', href: '/privacy-policy', icon: Shield },
-  { label: 'Language', onClick: () => setShowLanguageModal(true), icon: Globe },
+  // Language page removed
   { label: 'Refer & Earn', href: '/refer', icon: Share2 },
   ];
 
   return (
-  <div className="relative min-h-[100svh]">
-      <div className="container mx-auto px-2 md:px-3 py-2 max-w-3xl space-y-2">
-        <div className="group relative overflow-hidden rounded-3xl p-4 bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl shadow-xl border border-indigo-700/60">
+  <div className="relative overflow-x-hidden">
+    <div className="mx-auto w-full px-3 sm:px-4 pt-3 pb-24 max-w-3xl space-y-3 overflow-x-hidden">
+        <div className="qd-card relative overflow-hidden rounded-3xl p-4 shadow-2xl">
           <div aria-hidden className="pointer-events-none absolute -top-20 -right-20 h-56 w-56 rounded-full bg-gradient-to-tr from-indigo-500/20 via-fuchsia-400/15 to-transparent blur-3xl" />
           <div aria-hidden className="pointer-events-none absolute -bottom-24 -left-24 h-56 w-56 rounded-full bg-gradient-to-tr from-purple-500/15 via-pink-500/10 to-transparent blur-3xl" />
           <div className="flex flex-col gap-3 relative">
@@ -164,9 +163,9 @@ export default function Profile() {
                   </button>
                   <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={onAvatarSelected} />
                 </div>
-                <div className="mt-1.5 text-center">
+                <div className="mt-1.5 text-center max-w-[12rem] sm:max-w-none mx-auto">
                   <div className="text-[11px] text-slate-400">Email</div>
-                  <div className="text-sm font-medium text-slate-100 whitespace-nowrap overflow-x-auto">{profile?.email || sessionUser.email}</div>
+                  <div className="text-sm font-medium text-slate-100 truncate">{profile?.email || sessionUser.email}</div>
                 </div>
               </div>
               <div className="min-w-0 -mt-1">
@@ -185,7 +184,7 @@ export default function Profile() {
             </div>
             <div className="w-full">
               <div className="mt-1.5 inline-flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full text-[11px] bg-indigo-900/30 text-indigo-200 border border-indigo-500/30">Level {profile?.level ?? '—'}</span>
+                <span className="px-2 py-0.5 rounded-full text-[11px] chip-accent-b">Level {profile?.level ?? '—'}</span>
                 <span className="px-2 py-0.5 rounded-full text-[11px] bg-slate-800/60 text-slate-200 border border-slate-700/60">{getLevelTitle(profile?.level)}</span>
               </div>
               <div className="mt-1.5 relative h-2.5 bg-slate-800/70 rounded-full overflow-hidden">
@@ -194,21 +193,18 @@ export default function Profile() {
                 <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-slate-300">{getLevelProgress(profile?.total_coins)}%</span>
               </div>
               <div className="mt-1 text-[11px] text-slate-400">to next level</div>
-              <button onClick={() => setShowBadges((v) => !v)} className="mt-1.5 text-xs text-indigo-300 hover:text-indigo-200 underline">{showBadges ? 'Hide badges' : 'View badges'}</button>
+              <button onClick={() => setShowBadges((v) => !v)} className="mt-1.5 text-xs text-accent-b hover:opacity-90 underline">{showBadges ? 'Hide badges' : 'View badges'}</button>
             </div>
             <div className="pt-2 mt-1 w-full border-t border-gray-100">
-              <button
-                onClick={() => setEditingProfile(true)}
-                className="inline-flex items-center px-4 py-2 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow hover:shadow-md text-sm transition"
-              >
+              <Button onClick={() => setEditingProfile(true)} size="sm" variant="brand" className="rounded-xl">
                 Edit Profile
-              </button>
+              </Button>
             </div>
           </div>
         </div>
 
         {showBadges && (
-          <div className="rounded-3xl p-4 bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl shadow-xl border border-indigo-700/60">
+          <div className="qd-card rounded-3xl p-4 shadow-xl">
             <div className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
               <Award className="w-4 h-4 text-amber-300" />
               <span>Your Badges</span>
@@ -216,7 +212,7 @@ export default function Profile() {
             <div className="flex flex-wrap gap-2 mb-2">
               {unlocked.length > 0 ? (
                 unlocked.map((b, i) => (
-                  <span key={`u-${i}`} className="px-2.5 py-1.5 text-[11px] rounded-full bg-indigo-800/40 border border-indigo-500/30 text-indigo-100">
+                  <span key={`u-${i}`} className="px-2.5 py-1.5 text-[11px] rounded-full chip-accent-c">
                     ✨ {b}
                   </span>
                 ))
@@ -234,7 +230,7 @@ export default function Profile() {
         )}
 
         {/* Push Notifications Section */}
-        <div className="rounded-3xl p-4 bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl shadow-xl border border-indigo-700/60 text-slate-100">
+  <div className="qd-card rounded-3xl p-4 shadow-xl text-slate-100">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
                <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-700/50 to-emerald-700/50 text-emerald-200 flex items-center justify-center shadow-sm border border-emerald-500/30">
@@ -251,6 +247,7 @@ export default function Profile() {
               onClick={subscribeToPush}
               disabled={isSubscribed}
               size="sm"
+              variant="brand"
             >
               {isSubscribed ? "Subscribed" : "Enable"}
             </Button>
@@ -258,21 +255,14 @@ export default function Profile() {
           {pushError && <p className="text-xs text-rose-300 mt-2">Error: {pushError}</p>}
         </div>
 
-        <div className="rounded-3xl p-3 bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl shadow-xl border border-indigo-700/60">
+  <div className="qd-card rounded-3xl p-3 shadow-xl">
           <div className="flex flex-col gap-3">
-            {menuItems.map((item, idx) => {
-              const iconBg = [
-                'from-indigo-700/60 to-fuchsia-700/60',
-                'from-amber-700/50 to-orange-700/50',
-                'from-cyan-700/50 to-emerald-700/50',
-                'from-fuchsia-700/60 to-pink-700/60',
-                'from-violet-700/60 to-indigo-700/60',
-                'from-amber-700/60 to-yellow-700/60'
-              ][idx % 6];
+              {menuItems.map((item, idx) => {
+              const chipClass = ['chip-accent-d','chip-accent-a','chip-accent-b','chip-accent-c'][idx % 4];
               const content = (
                 <div className="group w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border border-indigo-700/60 bg-indigo-900/40 hover:bg-indigo-900/60 transition shadow-sm hover:shadow-lg text-sm text-slate-100 cursor-pointer">
                   <div className="flex items-center gap-3">
-                    <span className={`w-9 h-9 rounded-xl bg-gradient-to-br ${iconBg} text-indigo-100 flex items-center justify-center shadow-sm border border-indigo-500/30 group-hover:scale-[1.03] transition`}>
+                    <span className={`w-9 h-9 rounded-xl ${chipClass} group-hover:scale-[1.03] transition`}>
                       <item.icon className="w-4 h-4" />
                     </span>
                     <span className="font-semibold tracking-wide">{item.label}</span>
@@ -293,7 +283,7 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="rounded-3xl p-3 bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl shadow-xl border border-indigo-700/60">
+  <div className="qd-card rounded-3xl p-3 shadow-xl">
           <button onClick={handleSignOut} className="w-full text-left focus:outline-none focus:ring-2 focus:ring-red-500/30 rounded-2xl">
             <div className="group w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl border border-rose-700/40 bg-rose-900/10 hover:bg-rose-900/20 transition shadow-sm hover:shadow-md text-sm text-rose-300 cursor-pointer">
               <div className="flex items-center gap-3">
@@ -316,14 +306,7 @@ export default function Profile() {
           isFirstTime={false}
         />
 
-
-        <LanguageSelectionModal
-          isOpen={showLanguageModal}
-          onComplete={() => {
-            setShowLanguageModal(false);
-            load();
-          }}
-        />
+        {/* Language selection removed */}
       </div>
     </div>
   );

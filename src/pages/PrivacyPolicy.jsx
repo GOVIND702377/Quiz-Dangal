@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
-import { FileText, Calendar, Shield, Users, Info, Mail, Database, EyeOff, CheckCircle, Repeat } from 'lucide-react';
+import { FileText, Calendar, Shield, Users, Info, Database, EyeOff, Repeat, CheckCircle } from 'lucide-react';
 import { getBrandGradient } from '@/lib/brand';
 
 const PrivacyPolicy = () => {
@@ -10,81 +10,58 @@ const PrivacyPolicy = () => {
       icon: Users,
       title: '1. Information We Collect',
       content: [
-        'We may collect the following information when you use Quiz Dangal:',
-        '• Information You Provide Directly: Username, display name, email address, avatar, profile updates, and referral information.',
-        '• Information Collected Automatically: Device model, OS, app version, unique identifiers, usage data (quizzes joined, scores, coins, referrals), IP address, time zone, and interaction logs.',
-        '• Optional Information: KYC documents (e.g., PAN, Aadhaar) only if/when withdrawals are introduced, as required by Indian law.'
+        'We collect account details you provide (e.g., name, email), basic device/usage info for app functionality, and optional KYC only if withdrawals are introduced.'
       ]
     },
     {
       icon: Info,
       title: '2. How We Use Your Information',
       content: [
-        'Create and manage your account; enable quiz participation and results display;',
-        'Provide rewards, coins, and referral benefits;',
-        'Improve performance, features, and user experience;',
-        'Ensure fair play and detect fraud or misuse;',
-        'Send updates, notifications, and important announcements;',
-        'Comply with legal obligations (KYC/tax if withdrawals are enabled).'
+        'To run your account, enable quizzes and rewards, improve the app, ensure fair play, send updates, and meet legal duties (if applicable).'
       ]
     },
     {
       icon: Shield,
       title: '3. Sharing of Information',
       content: [
-        'We do not sell or rent personal data. We may share information with:',
-        '• Service Providers: Trusted vendors for analytics, hosting, or payments;',
-        '• Legal Authorities: When required by law or court order;',
-        '• Fraud Prevention: To investigate or prevent cheating, fraud, or misuse.'
+        'We do not sell your data. We may share with service providers, legal authorities when required, and for fraud prevention.'
       ]
     },
     {
       icon: Database,
       title: '4. Data Storage & Security',
       content: [
-        'Data is stored securely on Supabase/PostgreSQL and related services.',
-        'We use encryption, access controls, and monitoring to protect information.',
-        'No system is 100% secure; users should maintain strong password practices.'
+        'Data is stored on secure services (e.g., Supabase/PostgreSQL) with encryption and access controls. No system is 100% secure—use strong passwords.'
       ]
     },
     {
       icon: CheckCircle,
       title: '5. Your Rights',
       content: [
-        'Access: Request details of data we hold about you;',
-        'Correction: Update or correct account information;',
-        'Deletion: Request deletion of account/data (subject to legal obligations);',
-        'Opt-Out: Disable notifications or withdraw consent for non-essential usage.'
+        'You may request access, correction, deletion (subject to law), and opt out of non-essential notifications.'
       ]
     },
     {
       icon: EyeOff,
       title: "6. Children's Privacy",
       content: [
-        'Intended for users 13+; we do not knowingly collect data from children under 13. Such accounts will be deleted if discovered.'
+        'For users 13+. We do not knowingly collect data from children under 13.'
       ]
     },
     {
       icon: Repeat,
       title: '7. Cookies & Tracking',
       content: [
-        'We may use cookies or similar technologies to save preferences, track in-app activity, and analyze usage. Disabling cookies may affect functionality.'
+        'We use cookies/tech to save preferences and analyze usage. Disabling them may affect functionality.'
       ]
     },
     {
       icon: Repeat,
       title: '8. Changes to Privacy Policy',
       content: [
-        'We may update this Privacy Policy from time to time. Updates are effective upon posting in the app. Significant changes will be notified in-app.'
+        'We may update this policy and will post changes in the app.'
       ]
-    },
-    {
-      icon: Mail,
-      title: '9. Contact Us',
-      content: [
-  'For queries or concerns: support@quizdangal.com'
-      ]
-    },
+    }
   ];
 
   return (

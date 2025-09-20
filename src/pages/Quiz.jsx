@@ -10,7 +10,7 @@ import { Loader2, CheckCircle, Clock, Users, Trophy } from 'lucide-react';
 const Quiz = () => {
   const { id: quizId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { toast } = useToast();
 
   const [quiz, setQuiz] = useState(null);
@@ -57,7 +57,7 @@ const Quiz = () => {
       }
       setQuiz(quizData);
 
-      // Get questions with options
+      // Load base questions directly (no translations)
       const { data: questionsData, error: questionsError } = await supabase
         .from('questions')
         .select(`
@@ -218,9 +218,9 @@ const Quiz = () => {
 
   if (quizState === 'loading' || !quiz) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="h-16 w-16 animate-spin text-indigo-500 mx-auto mb-4" />
+          <Loader2 className="h-16 w-16 animate-spin text-accent-b mx-auto mb-4" />
           <p className="text-gray-600">Loading quiz...</p>
         </div>
       </div>
@@ -229,16 +229,16 @@ const Quiz = () => {
 
   if (quizState === 'completed') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-8 shadow-xl text-center max-w-md"
+          className="qd-card rounded-2xl p-8 shadow-xl text-center max-w-md text-slate-100"
         >
           <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Completed!</h2>
-          <p className="text-gray-600 mb-4">You have already submitted your answers for this quiz.</p>
-          <Button onClick={() => navigate('/my-quizzes')} className="w-full">
+          <h2 className="text-2xl font-bold text-white mb-2">Quiz Completed!</h2>
+          <p className="text-slate-300 mb-4">You have already submitted your answers for this quiz.</p>
+          <Button onClick={() => navigate('/my-quizzes')} variant="brand" className="w-full">
             View My Quizzes
           </Button>
         </motion.div>
@@ -248,16 +248,16 @@ const Quiz = () => {
 
   if (quizState === 'waiting') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-8 shadow-xl text-center max-w-md"
+          className="qd-card rounded-2xl p-8 shadow-xl text-center max-w-md text-slate-100"
         >
-          <Clock className="h-16 w-16 text-indigo-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">{quiz.title}</h2>
-          <p className="text-gray-600 mb-4">Quiz starts in:</p>
-          <div className="text-4xl font-bold text-indigo-600 mb-4">
+          <Clock className="h-16 w-16 text-accent-b mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white text-shadow-sm mb-2">{quiz.title}</h2>
+          <p className="text-slate-300 mb-4">Quiz starts in:</p>
+          <div className="text-4xl font-bold text-indigo-300 mb-4">
             {formatTime(timeLeft)}
           </div>
           <div className="flex items-center justify-center space-x-4 text-sm text-gray-600">
@@ -277,15 +277,15 @@ const Quiz = () => {
 
   if (quizState === 'finished') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="min-h-screen flex items-center justify-center p-4">
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-8 shadow-xl text-center max-w-md"
+          className="qd-card rounded-2xl p-8 shadow-xl text-center max-w-md text-slate-100"
         >
           <Clock className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Quiz Ended</h2>
-          <p className="text-gray-600 mb-4">The quiz has ended. Results will be announced soon!</p>
+          <h2 className="text-2xl font-bold text-white mb-2">Quiz Ended</h2>
+          <p className="text-slate-300 mb-4">The quiz has ended. Results will be announced soon!</p>
           {submitting && (
             <div className="flex items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -300,7 +300,7 @@ const Quiz = () => {
   // Active quiz state
   if (questions.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-600">No questions available for this quiz.</p>
         </div>
@@ -312,29 +312,29 @@ const Quiz = () => {
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen p-4">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg mb-6"
+          className="qd-card rounded-2xl p-4 shadow-lg mb-6 text-slate-100"
         >
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-lg font-bold text-gray-800">{quiz.title}</h1>
-              <p className="text-sm text-gray-600">Question {currentQuestionIndex + 1} of {questions.length}</p>
+              <h1 className="text-lg font-bold text-white">{quiz.title}</h1>
+              <p className="text-sm text-slate-300">Question {currentQuestionIndex + 1} of {questions.length}</p>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-red-600">{formatTime(timeLeft)}</div>
-              <div className="text-xs text-gray-600">Time Left</div>
+              <div className="text-2xl font-bold text-red-400">{formatTime(timeLeft)}</div>
+              <div className="text-xs text-slate-300">Time Left</div>
             </div>
           </div>
           
           {/* Progress Bar */}
-          <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
+          <div className="w-full bg-slate-700/40 rounded-full h-2 mt-4">
             <motion.div
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 h-2 rounded-full"
+              className="bg-accent-b h-2 rounded-full"
               style={{ width: `${progress}%` }}
               transition={{ duration: 0.5 }}
             />
@@ -349,9 +349,9 @@ const Quiz = () => {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -50 }}
             transition={{ duration: 0.3 }}
-            className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg"
+            className="qd-card rounded-2xl p-6 shadow-lg text-slate-100"
           >
-            <h2 className="text-xl font-bold text-center text-gray-800 mb-8">
+            <h2 className="text-xl font-bold text-center text-white text-shadow-sm mb-8">
               {currentQuestion.question_text}
             </h2>
 
@@ -362,13 +362,13 @@ const Quiz = () => {
                   onClick={() => handleAnswerSelect(currentQuestion.id, option.id)}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className={`w-full p-4 rounded-xl text-left font-medium transition-all duration-200 shadow-md border-2 ${
+                  className={`w-full p-4 rounded-xl text-left font-medium transition-all duration-200 shadow-md border ${
                     answers[currentQuestion.id] === option.id
-                      ? 'bg-gradient-to-r from-green-400 to-emerald-500 text-white border-green-600'
-                      : 'bg-white hover:bg-indigo-50 border-gray-200 text-gray-700'
+                      ? 'bg-emerald-600 text-white border-emerald-500'
+                      : 'bg-slate-800/70 hover:bg-slate-800 text-slate-100 border-slate-700'
                   }`}
                 >
-                  <span className="font-bold mr-3 text-indigo-600">
+                  <span className="font-bold mr-3 text-accent-b">
                     {String.fromCharCode(65 + index)}.
                   </span>
                   {option.option_text}
@@ -387,7 +387,7 @@ const Quiz = () => {
                 <Button
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white font-bold py-4 text-lg"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 text-lg"
                 >
                   {submitting ? (
                     <>
