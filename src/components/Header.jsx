@@ -3,37 +3,19 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Coins, Download } from 'lucide-react';
+import { Coins } from 'lucide-react';
 import StreakModal from '@/components/StreakModal';
 
 const Header = () => {
   const { user, userProfile, refreshUserProfile } = useAuth();
   const wallet = Number(userProfile?.wallet_balance || 0);
-   const DOWNLOAD_URL = (import.meta.env.VITE_DOWNLOAD_URL || '/quiz-dangal.apk').trim(); // Download logic removed
-   const [showDownload] = useState(false); // Download button removed per request; only coin and streak remain
 
-  // Determine if app is installed PWA or running in standalone; then decide to show download button
-  useEffect(() => {
-    // Download logic moved to floating FAB only
-    // Removed download button visibility logic
-  }, [DOWNLOAD_URL]);
+  // Download logic removed
 
   const [streakModal, setStreakModal] = useState({ open: false, day: 0, coins: 0 });
   const claimingRef = useRef(false);
 
-  const getInitials = (name, email) => {
-    if (name && name.trim()) {
-      const nameParts = name.trim().split(' ');
-      if (nameParts.length > 1) {
-        return (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase();
-      }
-      return name.length > 0 ? name[0].toUpperCase() : '?';
-    }
-    if (email) {
-      return email[0].toUpperCase();
-    }
-    return '?';
-  };
+  // Removed getInitials helper (unused)
 
   // Auto-claim daily streak once per day on first app open after login
   useEffect(() => {
@@ -74,9 +56,7 @@ const Header = () => {
 
   }, [user, refreshUserProfile]);
 
-  const handleDownload = async (e) => {
-    // Download logic removed
-  };
+  // Removed handleDownload (unused)
 
   return (
     <>
