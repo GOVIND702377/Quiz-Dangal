@@ -42,6 +42,16 @@ export default defineConfig({
 				'@babel/generator',
 				'@babel/types',
 			],
+			output: {
+				manualChunks: {
+					react: ['react', 'react-dom'],
+					router: ['react-router-dom'],
+					motion: ['framer-motion'],
+					icons: ['lucide-react'],
+					supabase: ['@supabase/supabase-js'],
+				},
+			},
 		},
+		chunkSizeWarningLimit: 768,
 	},
 });

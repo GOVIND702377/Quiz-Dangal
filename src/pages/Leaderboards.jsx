@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Loader2, ChevronRight, Search, Zap } from 'lucide-react';
@@ -28,42 +28,87 @@ export default function Leaderboards() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    let isMounted = true;
-    async function load() {
-      setLoading(true);
-      setError('');
-      try {
-        const { data, error } = await supabase.rpc('get_leaderboard', {
-          p_period: period,
-          limit_rows: 100,
-          offset_rows: 0,
-        });
+  const loadLeaderboard = useCallback(async (p) => {
+    setLoading(true);
+    setError('');
+    try {
+      if (!supabase) throw new Error('Supabase not configured');
 
-        if (error) throw error;
-        if (isMounted) {
-          setRows(data || []);
+      let data = [];
+      if (p === 'all_time') {
+        // Prefer v2 to avoid overload ambiguity; then try new v1; then legacy fallbacks
+        let { data: allTime, error: rpcError } = await supabase.rpc('get_all_time_leaderboard_v2', { limit_rows: 100, offset_rows: 0, max_streak_limit: 30 });
+        if (rpcError) {
+          ({ data: allTime, error: rpcError } = await supabase.rpc('get_all_time_leaderboard', { limit_rows: 100, offset_rows: 0, max_streak_limit: 30 }));
         }
-      } catch (err) {
-        if (isMounted) setError(err.message || 'Failed to load leaderboard');
-      } finally {
-        if (isMounted) setLoading(false);
+        if (rpcError) {
+          // Fallback path 1: legacy all-time function (may still be ambiguous if multiple overloads exist)
+          try {
+            const legacy = await supabase.rpc('get_all_time_leaderboard', { limit_rows: 100, offset_rows: 0 });
+            if (legacy.error) throw legacy.error;
+            const rows = legacy.data || [];
+            if (rows.length && Object.prototype.hasOwnProperty.call(rows[0] || {}, 'coins_earned')) {
+              data = rows.map(r => ({
+                user_id: r.user_id,
+                username: r.username ?? null,
+                full_name: r.full_name ?? null,
+                avatar_url: r.avatar_url ?? null,
+                leaderboard_score: Number(r.coins_earned ?? 0),
+                win_rate: null,
+                streak: r.current_streak ?? r.streak ?? 0,
+                rank: Number(r.rank ?? 0),
+              }));
+            } else {
+              data = rows;
+            }
+          } catch (legacyErr) {
+            // Fallback path 2: some legacy schemas expose all-time via get_leaderboard('all_time')
+            const alt = await supabase.rpc('get_leaderboard', { p_period: 'all_time', limit_rows: 100, offset_rows: 0 });
+            if (alt.error) throw alt.error;
+            data = alt.data || [];
+          }
+        } else {
+          data = allTime || [];
+        }
+      } else {
+        const streakCap = p === 'weekly' ? 7 : 30; // tune normalization per period
+        // Prefer v2 first
+        let { data: periodData, error: rpcError } = await supabase.rpc('get_leaderboard_v2', { p_period: p, limit_rows: 100, offset_rows: 0, max_streak_limit: streakCap });
+        if (rpcError) {
+          ({ data: periodData, error: rpcError } = await supabase.rpc('get_leaderboard', { p_period: p, limit_rows: 100, offset_rows: 0, max_streak_limit: streakCap }));
+        }
+        if (rpcError) {
+          // Fallback to legacy signature without max_streak_limit
+          const legacy = await supabase.rpc('get_leaderboard', { p_period: p, limit_rows: 100, offset_rows: 0 });
+          if (legacy.error) throw legacy.error;
+          data = legacy.data || [];
+        } else {
+          data = periodData || [];
+        }
       }
+
+      setRows(data);
+    } catch (err) {
+      const errorMessage = err.message || 'Failed to load leaderboard.';
+      console.error('Leaderboard fetch error:', err);
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
-    load();
-    return () => { isMounted = false; };
-  }, [period]);
+  }, []);
+
+  useEffect(() => {
+    loadLeaderboard(period);
+  }, [period, loadLeaderboard]);
 
   const onTabClick = (key) => {
-    const params = new URLSearchParams(window.location.search);
-    params.set('period', key);
-    navigate({ search: params.toString() });
+    navigate(`?period=${key}`);
   };
 
   const filteredRows = useMemo(() => {
     const s = search.trim().toLowerCase();
     if (!s) return rows;
-    return rows.filter((r) => (r.username || '').toLowerCase().includes(s));
+    return rows.filter((r) => (r.username || r.full_name || '').toLowerCase().includes(s));
   }, [rows, search]);
 
   const myIndex = useMemo(() => {
@@ -146,7 +191,7 @@ export default function Leaderboards() {
           <motion.div layout className="grid grid-cols-3 gap-4">
             {[2,1,3].map((pos, i) => {
               const r = rows[pos-1];
-              if (!r) return <div key={i}></div>;
+              if (!r) return <div key={`podium-empty-${i}`}></div>;
               const heightClass = pos === 1 ? 'h-48' : pos === 2 ? 'h-40' : 'h-36';
               // Metallic style gradients for gold / silver / bronze
               const medalClasses = pos===1
@@ -167,8 +212,8 @@ export default function Leaderboards() {
                     ) : (
                       <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-black shadow-[0_4px_14px_-4px_rgba(0,0,0,0.6)] ring-2 ring-indigo-300/50 backdrop-blur ${medalClasses.circle}`}>{pos===2?'🥈':'🥉'}</div>
                     )}
-                    <div className="text-[11px] font-semibold tracking-wide text-white max-w-full truncate">{r.username?`@${r.username}`:'Anonymous'}</div>
-                    <div className="text-[11px] font-semibold tracking-wider text-slate-100 flex items-center gap-1"><span className="font-mono text-[12px] bg-gradient-to-r from-indigo-200 via-fuchsia-200 to-violet-200 bg-clip-text text-transparent drop-shadow-sm">{r.leaderboard_score.toFixed(2)}</span><span className="text-slate-200/80">SCORE</span></div>
+                    <div className="text-[11px] font-semibold tracking-wide text-white max-w-full truncate">{r.username?`@${r.username}`:(r.full_name || 'Anonymous')}</div>
+                    <div className="text-[11px] font-semibold tracking-wider text-slate-100 flex items-center gap-1"><span className="font-mono text-[12px] bg-gradient-to-r from-indigo-200 via-fuchsia-200 to-violet-200 bg-clip-text text-transparent drop-shadow-sm">{(r.leaderboard_score ?? 0).toFixed(2)}</span><span className="text-slate-200/80">SCORE</span></div>
                   </div>
                 </motion.div>
               );
@@ -183,12 +228,12 @@ export default function Leaderboards() {
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-600 text-white font-bold flex items-center justify-center shadow-lg ring-2 ring-indigo-400/40">{myRank}</div>
               <div>
-                <div className="font-semibold text-white text-sm">{myRow.username ? `@${myRow.username}` : 'You'}</div>
+                <div className="font-semibold text-white text-sm">{myRow.username ? `@${myRow.username}` : (myRow.full_name || 'You')}</div>
                 <div className="text-[11px] text-slate-300/85 uppercase tracking-wide">Your Position</div>
               </div>
             </div>
             <div className="text-right">
-              <div className="text-base font-bold font-mono bg-gradient-to-r from-indigo-100 via-fuchsia-200 to-violet-200 bg-clip-text text-transparent drop-shadow-sm tracking-tight">{myRow.leaderboard_score.toFixed(2)}</div>
+              <div className="text-base font-bold font-mono bg-gradient-to-r from-indigo-100 via-fuchsia-200 to-violet-200 bg-clip-text text-transparent drop-shadow-sm tracking-tight">{Number(myRow.leaderboard_score ?? 0).toFixed(2)}</div>
               <div className="text-[11px] font-semibold text-slate-200/95 uppercase tracking-wider drop-shadow">Score</div>
             </div>
           </div>
@@ -203,9 +248,24 @@ export default function Leaderboards() {
             Loading leaderboard...
           </div>
         ) : error ? (
-          <div className="py-10 text-center text-red-400 font-medium">{error}</div>
+          <div className="py-10 text-center">
+            <div className="text-red-400 font-medium mb-3">{error}</div>
+            <button onClick={() => loadLeaderboard(period)} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700">Retry</button>
+          </div>
         ) : filteredRows.length === 0 ? (
-          <div className="py-10 text-center text-indigo-300/70">No players match your search.</div>
+          <div className="py-10 text-center text-indigo-200/80">
+            {search.trim() ? (
+              <>No players match your search.</>
+            ) : (
+              <div className="space-y-3">
+                <div>No leaderboard data yet for this period.</div>
+                <div className="text-indigo-100/80 text-sm">Tips: Choose All-time, ensure quizzes are finished and results computed, or tap refresh.</div>
+                <div>
+                  <button onClick={() => loadLeaderboard(period)} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700">Refresh</button>
+                </div>
+              </div>
+            )}
+          </div>
         ) : (
           <motion.div layout className="flex flex-col gap-3">
     {filteredRows.map((r, i) => {
@@ -224,9 +284,10 @@ export default function Leaderboards() {
                 : top10
                   ? 'border-indigo-300/60'
                   : 'border-gray-200';
+              const name = r.username ? `@${r.username}` : (r.full_name || 'Anonymous');
               return (
                 <motion.div
-                  key={rank}
+                  key={r.user_id || `row-${rank}-${i}`}
                   initial={{opacity:0,y:8}}
                   animate={{opacity:1,y:0}}
                   layout
@@ -238,9 +299,9 @@ export default function Leaderboards() {
                   <div className="flex items-center gap-3 flex-1 p-3 pl-4">
                     <div className={`w-11 h-11 rounded-xl flex items-center justify-center font-semibold text-[13px] shadow-lg ${top3? 'bg-amber-400 text-amber-900':'bg-indigo-600 text-white'} ${highlight? 'ring-2 ring-indigo-300/60':''}`}>{rank}</div>
                     <div className="flex-1 min-w-0">
-                      <div className={`font-semibold truncate transition tracking-wide ${highlight? 'text-white':'text-slate-100 group-hover:text-white'}`}>{r.username?`@${r.username}`:'Anonymous'}</div>
+                      <div className={`font-semibold truncate transition tracking-wide ${highlight? 'text-white':'text-slate-100 group-hover:text-white'}`}>{name}</div>
                       <div className="mt-1 flex items-center gap-5 text-[11px] text-slate-300/85 font-medium">
-                        <span className="flex items-center gap-1"><span className="tabular-nums font-mono">{r.win_rate?.toFixed(1)}%</span></span>
+                        <span className="flex items-center gap-1"><span className="tabular-nums font-mono">{Number(r.win_rate ?? 0).toFixed(1)}%</span></span>
                         <span className="flex items-center gap-1"><Zap className="w-3 h-3 text-fuchsia-200" /> <span className="tabular-nums font-mono">{r.streak || 0}</span></span>
                       </div>
                       <div className="mt-2 h-1.5 w-full rounded-full bg-indigo-100/40 overflow-hidden ring-1 ring-indigo-100/60">
@@ -249,7 +310,7 @@ export default function Leaderboards() {
                     </div>
                   </div>
                   <div className="absolute top-3 right-3 text-right text-sm font-bold">
-                    <div className="bg-gradient-to-r from-slate-50 via-fuchsia-100 to-violet-100 bg-clip-text text-transparent drop-shadow-sm font-mono tabular-nums tracking-tight">{r.leaderboard_score?.toFixed(2)}</div>
+                    <div className="bg-gradient-to-r from-slate-50 via-fuchsia-100 to-violet-100 bg-clip-text text-transparent drop-shadow-sm font-mono tabular-nums tracking-tight">{Number(r.leaderboard_score ?? 0).toFixed(2)}</div>
                     <div className="text-[11px] font-semibold text-slate-200/95 tracking-wider drop-shadow">Score</div>
                   </div>
                 </motion.div>

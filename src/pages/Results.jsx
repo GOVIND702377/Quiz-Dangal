@@ -5,7 +5,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Trophy, Medal, Award, Users, Clock } from 'lucide-react';
+import { Trophy, Medal, Award, Users } from 'lucide-react';
 
 const Results = () => {
   const { id: quizId } = useParams();
@@ -16,6 +16,8 @@ const Results = () => {
   const [results, setResults] = useState([]);
   const [userRank, setUserRank] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [timeLeftMs, setTimeLeftMs] = useState(null);
+  const [didRefetchAfterCountdown, setDidRefetchAfterCountdown] = useState(false);
 
   useEffect(() => {
     fetchResults();
@@ -23,38 +25,77 @@ const Results = () => {
 
   const fetchResults = async () => {
     try {
-      // Get quiz details
+      // Load quiz meta (title, prizes)
       const { data: quizData } = await supabase
         .from('quizzes')
         .select('*')
         .eq('id', quizId)
         .single();
-      
-      setQuiz(quizData);
+      setQuiz(quizData || null);
 
-      // Get participants with scores
-      const { data: participants } = await supabase
-        .from('quiz_participants')
-        .select(`
-          *,
-          profiles (
-            full_name,
-            username,
-            avatar_url
-          )
-        `)
+      // Load leaderboard from quiz_results (RLS-safe, shows only to participants)
+      const { data: resRow, error: resErr } = await supabase
+        .from('quiz_results')
+        .select('leaderboard')
         .eq('quiz_id', quizId)
-        .eq('status', 'completed')
-        .order('score', { ascending: false });
+        .maybeSingle();
+      if (resErr) throw resErr;
 
-      setResults(participants || []);
-      
-      // Find user's rank
-      const userResult = participants?.find(p => p.user_id === user.id);
-      if (userResult) {
-        const rank = participants.findIndex(p => p.user_id === user.id) + 1;
-        setUserRank({ ...userResult, rank });
+      const leaderboard = Array.isArray(resRow?.leaderboard) ? resRow.leaderboard : [];
+
+      // If results aren't published yet
+      if (!resRow || leaderboard.length === 0) {
+        setResults([]);
+        // Initialize countdown if result_time exists
+        if (quizData?.result_time) {
+          const target = new Date(quizData.result_time).getTime();
+          const diff = target - Date.now();
+          setTimeLeftMs(diff > 0 ? diff : 0);
+        } else {
+          setTimeLeftMs(null);
+        }
+        return;
       }
+
+      // Normalize structure to what UI expects: rank, score, profiles
+      // leaderboard items: { user_id, display_name, score, rank }
+      const normalized = leaderboard
+        .map((entry, idx) => ({
+          id: `${quizId}-${entry.user_id}`,
+          user_id: entry.user_id,
+          score: Number(entry.score) || 0,
+          rank: Number(entry.rank) || idx + 1,
+          profiles: {
+            username: entry.display_name?.startsWith('@') ? entry.display_name.slice(1) : undefined,
+            full_name: entry.display_name,
+            avatar_url: undefined,
+          },
+        }))
+        .sort((a, b) => b.score - a.score);
+
+      setResults(normalized);
+
+      // Enrich top entries with avatar/username from profiles (non-blocking)
+      try {
+        const topIds = normalized.slice(0, 10).map(e => e.user_id);
+        if (topIds.length) {
+          const { data: profs } = await supabase
+            .from('profiles')
+            .select('id, username, full_name, avatar_url')
+            .in('id', topIds);
+          if (Array.isArray(profs)) {
+            const map = new Map(profs.map(p => [p.id, p]));
+            setResults(prev => prev.map(item => {
+              const p = map.get(item.user_id);
+              return p ? { ...item, profiles: { username: p.username, full_name: p.full_name, avatar_url: p.avatar_url } } : item;
+            }));
+          }
+        }
+      } catch {}
+
+      // Find user's rank
+      const me = normalized.find(p => p.user_id === user?.id);
+      if (me) setUserRank(me);
 
     } catch (error) {
       console.error('Error fetching results:', error);
@@ -63,10 +104,92 @@ const Results = () => {
     }
   };
 
+  // Live countdown updater when results aren't available yet
+  useEffect(() => {
+    if (!quiz?.result_time || results.length > 0) {
+      setTimeLeftMs(null);
+      return;
+    }
+
+    const target = new Date(quiz.result_time).getTime();
+    const tick = () => {
+      const diff = target - Date.now();
+      if (diff > 0) {
+        setTimeLeftMs(diff);
+      } else {
+        setTimeLeftMs(0);
+        // One-time refetch once countdown completes
+        if (!didRefetchAfterCountdown) {
+          setDidRefetchAfterCountdown(true);
+          fetchResults();
+        }
+      }
+    };
+
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quiz?.result_time, results.length]);
+
+  const formatTimeParts = (ms) => {
+    const total = Math.max(0, Math.floor((ms ?? 0) / 1000));
+    const days = Math.floor(total / 86400);
+    const hours = Math.floor((total % 86400) / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    return { days, hours, minutes, seconds };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-accent-b"></div>
+      </div>
+    );
+  }
+
+  if (!loading && results.length === 0) {
+    return (
+      <div className="min-h-screen p-4 flex items-center justify-center">
+        <div className="qd-card rounded-2xl p-6 shadow-lg text-center max-w-md w-full text-slate-100">
+            <h2 className="text-2xl font-bold mb-2 text-white">Results not published yet</h2>
+          {quiz?.result_time ? (
+            <div className="mb-4">
+              {timeLeftMs > 0 ? (
+                <div>
+                  <p className="text-slate-300 mb-3">Results will be published in</p>
+                  {(() => {
+                    const { days, hours, minutes, seconds } = formatTimeParts(timeLeftMs);
+                    const part = (val, label) => (
+                      <div className="px-3 py-2 rounded-md bg-slate-800/70 border border-slate-700 min-w-[64px]">
+                        <div className="text-xl font-bold text-white tabular-nums">{val.toString().padStart(2,'0')}</div>
+                        <div className="text-xs text-slate-400">{label}</div>
+                      </div>
+                    );
+                    return (
+                      <div className="flex items-center justify-center gap-2">
+                        {days > 0 && part(days, 'Days')}
+                        {part(hours, 'Hours')}
+                        {part(minutes, 'Minutes')}
+                        {part(seconds, 'Seconds')}
+                      </div>
+                    );
+                  })()}
+                  <p className="text-xs text-slate-400 mt-3">Result time: {new Date(quiz.result_time).toLocaleString()}</p>
+                </div>
+              ) : (
+                <p className="text-slate-300 mb-4">Publishing soon… please stay on this page.</p>
+              )}
+            </div>
+          ) : (
+            <p className="text-slate-300 mb-4">Please check back after the result time.</p>
+          )}
+          <div className="flex justify-center gap-3">
+            <Button variant="white" onClick={() => navigate('/my-quizzes')}>Back to My Quizzes</Button>
+            <Button variant="brand" onClick={() => navigate('/')}>Go Home</Button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -220,7 +343,7 @@ const Results = () => {
                   </div>
                   <div className="text-center">
                     <p className="text-lg font-bold text-purple-300">
-                      ₹{index < 3 ? quiz?.prizes?.[index] || 0 : 0}
+                      ₹{index < 3 ? (Array.isArray(quiz?.prizes) ? quiz.prizes[index] || 0 : 0) : 0}
                     </p>
                     <p className="text-xs text-slate-300">Prize</p>
                   </div>

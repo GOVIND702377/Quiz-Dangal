@@ -3,6 +3,7 @@ import { Download } from 'lucide-react';
 
 const PWAInstallButton = () => {
   const DOWNLOAD_URL = (import.meta.env.VITE_DOWNLOAD_URL || '/quiz-dangal.apk').trim();
+  const DISABLE_PROBE = String(import.meta.env.VITE_DISABLE_APK_PROBE || '').toLowerCase() === 'true';
   const usingFallback = !import.meta.env.VITE_DOWNLOAD_URL && DOWNLOAD_URL.endsWith('/quiz-dangal.apk');
   const isDev = import.meta.env.DEV;
   // Start hidden when using fallback path to avoid initial flash before probe
@@ -29,8 +30,8 @@ const PWAInstallButton = () => {
         setHasApk(true);
         return;
       }
-      // In local dev, skip probing fallback path to avoid noisy 404s from Vite server.
-      if (isDev) {
+      // In local dev or when disabled via env, skip probing fallback path to avoid noisy 404s.
+      if (isDev || DISABLE_PROBE) {
         setHasApk(false);
         return;
       }
@@ -64,7 +65,7 @@ const PWAInstallButton = () => {
         if (mm.removeListener) mm.removeListener(onModeChange);
       }
     };
-  }, [DOWNLOAD_URL, usingFallback, isDev]);
+  }, [DOWNLOAD_URL, usingFallback, isDev, DISABLE_PROBE]);
 
   const forceDownload = async () => {
     try {

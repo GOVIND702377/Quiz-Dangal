@@ -102,28 +102,25 @@ const Quiz = () => {
   useEffect(() => {
     if (!quiz || quizState === 'loading' || quizState === 'completed') return;
 
-    const timer = setInterval(() => {
+    const update = () => {
       const now = new Date();
       const startTime = new Date(quiz.start_time);
       const endTime = new Date(quiz.end_time);
 
-      // For testing - always set as active with 10 minutes
-      setQuizState('active');
-      setTimeLeft(600); // 10 minutes for testing
-      
-      // Original logic (commented for testing)
-      // if (now < startTime) {
-      //   setQuizState('waiting');
-      //   setTimeLeft(Math.round((startTime - now) / 1000));
-      // } else if (now >= startTime && now < endTime) {
-      //   setQuizState('active');
-      //   setTimeLeft(Math.round((endTime - now) / 1000));
-      // } else {
-      //   setQuizState('finished');
-      //   clearInterval(timer);
-      // }
-    }, 1000);
+      if (now < startTime) {
+        setQuizState('waiting');
+        setTimeLeft(Math.max(0, Math.round((startTime - now) / 1000)));
+      } else if (now >= startTime && now < endTime) {
+        setQuizState('active');
+        setTimeLeft(Math.max(0, Math.round((endTime - now) / 1000)));
+      } else {
+        setQuizState('finished');
+        setTimeLeft(0);
+      }
+    };
 
+    update();
+    const timer = setInterval(update, 1000);
     return () => clearInterval(timer);
   }, [quiz, quizState]);
 

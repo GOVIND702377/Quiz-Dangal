@@ -8,6 +8,8 @@ import Footer from '@/components/Footer';
 import Header from '@/components/Header';
 import OnboardingFlow from '@/components/OnboardingFlow';
 import { lazy, Suspense, useEffect } from 'react';
+import PWAInstallButton from '@/components/PWAInstallButton';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 const Home = lazy(() => import('@/pages/Home'));
 const MyQuizzes = lazy(() => import('@/pages/MyQuizzes'));
 const Wallet = lazy(() => import('@/pages/Wallet'));
@@ -24,8 +26,6 @@ const Results = lazy(() => import('@/pages/Results'));
 const Leaderboards = lazy(() => import('@/pages/Leaderboards'));
 const Redemptions = lazy(() => import('@/pages/Redemptions'));
 const ReferEarn = lazy(() => import('@/pages/ReferEarn'));
-import PWAInstallButton from '@/components/PWAInstallButton';
-import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 const UnconfirmedEmail = () => (
   <div className="min-h-screen flex items-center justify-center p-4">
@@ -125,15 +125,31 @@ const MainLayout = () => {
   // Detect if current path is home to tailor layout spacing/overflow
   const isHome = typeof window !== 'undefined' && window.location && (window.location.hash === '' || window.location.hash === '#/' || window.location.hash === '#');
   useEffect(() => {
-    const warm = () => {
-      // Warm up a few popular routes in idle time
-      import('@/pages/Leaderboards');
-      import('@/pages/MyQuizzes');
-      import('@/pages/Wallet');
-      import('@/pages/Profile');
-      import('@/pages/ReferEarn');
+    // Skip warming on slow networks, data saver, low-memory devices, or when tab is hidden
+    const shouldWarm = () => {
+      try {
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return false;
+        const conn = (navigator && (navigator.connection || navigator.mozConnection || navigator.webkitConnection)) || null;
+        if (conn) {
+          if (conn.saveData) return false;
+          if (typeof conn.effectiveType === 'string' && /(^|\b)2g(\b|$)/i.test(conn.effectiveType)) return false;
+        }
+        const mem = (navigator && navigator.deviceMemory) || 4;
+        if (mem && mem <= 2) return false;
+        return true;
+      } catch {
+        return true;
+      }
     };
-    const ric = (cb) => (window.requestIdleCallback ? window.requestIdleCallback(cb) : setTimeout(cb, 1200));
+    if (!shouldWarm()) return;
+
+    const warm = () => {
+      // Warm only the most commonly visited heavy routes
+      import('@/pages/Leaderboards');
+      import('@/pages/Wallet');
+      // Defer the rest to user navigation
+    };
+    const ric = (cb) => (window.requestIdleCallback ? window.requestIdleCallback(cb) : setTimeout(cb, 1500));
     const id = ric(warm);
     return () => {
       if (window.cancelIdleCallback && typeof id === 'number') window.cancelIdleCallback(id);

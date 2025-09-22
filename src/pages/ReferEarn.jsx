@@ -23,7 +23,12 @@ const ReferEarn = () => {
       try {
         const { data: referrals, error } = await supabase
           .from('referrals')
-          .select('*')
+          .select(`
+            *,
+            referred:profiles!referrals_referred_id_fkey(
+              username, full_name, avatar_url
+            )
+          `)
           .eq('referrer_id', user.id)
           .order('created_at', { ascending: false });
         if (error && error.code !== 'PGRST116') throw error;

@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/lib/customSupabaseClient';
+import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 
-// IMPORTANT: Replace this with your own VAPID public key.
-const VAPID_PUBLIC_KEY = 'BBzEo0FGas7iHo55RBT-n6RYxZX5HpwPSi3rDDx7BwVBF0EDCaw3bsEjip0XVfV6jL5sSxvsQNSz6bqhtXDidtA';
+// Read VAPID key from env; do not hardcode in source.
+const VAPID_PUBLIC_KEY = (import.meta?.env?.VITE_VAPID_PUBLIC_KEY || '').trim();
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -39,7 +39,26 @@ export function usePushNotifications() {
       return;
     }
 
+    if (!VAPID_PUBLIC_KEY) {
+      setError('Push key not configured. Set VITE_VAPID_PUBLIC_KEY in your .env');
+      return false;
+    }
+
+    if (!hasSupabaseConfig || !supabase) {
+      setError('Server is not configured for push. Supabase credentials missing.');
+      return false;
+    }
+
     try {
+      // Ask for notification permission if not already granted
+      if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+        const perm = await Notification.requestPermission();
+        if (perm !== 'granted') {
+          setError('Notifications permission was denied.');
+          return false;
+        }
+      }
+
       const registration = await navigator.serviceWorker.ready;
       const sub = await registration.pushManager.subscribe({
         userVisibleOnly: true,
@@ -61,7 +80,7 @@ export function usePushNotifications() {
       return true;
     } catch (err) {
       console.error('Failed to subscribe the user: ', err);
-      setError(err.message);
+      setError(err?.message || 'Subscription failed');
       return false;
     }
   };

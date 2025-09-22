@@ -1,32 +1,32 @@
-// Central brand palette helpers derived from the app logo hues
-// Use these to keep icon backgrounds and accent texts varied but on-brand.
+// Minimal brand helper utilities used across info pages
+// Keep static strings so Tailwind can pick them during content scan
 
-export const brandGradients = [
-  'from-fuchsia-600 to-rose-500',
-  'from-indigo-600 to-violet-600',
-  'from-amber-500 to-yellow-400',
-  'from-cyan-600 to-emerald-600',
-  'from-violet-600 to-fuchsia-600',
-  'from-teal-500 to-cyan-500',
+const gradients = [
+  'from-violet-500 to-fuchsia-500',
+  'from-indigo-500 to-sky-500',
+  'from-emerald-500 to-teal-500',
+  'from-amber-500 to-rose-500',
+  'from-pink-500 to-red-500',
 ];
 
-export const brandIconText = [
-  'text-fuchsia-300',
+const textColors = [
+  'text-violet-400',
   'text-indigo-300',
+  'text-emerald-400',
   'text-amber-300',
-  'text-cyan-300',
-  'text-violet-300',
-  'text-emerald-300',
+  'text-rose-400',
 ];
 
-export function getBrandGradient(i = 0) {
-  const arr = brandGradients;
-  const idx = ((i % arr.length) + arr.length) % arr.length;
-  return arr[idx];
+export function getBrandGradient(index = 0) {
+  const i = Number.isFinite(index) ? Math.abs(index) : 0;
+  return gradients[i % gradients.length];
 }
 
-export function getBrandText(i = 0) {
-  const arr = brandIconText;
-  const idx = ((i % arr.length) + arr.length) % arr.length;
-  return arr[idx];
+export function getBrandText(index = 0) {
+  const i = Number.isFinite(index) ? Math.abs(index) : 0;
+  return textColors[i % textColors.length];
 }
+
+// Named exports for potential iteration or testing
+export const BRAND_GRADIENTS = gradients;
+export const BRAND_TEXT_COLORS = textColors;

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, Settings, Loader2, ShieldCheck } from 'lucide-react';
+import { Plus, Trash2, Settings, Loader2, ShieldCheck, RefreshCcw } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 function AdminNotificationsSection() {
@@ -208,6 +208,7 @@ export default function Admin() {
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [showQuestions, setShowQuestions] = useState(false);
   const [questions, setQuestions] = useState([]);
+  const [busyQuizId, setBusyQuizId] = useState(null);
 
   // Removed translation trigger and auto-sync; no-op now
 
@@ -236,7 +237,7 @@ export default function Admin() {
     try {
       const { data, error } = await supabase
         .from('questions')
-        .select(`id, question_text, options ( id, option_text )`)
+        .select(`id, question_text, options ( id, option_text, is_correct )`)
         .eq('quiz_id', quizId);
       if (error) throw error;
       setQuestions(data || []);
@@ -336,6 +337,19 @@ export default function Admin() {
       fetchQuizzes();
     } catch (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const recomputeResults = async (quizId) => {
+    try {
+      setBusyQuizId(quizId);
+      const { error } = await supabase.rpc('admin_recompute_quiz_results', { p_quiz_id: quizId });
+      if (error) throw error;
+      toast({ title: 'Results recomputed', description: 'Leaderboard update ho gaya.' });
+    } catch (error) {
+      toast({ title: 'Recompute failed', description: error.message, variant: 'destructive' });
+    } finally {
+      setBusyQuizId(null);
     }
   };
 
@@ -461,11 +475,24 @@ export default function Admin() {
                     <select className="border rounded-md px-2 py-2" value={quiz.status} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ status: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }}>
                       <option value="upcoming">upcoming</option>
                       <option value="active">active</option>
-                      <option value="completed">completed</option>
+                      <option value="finished">finished</option>
                     </select>
                   </div>
                 </div>
                 <div className="flex space-x-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => recomputeResults(quiz.id)}
+                    disabled={busyQuizId === quiz.id}
+                    className="text-indigo-600 hover:text-indigo-700"
+                  >
+                    {busyQuizId === quiz.id ? (
+                      <><Loader2 className="h-4 w-4 mr-1 animate-spin"/>Recomputing</>
+                    ) : (
+                      <><RefreshCcw className="h-4 w-4 mr-1"/>Recompute</>
+                    )}
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => { setSelectedQuiz(quiz); fetchQuestions(quiz.id); setShowQuestions(true); }} className="text-blue-600 hover:text-blue-700">
                     <Settings className="h-4 w-4" />
                     Questions
@@ -506,6 +533,17 @@ export default function Admin() {
                         {(q.options || []).map((o)=> (
                           <div key={o.id} className="flex items-center gap-2">
                             <Input defaultValue={o.option_text} onBlur={(e)=>saveOption(o.id, e.target.value)} className="flex-1" />
+                            <label className="flex items-center gap-1 text-xs text-gray-700">
+                              <input
+                                type="checkbox"
+                                defaultChecked={!!o.is_correct}
+                                onChange={async (e)=>{
+                                  const { error } = await supabase.from('options').update({ is_correct: e.target.checked }).eq('id', o.id);
+                                  if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' });
+                                }}
+                              />
+                              Correct
+                            </label>
                             <Button variant="outline" size="sm" className="text-red-600 border-red-300" onClick={()=>deleteOption(o.id)}><Trash2 className="w-4 h-4"/></Button>
                           </div>
                         ))}

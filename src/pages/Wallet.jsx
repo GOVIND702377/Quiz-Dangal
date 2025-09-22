@@ -19,8 +19,9 @@ const Wallet = () => {
   const [rippleKey, setRippleKey] = useState(0);
   // Refer & Earn now opens as a full page (/refer). Modal toggle removed.
 
-  const allowedTypes = ['daily_login','referral_bonus','quiz_reward','credit','debit','refund','purchase','redeem','referral','reward','bonus'];
-  const positiveTypes = ['reward','bonus','credit','referral','refund','daily_login','referral_bonus','quiz_reward'];
+  // Align with DB check constraint on transactions.type
+  const allowedTypes = ['credit','reward','bonus','referral','daily_login','quiz_reward','purchase','debit','refund','join_fee','prize'];
+  const positiveTypes = ['reward','bonus','credit','referral','refund','daily_login','quiz_reward','prize'];
 
   useEffect(() => {
     const fetchTransactions = async () => {
