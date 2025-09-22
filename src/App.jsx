@@ -44,7 +44,7 @@ const Fallback = () => (
 );
 
 function App() {
-  const { user, userProfile, loading } = useAuth();
+  const { user, userProfile, loading, isRecoveryFlow } = useAuth();
   usePushNotifications(); // Initialize Push Notifications
 
   if (loading) {
@@ -68,7 +68,13 @@ function App() {
           </Helmet>
           <Suspense fallback={<Fallback />}>
           <Routes>
-            {!user ? (
+            {/* If recovery flow is active, always route to reset-password */}
+            {isRecoveryFlow ? (
+              <>
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="*" element={<Navigate to="/reset-password" replace />} />
+              </>
+            ) : !user ? (
               <>
                 {/* Public policy pages accessible without login and without Header/Footer */}
                 <Route path="/terms-conditions" element={<TermsConditions />} />

@@ -13,7 +13,7 @@ export default function StreakModal({ open, onClose, streakDay, coinsEarned, day
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose?.(); }}>
       <DialogContent
         overlayClassName="bg-black/90 backdrop-blur-sm"
-        className="w-[calc(100vw-2rem)] max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl max-h-[88svh] overflow-y-auto sm:max-h-none sm:overflow-visible rounded-2xl p-5 sm:p-6 bg-slate-900 border border-white/10 shadow-2xl"
+        className="w-[calc(100vw-2rem)] max-w-sm sm:max-w-md md:max-w-lg lg:max-w-xl rounded-2xl p-5 sm:p-6 bg-slate-900 border border-white/10 shadow-2xl overflow-hidden"
       >
         {/* subtle ambient glows to match app visuals */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">

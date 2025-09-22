@@ -124,6 +124,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
             if (event === 'SIGNED_OUT') {
                 setUser(null);
                 setUserProfile(null);
+                setIsRecoveryFlow(false); // clear recovery mode after logout
             }
         });
 
@@ -162,10 +163,13 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
         const params = new URLSearchParams(window.location.search);
         const refParam = params.get('ref');
 
+        // Only include safe defaults so we don't overwrite user's existing data on refresh
         const payload = {
             id: user.id,
-            full_name: user.user_metadata?.full_name || '',
-            mobile_number: ''
+            full_name: user.user_metadata?.full_name || ''
+            // NOTE: Do NOT set mobile_number (or other fields) here.
+            // Upsert runs on every fresh login; providing an empty string would overwrite
+            // the user's saved number. We'll let the profile modal manage it explicitly.
         };
 
         supabase

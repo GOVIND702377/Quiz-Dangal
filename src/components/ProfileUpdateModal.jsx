@@ -5,10 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { useToast } from '@/components/ui/use-toast';
 import { Camera, Loader2 } from 'lucide-react';
 
 const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
     const { user, userProfile, supabase, refreshUserProfile } = useAuth();
+    const { toast } = useToast();
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         username: '',
@@ -154,8 +156,8 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
 
             if (error) throw error;
 
-            // Show success message
-            alert('Profile updated successfully!');
+            // Show success toast
+            toast({ title: 'Profile updated', description: 'Your profile has been saved successfully.' });
 
             // Refresh profile data
             await refreshUserProfile(user);
@@ -176,29 +178,35 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
 
     return (
         <Dialog open={isOpen} onOpenChange={!isFirstTime ? onClose : undefined}>
-            <DialogContent className="sm:max-w-md" closeButton={!isFirstTime}>
+            <DialogContent
+                className="sm:max-w-md app-surface border border-white/10 bg-slate-900/60"
+                overlayClassName="bg-black/60 backdrop-blur-sm"
+                closeButton={!isFirstTime}
+            >
                 <DialogHeader>
-                    <DialogTitle className="text-center">
+                    <DialogTitle className="text-center heading-gradient text-2xl font-extrabold">
                         {isFirstTime ? 'Complete Your Profile' : 'Edit Profile'}
                     </DialogTitle>
                     {isFirstTime && (
-                        <p className="text-sm text-gray-600 text-center">
+                        <p className="text-sm text-white/70 text-center">
                             Please complete your profile to continue
                         </p>
                     )}
                 </DialogHeader>
 
+                <div className="subtle-divider my-2" />
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                     {/* Avatar Section */}
                     <div className="flex flex-col items-center space-y-2">
                         <div className="relative">
-                            <Avatar className="w-20 h-20">
+                            <Avatar className="w-20 h-20 ring-1 ring-white/15 shadow-md">
                                 <AvatarImage src={avatarPreview} />
-                                <AvatarFallback className="text-lg">
+                                <AvatarFallback className="text-lg bg-slate-800 text-white">
                                     {getUserInitials()}
                                 </AvatarFallback>
                             </Avatar>
-                            <label className="absolute bottom-0 right-0 bg-blue-500 text-white p-1.5 rounded-full cursor-pointer hover:bg-blue-600 transition-colors">
+                            <label className="absolute bottom-0 right-0 bg-slate-900/80 border border-white/10 text-white p-1.5 rounded-full cursor-pointer hover:bg-slate-900/90 shadow transition-colors">
                                 <Camera className="w-3 h-3" />
                                 <input
                                     type="file"
@@ -208,33 +216,33 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
                                 />
                             </label>
                         </div>
-                        <p className="text-xs text-gray-500">Click camera to change photo</p>
+                        <p className="text-xs text-white/60">Click camera to change photo</p>
                         {errors.avatar && (
-                            <p className="text-xs text-red-500">{errors.avatar}</p>
+                            <p className="text-xs text-red-400">{errors.avatar}</p>
                         )}
                     </div>
 
                     {/* Username Field */}
                     <div className="space-y-2">
-                        <Label htmlFor="username">
-                            Username <span className="text-red-500">*</span>
+                        <Label htmlFor="username" className="text-white/90">
+                            Username <span className="text-red-400">*</span>
                         </Label>
                         <Input
                             id="username"
                             value={formData.username}
                             onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                             placeholder="Enter unique username"
-                            className={errors.username ? 'border-red-500' : ''}
+                            className={`bg-slate-900/60 border-white/10 text-white placeholder:text-white/50 ${errors.username ? 'border-red-500' : ''}`}
                         />
                         {errors.username && (
-                            <p className="text-xs text-red-500">{errors.username}</p>
+                            <p className="text-xs text-red-400">{errors.username}</p>
                         )}
                     </div>
 
                     {/* Mobile Number Field */}
                     <div className="space-y-2">
-                        <Label htmlFor="mobile">
-                            Mobile Number <span className="text-red-500">*</span>
+                        <Label htmlFor="mobile" className="text-white/90">
+                            Mobile Number <span className="text-red-400">*</span>
                         </Label>
                         <Input
                             id="mobile"
@@ -242,22 +250,24 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
                             value={formData.mobile_number}
                             onChange={(e) => setFormData({ ...formData, mobile_number: e.target.value })}
                             placeholder="Enter 10-digit mobile number"
-                            className={errors.mobile_number ? 'border-red-500' : ''}
+                            className={`bg-slate-900/60 border-white/10 text-white placeholder:text-white/50 ${errors.mobile_number ? 'border-red-500' : ''}`}
                         />
                         {errors.mobile_number && (
-                            <p className="text-xs text-red-500">{errors.mobile_number}</p>
+                            <p className="text-xs text-red-400">{errors.mobile_number}</p>
                         )}
                     </div>
 
                     {/* Submit Error */}
                     {errors.submit && (
-                        <p className="text-sm text-red-500 text-center">{errors.submit}</p>
+                        <p className="text-sm text-red-400 text-center">{errors.submit}</p>
                     )}
 
                     {/* Submit Button */}
-                    <Button 
-                        type="submit" 
-                        className="w-full" 
+                    <Button
+                        type="submit"
+                        className="w-full"
+                        variant="brand"
+                        size="lg"
                         disabled={loading}
                     >
                         {loading ? (
