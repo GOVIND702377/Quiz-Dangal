@@ -33,10 +33,14 @@ const Tile = ({ tile, quizzes, onJoin, index, joiningId }) => {
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.25, delay: index * 0.06 }}
-      onClick={() => quiz && !isLoading && onJoin(quiz)}
-      disabled={!quiz || isLoading}
+      // Click sound handled globally via SoundProvider pointerdown listener
+      onClick={() => {
+        if (!quiz || isLoading) return; // prevent join when not available
+        onJoin(quiz);
+      }}
       className={`neon-card ${variants[index % variants.length]} group aspect-square w-full rounded-xl focus:outline-none will-change-transform transform-gpu ${(!quiz || isLoading) ? 'opacity-70 cursor-not-allowed' : ''}`}
       style={{ borderRadius: '0.75rem' }}
+      aria-disabled={!quiz || isLoading}
       aria-label={`${tile.title} - ${quiz ? (isLoading ? 'Joining…' : 'Play') : 'Coming soon'}`}
     >
       <div className="neon-card-content select-none flex items-center justify-center">

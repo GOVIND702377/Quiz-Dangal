@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Coins } from 'lucide-react';
 import StreakModal from '@/components/StreakModal';
+// sound controls removed per requirement: keep header clean
 
 const Header = () => {
   const { user, userProfile, refreshUserProfile } = useAuth();
@@ -65,6 +66,7 @@ const Header = () => {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.35, ease: 'easeOut' }}
         className="sticky top-0 z-[60] px-2 pt-2"
+        data-mute-click-sound
       >
         <div className="qd-card rounded-3xl overflow-hidden">
 

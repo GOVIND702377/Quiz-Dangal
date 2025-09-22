@@ -4,6 +4,7 @@ import { AuthProvider } from '@/contexts/SupabaseAuthContext';
 import App from '@/App';
 import '@/index.css';
 import { HelmetProvider } from 'react-helmet-async';
+import { SoundProvider } from './contexts/SoundContext';
 
 // Simple GA pageview for SPA (HashRouter)
 function AnalyticsWrapper({ children }) {
@@ -33,9 +34,11 @@ ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <AuthProvider>
       <HelmetProvider>
-        <AnalyticsWrapper>
-          <App />
-        </AnalyticsWrapper>
+        <SoundProvider>
+          <AnalyticsWrapper>
+            <App />
+          </AnalyticsWrapper>
+        </SoundProvider>
       </HelmetProvider>
     </AuthProvider>
   </React.StrictMode>,

@@ -147,8 +147,8 @@ const Quiz = () => {
 
       if (error) throw error;
 
-      // Update local state
-      setAnswers(prev => ({ ...prev, [questionId]: optionId }));
+  // Update local state
+    setAnswers(prev => ({ ...prev, [questionId]: optionId }));
 
       // Move to next question after a short delay
       if (currentQuestionIndex < questions.length - 1) {
@@ -169,6 +169,7 @@ const Quiz = () => {
         description: "Failed to save answer. Please try again.",
         variant: "destructive"
       });
+  // no error tone; silent fail per requirement
     }
   };
 
@@ -190,6 +191,7 @@ const Quiz = () => {
         title: "Quiz Completed!",
         description: "Your answers have been submitted. Results will be announced soon!",
       });
+      // click sound handled globally on button press
 
       setQuizState('completed');
       
