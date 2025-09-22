@@ -1,4 +1,4 @@
-import{k as q,a as C,u as T,b as U,r as c,s as b,j as e,m as n,B as v,T as y,M as E}from"./index-5684ffb2.js";import{A as P}from"./award-60b84ea8.js";import{U as B}from"./users-9e281611.js";const D=()=>{var h;const{id:o}=q(),g=C(),{toast:m}=T(),{user:x}=U(),[a,w]=c.useState(null),[k,z]=c.useState([]),[l,_]=c.useState(null),[R,A]=c.useState(!0);c.useEffect(()=>{S()},[o]);const S=async()=>{try{const{data:t}=await b.from("quizzes").select("*").eq("id",o).single();w(t);const{data:s}=await b.from("quiz_participants").select(`
+import{k as q,a as C,u as T,b as U,r as c,s as b,j as e,m as n,B as v,T as y,M as E}from"./index-74c9f0b4.js";import{A as P}from"./award-18f0550a.js";import{U as B}from"./users-26bd74aa.js";const D=()=>{var h;const{id:o}=q(),g=C(),{toast:m}=T(),{user:x}=U(),[a,w]=c.useState(null),[k,z]=c.useState([]),[l,_]=c.useState(null),[R,A]=c.useState(!0);c.useEffect(()=>{S()},[o]);const S=async()=>{try{const{data:t}=await b.from("quizzes").select("*").eq("id",o).single();w(t);const{data:s}=await b.from("quiz_participants").select(`
           *,
           profiles (
             full_name,
