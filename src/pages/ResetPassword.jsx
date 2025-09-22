@@ -15,12 +15,44 @@ export default function ResetPassword() {
     const hash = url.hash || '';
     const search = url.search || '';
 
-    // 1) Best-effort detection from URL (works for both hash and query params)
+    // Helper: extract code from either query (?code=) or hash query (#/path?code=)
+    const extractCode = () => {
+      const qs = new URLSearchParams(search);
+      const codeFromQuery = qs.get('code');
+      if (codeFromQuery) return codeFromQuery;
+      const idx = hash.indexOf('?');
+      if (idx !== -1) {
+        const hs = new URLSearchParams(hash.substring(idx + 1));
+        return hs.get('code');
+      }
+      return null;
+    };
+
+    // 1) Best-effort detection from URL (works for both hash tokens and PKCE code)
     const qs = new URLSearchParams(search);
     const hashHasRecovery = hash.includes('type=recovery');
     const queryHasRecovery = qs.get('type') === 'recovery';
-    const hasTokens = hash.includes('access_token=') || qs.has('code');
+    const hasTokens = hash.includes('access_token=') || !!extractCode();
     if (hashHasRecovery || queryHasRecovery || hasTokens) setInRecovery(true);
+
+    // 1b) If PKCE code is present, exchange it for a session before updateUser
+    (async () => {
+      const code = extractCode();
+      if (!code) return;
+      try {
+        const { data, error } = await supabase.auth.exchangeCodeForSession({ code });
+        if (error) throw error;
+        // Clean code from URL to avoid re-exchange on refresh
+        try {
+          const cleanUrl = window.location.origin + window.location.pathname + (window.location.hash.split('?')[0] || '');
+          window.history.replaceState({}, document.title, cleanUrl);
+        } catch {}
+        setInRecovery(true);
+      } catch (e) {
+        // Show a friendly message but keep the form visible in case hash tokens exist
+        setMessage(e?.message || 'Could not validate reset link. Try requesting a new one.');
+      }
+    })();
 
     // 2) If the user arrives already signed-in on /reset-password (Supabase magic link), allow reset
     (async () => {
