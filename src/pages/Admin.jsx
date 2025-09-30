@@ -355,10 +355,10 @@ export default function Admin() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="container mx-auto px-4 py-8 max-w-6xl text-foreground">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Quiz Dangal Admin</h1>
-        <p className="text-gray-600">Admin dashboard</p>
+  <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Quiz Dangal Admin</h1>
+  <p className="text-muted-foreground">Admin dashboard</p>
       </motion.div>
 
       {/* Tabs */}
@@ -371,7 +371,9 @@ export default function Admin() {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-3 py-2 rounded-lg border text-sm transition-colors ${t.key === activeTab ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+            className={`px-3 py-2 rounded-lg border text-sm transition-colors ${t.key === activeTab
+              ? 'bg-primary text-primary-foreground border-transparent shadow'
+              : 'bg-muted text-muted-foreground border-border hover:text-foreground'} `}
           >
             {t.title}
           </button>
@@ -390,8 +392,8 @@ export default function Admin() {
 
         {/* Create Quiz Form */}
         {showCreateQuiz && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg mb-8">
-            <h2 className="text-xl font-bold text-gray-800 mb-1">Create New Quiz</h2>
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg mb-8">
+            <h2 className="text-xl font-bold text-foreground mb-1">Create New Quiz</h2>
             {/* Note removed: translations no longer auto-generated */}
             <form onSubmit={handleCreateQuiz} className="space-y-4">
               <div>
@@ -402,14 +404,14 @@ export default function Admin() {
                       type="button"
                       key={c}
                       onClick={() => setQuizForm({ ...quizForm, category: c })}
-                      className={`px-3 py-1 rounded-full border text-sm capitalize ${quizForm.category === c ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+                      className={`px-3 py-1 rounded-full border text-sm capitalize ${quizForm.category === c ? 'bg-primary text-primary-foreground border-transparent' : 'bg-muted text-muted-foreground border-border hover:text-foreground'}`}
                     >
                       {c}
                     </button>
                   ))}
                 </div>
                 {!quizForm.category && (
-                  <p className="text-xs text-red-600 mt-1">Please choose a category</p>
+                  <p className="text-xs text-destructive mt-1">Please choose a category</p>
                 )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -453,42 +455,42 @@ export default function Admin() {
 
         {/* Quizzes List */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold text-gray-800">All Quizzes</h2>
+          <h2 className="text-xl font-bold text-foreground">All Quizzes</h2>
           {loading ? (
-            <div className="py-8 text-center text-gray-600">
+            <div className="py-8 text-center text-muted-foreground">
               <Loader2 className="inline-block h-6 w-6 animate-spin text-indigo-500 mr-2" /> Loading quizzes...
             </div>
           ) : quizzes.map((quiz, index) => (
-            <motion.div key={quiz.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg">
+            <motion.div key={quiz.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-800">{quiz.title}</h3>
-                  <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
+                  <h3 className="text-lg font-semibold text-foreground">{quiz.title}</h3>
+                  <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
                     <span>Category: {quiz.category || '—'}</span>
                     <span>Prize Pool: ₹{quiz.prize_pool}</span>
                     <span>Prizes: ₹{quiz.prizes?.join(', ₹')}</span>
                     <span className={`px-2 py-1 rounded-full text-xs ${
-                      quiz.status === 'upcoming' ? 'bg-blue-100 text-blue-800' :
-                      quiz.status === 'active' ? 'bg-green-100 text-green-800' :
-                      'bg-gray-100 text-gray-800'
+                      quiz.status === 'upcoming' ? 'bg-blue-600/10 text-blue-700 dark:text-blue-300' :
+                      quiz.status === 'active' ? 'bg-green-600/10 text-green-700 dark:text-green-300' :
+                      'bg-muted text-foreground/80'
                     }`}>
                       {quiz.status}
                     </span>
                   </div>
-                  <div className="mt-2 text-sm text-gray-500">
+                  <div className="mt-2 text-sm text-muted-foreground">
                     <span>Start: {new Date(quiz.start_time).toLocaleString()}</span>
                     <span className="ml-4">End: {new Date(quiz.end_time).toLocaleString()}</span>
                   </div>
                   {/* Inline times/status editor */}
                   <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-2">
-                    <select className="border rounded-md px-2 py-2 capitalize" value={quiz.category || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ category: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }}>
+                    <select className="border border-border bg-background text-foreground rounded-md px-2 py-2 capitalize" value={quiz.category || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ category: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }}>
                       <option value="">Select category</option>
                       {categories.map(c => (<option value={c} key={c}>{c}</option>))}
                     </select>
                     <Input type="datetime-local" value={quiz.start_time?.slice(0,16) || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ start_time: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }} />
                     <Input type="datetime-local" value={quiz.end_time?.slice(0,16) || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ end_time: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }} />
                     <Input type="datetime-local" value={quiz.result_time?.slice(0,16) || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ result_time: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }} />
-                    <select className="border rounded-md px-2 py-2" value={quiz.status} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ status: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }}>
+                    <select className="border border-border bg-background text-foreground rounded-md px-2 py-2" value={quiz.status} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ status: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }}>
                       <option value="upcoming">upcoming</option>
                       <option value="active">active</option>
                       <option value="finished">finished</option>
@@ -524,9 +526,9 @@ export default function Admin() {
 
         {/* Questions Editor Panel */}
         {showQuestions && selectedQuiz && (
-          <div className="mt-6 bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-6 shadow-lg">
+          <div className="mt-6 bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-800">Questions for: {selectedQuiz.title}</h3>
+              <h3 className="text-lg font-semibold text-foreground">Questions for: {selectedQuiz.title}</h3>
               <div className="flex gap-2">
                 <Button onClick={addQuestion} className="bg-indigo-600 hover:bg-indigo-700" size="sm"><Plus className="w-4 h-4 mr-1"/>Add Question</Button>
                 <Button variant="outline" size="sm" onClick={()=>setShowQuestions(false)}>Close</Button>
@@ -534,22 +536,22 @@ export default function Admin() {
             </div>
 
             {questions.length === 0 ? (
-              <div className="py-6 text-center text-gray-600">No questions yet</div>
+              <div className="py-6 text-center text-muted-foreground">No questions yet</div>
             ) : (
               <div className="space-y-4">
                 {questions.map((q) => (
-                  <div key={q.id} className="p-3 rounded-xl bg-white/70 border border-gray-200/50">
+                  <div key={q.id} className="p-3 rounded-xl bg-card/80 border border-border">
                     <div className="flex items-center gap-2">
                       <Input defaultValue={q.question_text} onBlur={(e)=>saveQuestion(q.id, e.target.value)} className="flex-1" />
                       <Button variant="outline" size="sm" className="text-red-600 border-red-300" onClick={()=>deleteQuestion(q.id)}><Trash2 className="w-4 h-4"/></Button>
                     </div>
                     <div className="mt-2 pl-1">
-                      <div className="text-xs text-gray-500 mb-1">Options</div>
+                      <div className="text-xs text-muted-foreground mb-1">Options</div>
                       <div className="space-y-2">
                         {(q.options || []).map((o)=> (
                           <div key={o.id} className="flex items-center gap-2">
                             <Input defaultValue={o.option_text} onBlur={(e)=>saveOption(o.id, e.target.value)} className="flex-1" />
-                            <label className="flex items-center gap-1 text-xs text-gray-700">
+                            <label className="flex items-center gap-1 text-xs text-foreground/80">
                               <input
                                 type="checkbox"
                                 defaultChecked={!!o.is_correct}
@@ -648,10 +650,10 @@ function AdminRedemptionsSection() {
     <div className="space-y-4">
       <div>
         <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Admin: Redemptions Catalog</h2>
-        <p className="text-gray-600 text-sm">Items jinko users coins se redeem kar sakte hain</p>
+        <p className="text-muted-foreground text-sm">Items jinko users coins se redeem kar sakte hain</p>
       </div>
 
-      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
+      <div className="bg-card text-card-foreground border border-border rounded-2xl p-4 shadow-lg">
         <form onSubmit={addItem} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
           <div>
             <Label htmlFor="rc_title">Title *</Label>
@@ -675,25 +677,25 @@ function AdminRedemptionsSection() {
         </form>
       </div>
 
-      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
-        <h3 className="font-semibold text-gray-800 mb-3">Catalog Items</h3>
+      <div className="bg-card text-card-foreground border border-border rounded-2xl p-4 shadow-lg">
+        <h3 className="font-semibold text-foreground mb-3">Catalog Items</h3>
         {loading ? (
-          <div className="py-8 text-center text-gray-600"><Loader2 className="inline-block h-6 w-6 animate-spin text-indigo-500 mr-2"/> Loading...</div>
+          <div className="py-8 text-center text-muted-foreground"><Loader2 className="inline-block h-6 w-6 animate-spin text-indigo-500 mr-2"/> Loading...</div>
         ) : items.length === 0 ? (
-          <div className="py-8 text-center text-gray-600">No items</div>
+          <div className="py-8 text-center text-muted-foreground">No items</div>
         ) : (
           <div className="space-y-2">
             {items.map((it) => (
-              <div key={it.id} className="p-3 rounded-xl bg-white/70 border border-gray-200/50 flex items-center justify-between gap-3">
+              <div key={it.id} className="p-3 rounded-xl bg-card/80 border border-border flex items-center justify-between gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <Input defaultValue={it.title} onBlur={(e)=>{ const v=e.target.value.trim(); if (v && v !== it.title) saveInline(it.id, { title: v }); }} className="flex-1" />
                     <Input type="number" min="0" defaultValue={it.coins_required} onBlur={(e)=>{ const n=parseInt(e.target.value,10); if (!isNaN(n) && n !== it.coins_required) saveInline(it.id, { coins_required: n }); }} className="w-32" />
                   </div>
-                  <div className="text-xs text-gray-600 mt-1 truncate">{it.description}</div>
+                  <div className="text-xs text-muted-foreground mt-1 truncate">{it.description}</div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-gray-700 flex items-center gap-1">
+                  <label className="text-xs text-foreground/80 flex items-center gap-1">
                     <input type="checkbox" defaultChecked={!!it.is_active} onChange={(e)=>saveInline(it.id, { is_active: e.target.checked })} /> Active
                   </label>
                   <Button size="sm" variant="outline" className="text-red-600 border-red-300" onClick={()=>removeItem(it.id)}><Trash2 className="w-4 h-4"/></Button>
