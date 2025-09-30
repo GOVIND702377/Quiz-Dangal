@@ -305,7 +305,6 @@ export default function Admin() {
         .from('quizzes')
         .insert([{
           title: quizForm.title,
-          entry_fee: parseFloat(quizForm.entry_fee),
           prize_pool: prizePool,
           prizes: prizesArray,
           start_time: quizForm.start_time,
@@ -597,7 +596,7 @@ function AdminRedemptionsSection() {
     const { data, error } = await supabase
       .from('reward_catalog')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('coins_required', { ascending: false });
     if (error) {
       toast({ title: 'Load failed', description: error.message, variant: 'destructive' });
       setItems([]);
