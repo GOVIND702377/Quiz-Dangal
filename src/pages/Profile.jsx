@@ -4,7 +4,7 @@ import { supabase } from "../lib/customSupabaseClient";
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { Button } from "@/components/ui/button";
-import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Share2, Award, Sparkles, BellRing } from 'lucide-react';
+import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Share2, Sparkles, BellRing, Coins } from 'lucide-react';
 import ProfileUpdateModal from '@/components/ProfileUpdateModal';
 
 export default function Profile() {
@@ -14,7 +14,6 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [avatarUrl, setAvatarUrl] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [showBadges, setShowBadges] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   // Refer & Earn now opens as full page (/refer)
   // Language modal removed
@@ -108,11 +107,7 @@ export default function Profile() {
     return 'ring-[#cd7f32]';
   };
   const getLevelTitle = (lvl) => {
-    const n = Number(lvl || 0);
-    if (n >= 20) return 'Legend';
-    if (n >= 10) return 'Pro';
-    if (n >= 5) return 'Explorer';
-    return 'Rookie';
+    // removed: no badge titles in UI
   };
   const getLevelProgress = (totalCoins) => {
     const earned = Number(totalCoins || 0);
@@ -121,9 +116,7 @@ export default function Profile() {
     return pct;
   };
 
-  const ALL_BADGES = ['Rookie', 'Explorer', 'Challenger', 'Pro', 'Legend', 'Streak 7', 'Streak 30', 'Top 10', 'Winner', 'Referral Pro'];
-  const unlocked = Array.isArray(profile?.badges) ? profile.badges : [];
-  const locked = ALL_BADGES.filter(b => !unlocked.includes(b));
+  
 
   if (loading) {
     return (
@@ -202,7 +195,7 @@ export default function Profile() {
                 <div className="text-sm font-semibold text-white truncate">{profile?.username ? `@${profile.username}` : 'Username not set'}</div>
                 <div className="mt-1.5 flex flex-wrap gap-2 text-xs">
                   <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-900/20 text-amber-200 border border-amber-500/20">
-                    <Award className="w-3.5 h-3.5" />
+                    <Coins className="w-3.5 h-3.5" />
                     <span className="font-medium">{Number(profile?.wallet_balance ?? 0).toLocaleString()} Coins</span>
                   </div>
                 </div>
@@ -211,7 +204,6 @@ export default function Profile() {
             <div className="w-full">
               <div className="mt-1.5 inline-flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full text-[11px] chip-accent-b">Level {profile?.level ?? '—'}</span>
-                <span className="px-2 py-0.5 rounded-full text-[11px] bg-slate-800/60 text-slate-200 border border-slate-700/60">{getLevelTitle(profile?.level)}</span>
               </div>
               <div className="mt-1.5 relative h-2.5 bg-slate-800/70 rounded-full overflow-hidden">
                 <div className="absolute inset-0 bg-white/10" />
@@ -219,7 +211,6 @@ export default function Profile() {
                 <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-slate-300">{getLevelProgress(profile?.total_coins)}%</span>
               </div>
               <div className="mt-1 text-[11px] text-slate-400">to next level</div>
-              <button onClick={() => setShowBadges((v) => !v)} className="mt-1.5 text-xs text-accent-b hover:opacity-90 underline">{showBadges ? 'Hide badges' : 'View badges'}</button>
             </div>
             <div className="pt-2 mt-1 w-full border-t border-gray-100">
               <Button onClick={() => setEditingProfile(true)} size="sm" variant="brand" className="rounded-xl">
@@ -228,32 +219,7 @@ export default function Profile() {
             </div>
           </div>
         </div>
-
-        {showBadges && (
-          <div className="qd-card rounded-3xl p-4 shadow-xl">
-            <div className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
-              <Award className="w-4 h-4 text-amber-300" />
-              <span>Your Badges</span>
-            </div>
-            <div className="flex flex-wrap gap-2 mb-2">
-              {unlocked.length > 0 ? (
-                unlocked.map((b, i) => (
-                  <span key={`u-${i}`} className="px-2.5 py-1.5 text-[11px] rounded-full chip-accent-c">
-                    ✨ {b}
-                  </span>
-                ))
-              ) : (
-                <span className="text-xs text-slate-400">No badges unlocked yet</span>
-              )}
-            </div>
-            <div className="text-xs text-slate-400 mb-1">Locked</div>
-            <div className="flex flex-wrap gap-2">
-              {locked.map((b, i) => (
-                <span key={`l-${i}`} className="px-2.5 py-1.5 text-[11px] rounded-full bg-slate-800/60 border border-slate-700/60 text-slate-300">🔒 {b}</span>
-              ))}
-            </div>
-          </div>
-        )}
+        
 
         {/* Push Notifications Section */}
   <div className="qd-card rounded-3xl p-4 shadow-xl text-slate-100">
