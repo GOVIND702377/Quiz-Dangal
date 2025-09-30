@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, Settings, Loader2, ShieldCheck, RefreshCcw } from 'lucide-react';
+import { Plus, Trash2, Settings, Loader2, ShieldCheck, RefreshCcw, LayoutDashboard, BellRing, Gift, ListChecks } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 function AdminNotificationsSection() {
@@ -92,19 +92,19 @@ function AdminNotificationsSection() {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 text-foreground">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center">
             <ShieldCheck className="mr-2" /> Admin: Notifications
           </h2>
-          <p className="text-gray-600 text-sm">Announcements aur quiz notifications yahan se bhejein</p>
+          <p className="text-muted-foreground text-sm">Announcements aur quiz notifications yahan se bhejein</p>
         </div>
       </div>
 
       {/* New section for sending Push Notifications */}
-      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg mb-6">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">Send Push Notification</h3>
+      <div className="bg-card border border-border rounded-2xl p-4 shadow-lg mb-6">
+        <h3 className="text-xl font-bold text-foreground mb-4 flex items-center"><BellRing className="w-5 h-5 mr-2"/>Send Push Notification</h3>
         <form onSubmit={handleSendPushNotification} className="space-y-3">
           <div>
             <Label htmlFor="pushTitle">Push Notification Title *</Label>
@@ -120,7 +120,7 @@ function AdminNotificationsSection() {
         </form>
       </div>
 
-      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
+      <div className="bg-card border border-border rounded-2xl p-4 shadow-lg">
         <form onSubmit={submit} className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
@@ -129,7 +129,7 @@ function AdminNotificationsSection() {
             </div>
             <div>
               <Label htmlFor="ntype">Type *</Label>
-              <select id="ntype" value={type} onChange={(e)=>setType(e.target.value)} className="w-full border rounded-md px-3 py-2">
+              <select id="ntype" value={type} onChange={(e)=>setType(e.target.value)} className="w-full border border-border bg-background text-foreground rounded-md px-3 py-2">
                 <option value="announcement">Announcement</option>
                 <option value="quiz_start">Quiz Start</option>
                 <option value="quiz_end">Quiz End</option>
@@ -160,20 +160,20 @@ function AdminNotificationsSection() {
         </form>
       </div>
 
-      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
-        <h3 className="font-semibold text-gray-800 mb-3">Recent</h3>
+      <div className="bg-card border border-border rounded-2xl p-4 shadow-lg">
+        <h3 className="font-semibold text-foreground mb-3 flex items-center"><ListChecks className="w-5 h-5 mr-2"/>Recent</h3>
         {loading ? (
-          <div className="py-8 text-center text-gray-600"><Loader2 className="inline-block h-6 w-6 animate-spin text-indigo-500 mr-2"/> Loading...</div>
+          <div className="py-8 text-center text-muted-foreground"><Loader2 className="inline-block h-6 w-6 animate-spin text-indigo-500 mr-2"/> Loading...</div>
         ) : recent.length === 0 ? (
-          <div className="py-8 text-center text-gray-600">No notifications</div>
+          <div className="py-8 text-center text-muted-foreground">No notifications</div>
         ) : (
           <div className="space-y-2">
             {recent.map((n)=> (
-              <div key={n.id} className="p-3 rounded-xl bg-white/70 border border-gray-200/50 flex items-center justify-between text-sm">
+              <div key={n.id} className="p-3 rounded-xl bg-card/80 border border-border flex items-center justify-between text-sm">
                 <div>
-                  <div className="font-semibold text-gray-800">{n.title} <span className="text-xs text-gray-500">({n.type})</span></div>
-                  <div className="text-gray-600">{n.message}</div>
-                  <div className="text-gray-500 text-xs">Quiz: {n.quiz_id || '—'} • Scheduled: {n.scheduled_at ? new Date(n.scheduled_at).toLocaleString() : 'now'} • Created: {new Date(n.created_at).toLocaleString()}</div>
+                  <div className="font-semibold text-foreground">{n.title} <span className="text-xs text-muted-foreground">({n.type})</span></div>
+                  <div className="text-foreground/80">{n.message}</div>
+                  <div className="text-muted-foreground text-xs">Quiz: {n.quiz_id || '—'} • Scheduled: {n.scheduled_at ? new Date(n.scheduled_at).toLocaleString() : 'now'} • Created: {new Date(n.created_at).toLocaleString()}</div>
                 </div>
               </div>
             ))}
@@ -364,17 +364,18 @@ export default function Admin() {
       {/* Tabs */}
       <div className="flex gap-2 flex-wrap mb-6">
         {[
-          { key: 'overview', title: 'Overview' },
-          { key: 'notifications', title: 'Notifications' },
-          { key: 'redemptions', title: 'Redemptions' },
+          { key: 'overview', title: 'Overview', icon: <LayoutDashboard className="w-4 h-4"/> },
+          { key: 'notifications', title: 'Notifications', icon: <BellRing className="w-4 h-4"/> },
+          { key: 'redemptions', title: 'Redemptions', icon: <Gift className="w-4 h-4"/> },
         ].map(t => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-3 py-2 rounded-lg border text-sm transition-colors ${t.key === activeTab
+            className={`px-3 py-2 rounded-lg border text-sm transition-colors inline-flex items-center gap-2 ${t.key === activeTab
               ? 'bg-primary text-primary-foreground border-transparent shadow'
               : 'bg-muted text-muted-foreground border-border hover:text-foreground'} `}
           >
+            {t.icon}
             {t.title}
           </button>
         ))}
@@ -455,7 +456,7 @@ export default function Admin() {
 
         {/* Quizzes List */}
         <div className="space-y-4">
-          <h2 className="text-xl font-bold text-foreground">All Quizzes</h2>
+          <h2 className="text-xl font-bold text-foreground flex items-center"><ListChecks className="w-5 h-5 mr-2"/>All Quizzes</h2>
           {loading ? (
             <div className="py-8 text-center text-muted-foreground">
               <Loader2 className="inline-block h-6 w-6 animate-spin text-indigo-500 mr-2" /> Loading quizzes...
