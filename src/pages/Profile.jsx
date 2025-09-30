@@ -12,6 +12,7 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [sessionUser, setSessionUser] = useState(null);
   const [profile, setProfile] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const [showBadges, setShowBadges] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
@@ -34,11 +35,30 @@ export default function Profile() {
           .single();
         if (error) throw error;
         setProfile(data);
+        if (data?.avatar_url) {
+          if (data.avatar_url.includes('://')) {
+            setAvatarUrl(data.avatar_url);
+          } else {
+            const { data: signed, error: signedError } = await supabase.storage
+              .from('avatars')
+              .createSignedUrl(data.avatar_url, 60 * 60);
+            if (signedError) {
+              console.warn('Avatar signed URL creation failed:', signedError);
+              setAvatarUrl('');
+            } else {
+              setAvatarUrl(signed?.signedUrl || '');
+            }
+          }
+        } else {
+          setAvatarUrl('');
+        }
       } else {
         setProfile(null);
+        setAvatarUrl('');
       }
     } catch (e) {
       setProfile(null);
+      setAvatarUrl('');
     } finally {
       setLoading(false);
     }
@@ -59,13 +79,19 @@ export default function Profile() {
       const path = `${sessionUser.id}/${Date.now()}-${file.name}`;
       const { error: upErr } = await supabase.storage.from('avatars').upload(path, file, { upsert: true });
       if (upErr) throw upErr;
-      const { data: pub } = supabase.storage.from('avatars').getPublicUrl(path);
-      const publicUrl = pub?.publicUrl;
-      if (!publicUrl) throw new Error('Could not get public URL');
-      const { error: updErr } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', sessionUser.id);
+      const { error: updErr } = await supabase
+        .from('profiles')
+        .update({ avatar_url: path })
+        .eq('id', sessionUser.id);
       if (updErr) throw updErr;
+      const { data: signed, error: signedError } = await supabase.storage
+        .from('avatars')
+        .createSignedUrl(path, 60 * 60);
+      if (!signedError) {
+        setAvatarUrl(signed?.signedUrl || '');
+      }
       await load();
-      alert('Avatar updated');
+  alert('Avatar updated');
     } catch (err) {
       alert(`Avatar change failed: ${err?.message || 'Try again later'}`);
     } finally {
@@ -143,8 +169,8 @@ export default function Profile() {
                 <div className="relative w-[5.5rem] h-[5.5rem]">
                   <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-400/20 via-fuchsia-400/20 to-transparent blur-[3px] animate-spin" style={{ animationDuration: '9s' }} />
                   <div className={`relative w-[5.5rem] h-[5.5rem] rounded-full overflow-hidden flex items-center justify-center text-slate-100 font-bold ring-2 ring-offset-2 ring-offset-slate-900 ${getLevelRingClass(profile?.level)} bg-gradient-to-br from-slate-800 to-slate-700 shadow-md`}>
-                    {profile?.avatar_url ? (
-                      <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <span className="text-2xl">

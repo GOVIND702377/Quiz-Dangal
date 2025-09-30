@@ -79,13 +79,15 @@ const Quiz = () => {
       setQuestions(questionsData);
 
       // Get participant count
-      const { count } = await supabase
-        .from('quiz_participants')
-        .select('*', { count: 'exact', head: true })
-        .eq('quiz_id', quizId)
-        .eq('status', 'joined');
-      
-      setParticipantCount(count || 0);
+      const { data: participantTotal, error: participantError } = await supabase
+        .rpc('get_participant_count', { p_quiz_id: quizId });
+
+      if (participantError) {
+        console.warn('Participant count fetch failed:', participantError);
+        setParticipantCount(0);
+      } else {
+        setParticipantCount(typeof participantTotal === 'number' ? participantTotal : 0);
+      }
 
     } catch (error) {
       console.error('Error fetching quiz data:', error);
@@ -136,11 +138,16 @@ const Quiz = () => {
       // Save answer to database immediately
       const { error } = await supabase
         .from('user_answers')
-        .upsert({
-          user_id: user.id,
-          question_id: questionId,
-          selected_option_id: optionId
-        });
+        .upsert(
+          {
+            user_id: user.id,
+            question_id: questionId,
+            selected_option_id: optionId,
+          },
+          {
+            onConflict: 'user_id,question_id',
+          }
+        );
 
       if (error) throw error;
 

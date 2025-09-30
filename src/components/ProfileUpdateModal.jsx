@@ -22,15 +22,63 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
     const [avatarPreview, setAvatarPreview] = useState('');
 
     useEffect(() => {
-        if (userProfile) {
+        let cancelled = false;
+
+        const extractPathFromUrl = (url) => {
+            if (!url) return '';
+            try {
+                // If already a relative path like "<userId>/<file>"
+                if (!/^https?:\/\//i.test(url)) return url.replace(/^\/+/, '');
+                // Try to extract after bucket name in Supabase public/signed URLs
+                const m = url.match(/\/storage\/v1\/object\/(?:public|sign)\/avatars\/(.+)$/);
+                if (m && m[1]) return decodeURIComponent(m[1]);
+                // Not a known Supabase storage URL; return as-is so we can display it directly
+                return url;
+            } catch {
+                return url;
+            }
+        };
+
+        const resolvePreviewUrl = async (raw) => {
+            const pathOrUrl = extractPathFromUrl(raw);
+            // If this looks like an absolute non-Supabase URL, use directly
+            if (/^https?:\/\//i.test(pathOrUrl) && !/\/storage\/v1\/object\//.test(pathOrUrl)) {
+                return pathOrUrl;
+            }
+            // Otherwise, assume it's a storage path under the 'avatars' bucket
+            try {
+                const pub = supabase?.storage?.from('avatars')?.getPublicUrl(pathOrUrl);
+                const publicUrl = pub?.data?.publicUrl;
+                if (publicUrl) return publicUrl;
+            } catch {}
+            try {
+                const { data, error } = await supabase.storage.from('avatars').createSignedUrl(pathOrUrl, 60 * 60);
+                if (error) throw error;
+                return data?.signedUrl || '';
+            } catch (e) {
+                console.warn('Avatar preview fetch failed:', e);
+                return '';
+            }
+        };
+
+        const init = async () => {
+            if (!userProfile) return;
             setFormData({
                 username: userProfile.username || '',
                 mobile_number: userProfile.mobile_number || '',
                 avatar_url: userProfile.avatar_url || ''
             });
-            setAvatarPreview(userProfile.avatar_url || '');
-        }
-    }, [userProfile]);
+            if (userProfile.avatar_url && supabase) {
+                const url = await resolvePreviewUrl(userProfile.avatar_url);
+                if (!cancelled) setAvatarPreview(url);
+            } else {
+                setAvatarPreview('');
+            }
+        };
+
+        init();
+        return () => { cancelled = true; };
+    }, [userProfile, supabase]);
 
     const validateForm = () => {
         const newErrors = {};
@@ -57,18 +105,17 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
         if (!username || username === userProfile?.username) return true;
         
         try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('username', username)
-                .neq('id', user.id);
-            
+            const { data, error } = await supabase.rpc('is_username_available', {
+                p_username: username,
+                p_exclude: user.id,
+            });
+
             if (error) {
                 console.error('Username check error:', error);
                 return true; // Allow if check fails
             }
-            
-            return !data || data.length === 0; // true if username is available
+
+            return Boolean(data);
         } catch (error) {
             console.error('Username availability check failed:', error);
             return true; // Allow if check fails
@@ -86,11 +133,18 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
 
         if (uploadError) throw uploadError;
 
-        const { data } = supabase.storage
+        // Prefer public URL if bucket is public; otherwise fall back to signed URL
+        try {
+            const pub = supabase.storage.from('avatars').getPublicUrl(filePath);
+            if (pub?.data?.publicUrl) {
+                return { path: filePath, previewUrl: pub.data.publicUrl };
+            }
+        } catch {}
+        const { data, error: signedError } = await supabase.storage
             .from('avatars')
-            .getPublicUrl(filePath);
-
-        return data.publicUrl;
+            .createSignedUrl(filePath, 60 * 60);
+        if (signedError) throw signedError;
+        return { path: filePath, previewUrl: data?.signedUrl || '' };
     };
 
     const handleAvatarChange = (e) => {
@@ -134,7 +188,9 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
             // Upload avatar if new file selected
             if (avatarFile) {
                 try {
-                    avatarUrl = await uploadAvatar(avatarFile);
+                    const uploaded = await uploadAvatar(avatarFile);
+                    avatarUrl = uploaded.path; // store relative path in DB
+                    if (uploaded.previewUrl) setAvatarPreview(uploaded.previewUrl);
                 } catch (avatarError) {
                     console.error('Avatar upload failed:', avatarError);
                     // Continue without avatar update

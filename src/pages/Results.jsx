@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getSignedAvatarUrls } from '@/lib/avatar';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -16,6 +17,7 @@ const Results = () => {
   const [results, setResults] = useState([]);
   const [userRank, setUserRank] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
   const [timeLeftMs, setTimeLeftMs] = useState(null);
   const [didRefetchAfterCountdown, setDidRefetchAfterCountdown] = useState(false);
 
@@ -25,6 +27,7 @@ const Results = () => {
 
   const fetchResults = async () => {
     try {
+      setErrorMessage('');
       // Load quiz meta (title, prizes)
       const { data: quizData } = await supabase
         .from('quizzes')
@@ -79,16 +82,27 @@ const Results = () => {
       try {
         const topIds = normalized.slice(0, 10).map(e => e.user_id);
         if (topIds.length) {
-          const { data: profs } = await supabase
-            .from('profiles')
-            .select('id, username, full_name, avatar_url')
-            .in('id', topIds);
-          if (Array.isArray(profs)) {
-            const map = new Map(profs.map(p => [p.id, p]));
-            setResults(prev => prev.map(item => {
-              const p = map.get(item.user_id);
-              return p ? { ...item, profiles: { username: p.username, full_name: p.full_name, avatar_url: p.avatar_url } } : item;
-            }));
+          const { data: profs, error: profError } = await supabase
+              .rpc('profiles_public_by_ids', { p_ids: topIds });
+            if (profError) {
+              console.warn('Public profile fetch failed:', profError);
+            }
+            if (Array.isArray(profs) && profs.length) {
+              const profileMap = new Map(profs.map(p => [p.id, p]));
+              const signedMap = await getSignedAvatarUrls(profs.map(p => p.avatar_url).filter(Boolean));
+              setResults(prev => prev.map(item => {
+                const p = profileMap.get(item.user_id);
+                if (!p) return item;
+                const signedUrl = p.avatar_url ? (signedMap.get(p.avatar_url) || '') : '';
+                return {
+                  ...item,
+                  profiles: {
+                    username: p.username,
+                    full_name: p.full_name,
+                    avatar_url: signedUrl,
+                  },
+                };
+              }));
           }
         }
       } catch {}
@@ -99,9 +113,16 @@ const Results = () => {
 
     } catch (error) {
       console.error('Error fetching results:', error);
+      setErrorMessage(error?.message || 'Failed to load results.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRetry = () => {
+    setLoading(true);
+    setErrorMessage('');
+    fetchResults();
   };
 
   // Live countdown updater when results aren't available yet
@@ -149,6 +170,21 @@ const Results = () => {
     );
   }
 
+  if (!loading && errorMessage) {
+    return (
+      <div className="min-h-screen p-4 flex items-center justify-center">
+        <div className="qd-card rounded-2xl p-6 shadow-lg text-center max-w-md w-full text-slate-100">
+          <h2 className="text-2xl font-bold mb-2 text-white">Couldn\'t load results</h2>
+          <p className="text-slate-300 mb-4">{errorMessage}</p>
+          <div className="flex justify-center gap-3">
+            <Button variant="brand" onClick={handleRetry}>Retry</Button>
+            <Button variant="white" onClick={() => navigate('/my-quizzes')}>Back</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!loading && results.length === 0) {
     return (
       <div className="min-h-screen p-4 flex items-center justify-center">
@@ -186,8 +222,9 @@ const Results = () => {
             <p className="text-slate-300 mb-4">Please check back after the result time.</p>
           )}
           <div className="flex justify-center gap-3">
+            <Button variant="brand" onClick={handleRetry}>Refresh</Button>
             <Button variant="white" onClick={() => navigate('/my-quizzes')}>Back to My Quizzes</Button>
-            <Button variant="brand" onClick={() => navigate('/')}>Go Home</Button>
+            <Button variant="white" onClick={() => navigate('/')}>Go Home</Button>
           </div>
         </div>
       </div>

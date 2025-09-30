@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
+import { getSignedAvatarUrls } from '@/lib/avatar';
 
 const ReferEarn = () => {
   const { user, userProfile } = useAuth();
@@ -23,20 +24,43 @@ const ReferEarn = () => {
       try {
         const { data: referrals, error } = await supabase
           .from('referrals')
-          .select(`
-            *,
-            referred:profiles!referrals_referred_id_fkey(
-              username, full_name, avatar_url
-            )
-          `)
+          .select('*')
           .eq('referrer_id', user.id)
           .order('created_at', { ascending: false });
         if (error && error.code !== 'PGRST116') throw error;
         if (!mounted) return;
-        const total = referrals?.length || 0;
-        const earnings = referrals?.reduce((sum, r) => sum + (r.coins_awarded || 0), 0) || 0;
+
+        let history = referrals || [];
+        if (history.length) {
+          const referredIds = Array.from(new Set(history.map(r => r.referred_id).filter(Boolean)));
+          if (referredIds.length) {
+            const { data: publicProfiles, error: profileError } = await supabase
+              .rpc('profiles_public_by_ids', { p_ids: referredIds });
+            if (profileError) {
+              console.warn('Referral profile lookup failed:', profileError);
+            }
+            const profiles = publicProfiles || [];
+            const profileMap = new Map(profiles.map(p => [p.id, p]));
+            const signedMap = await getSignedAvatarUrls(profiles.map(p => p.avatar_url).filter(Boolean));
+            history = history.map(ref => {
+              const publicProfile = profileMap.get(ref.referred_id);
+              if (!publicProfile) return { ...ref, referred: null };
+              const signedUrl = publicProfile.avatar_url ? signedMap.get(publicProfile.avatar_url) || '' : '';
+              return {
+                ...ref,
+                referred: {
+                  ...publicProfile,
+                  avatar_url: signedUrl,
+                },
+              };
+            });
+          }
+        }
+
+        const total = history.length;
+        const earnings = history.reduce((sum, r) => sum + (r.coins_awarded || 0), 0) || 0;
         setReferralStats({ total, earnings });
-        setReferralHistory(referrals || []);
+        setReferralHistory(history);
       } catch (e) {
         if (!mounted) return;
         setReferralStats({ total: 0, earnings: 0 });

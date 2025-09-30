@@ -36,54 +36,24 @@ export default function Leaderboards() {
 
       let data = [];
       if (p === 'all_time') {
-        // Prefer v2 to avoid overload ambiguity; then try new v1; then legacy fallbacks
-        let { data: allTime, error: rpcError } = await supabase.rpc('get_all_time_leaderboard_v2', { limit_rows: 100, offset_rows: 0, max_streak_limit: 30 });
-        if (rpcError) {
-          ({ data: allTime, error: rpcError } = await supabase.rpc('get_all_time_leaderboard', { limit_rows: 100, offset_rows: 0, max_streak_limit: 30 }));
-        }
-        if (rpcError) {
-          // Fallback path 1: legacy all-time function (may still be ambiguous if multiple overloads exist)
-          try {
-            const legacy = await supabase.rpc('get_all_time_leaderboard', { limit_rows: 100, offset_rows: 0 });
-            if (legacy.error) throw legacy.error;
-            const rows = legacy.data || [];
-            if (rows.length && Object.prototype.hasOwnProperty.call(rows[0] || {}, 'coins_earned')) {
-              data = rows.map(r => ({
-                user_id: r.user_id,
-                username: r.username ?? null,
-                full_name: r.full_name ?? null,
-                avatar_url: r.avatar_url ?? null,
-                leaderboard_score: Number(r.coins_earned ?? 0),
-                win_rate: null,
-                streak: r.current_streak ?? r.streak ?? 0,
-                rank: Number(r.rank ?? 0),
-              }));
-            } else {
-              data = rows;
-            }
-          } catch (legacyErr) {
-            // Fallback path 2: some legacy schemas expose all-time via get_leaderboard('all_time')
-            const alt = await supabase.rpc('get_leaderboard', { p_period: 'all_time', limit_rows: 100, offset_rows: 0 });
-            if (alt.error) throw alt.error;
-            data = alt.data || [];
-          }
-        } else {
+        // Canonical path: v2 first, then single v1 fallback
+        const { data: allTime, error: v2Err } = await supabase.rpc('get_all_time_leaderboard_v2', { limit_rows: 100, offset_rows: 0, max_streak_limit: 30 });
+        if (!v2Err) {
           data = allTime || [];
+        } else {
+          const { data: v1Data, error: v1Err } = await supabase.rpc('get_all_time_leaderboard', { limit_rows: 100, offset_rows: 0, max_streak_limit: 30 });
+          if (v1Err) throw v1Err;
+          data = v1Data || [];
         }
       } else {
-        const streakCap = p === 'weekly' ? 7 : 30; // tune normalization per period
-        // Prefer v2 first
-        let { data: periodData, error: rpcError } = await supabase.rpc('get_leaderboard_v2', { p_period: p, limit_rows: 100, offset_rows: 0, max_streak_limit: streakCap });
-        if (rpcError) {
-          ({ data: periodData, error: rpcError } = await supabase.rpc('get_leaderboard', { p_period: p, limit_rows: 100, offset_rows: 0, max_streak_limit: streakCap }));
-        }
-        if (rpcError) {
-          // Fallback to legacy signature without max_streak_limit
-          const legacy = await supabase.rpc('get_leaderboard', { p_period: p, limit_rows: 100, offset_rows: 0 });
-          if (legacy.error) throw legacy.error;
-          data = legacy.data || [];
+        const streakCap = p === 'weekly' ? 7 : 30;
+        const { data: v2Data, error: v2Err } = await supabase.rpc('get_leaderboard_v2', { p_period: p, limit_rows: 100, offset_rows: 0, max_streak_limit: streakCap });
+        if (!v2Err) {
+          data = v2Data || [];
         } else {
-          data = periodData || [];
+          const { data: v1Data, error: v1Err } = await supabase.rpc('get_leaderboard', { p_period: p, limit_rows: 100, offset_rows: 0, max_streak_limit: streakCap });
+          if (v1Err) throw v1Err;
+          data = v1Data || [];
         }
       }
 
@@ -143,13 +113,8 @@ export default function Leaderboards() {
               alt="Trophy"
               className="absolute inset-0 w-full h-full object-contain drop-shadow-md select-none"
               onError={(e) => {
-                const triedLower = e.currentTarget.getAttribute('data-tried-lower');
-                if (!triedLower) {
-                  e.currentTarget.setAttribute('data-tried-lower', '1');
-                  e.currentTarget.src = `${import.meta.env.BASE_URL}trophy.png`;
-                } else {
-                  e.currentTarget.src = `${import.meta.env.BASE_URL}android-chrome-512x512.png`;
-                }
+                // Fallback to app icon if trophy image fails (e.g., CDN/cache issue)
+                e.currentTarget.src = `${import.meta.env.BASE_URL}android-chrome-512x512.png`;
               }}
               decoding="async"
               loading="eager"
@@ -182,7 +147,6 @@ export default function Leaderboards() {
             className="pl-9 pr-3 h-11 w-full rounded-xl bg-slate-800/80 border border-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-base sm:text-[13px] font-medium text-slate-100 placeholder:text-slate-400 shadow"
           />
           <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/5" />
-         <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/5" />
         </div>
       </div>
 

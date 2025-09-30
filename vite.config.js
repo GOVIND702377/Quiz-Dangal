@@ -11,7 +11,8 @@ export default defineConfig({
 	plugins: [react()],
 	// Using a custom domain for this project repo; site is served at domain root.
 	// Base must be '/' so assets resolve under https://quizdangal.com/.
-	base: '/',
+			// Using custom domain (public/CNAME). Keep base at root.
+			base: '/',
 	server: {
 		cors: true,
 		host: true,     // Allow both localhost and network access

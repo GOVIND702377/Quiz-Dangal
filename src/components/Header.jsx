@@ -26,6 +26,15 @@ const Header = () => {
     const claimStreak = async () => {
       claimingRef.current = true;
       try {
+        // Prevent duplicate claims within the same day per session (handles accidental reloads)
+        const key = `qd_streak_claim_${user.id}`;
+        const today = new Date();
+        const stamp = `${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}`;
+        try {
+          const last = sessionStorage.getItem(key);
+          if (last === stamp) return; // already claimed today in this session
+        } catch {}
+
         const { data, error } = await supabase.rpc('handle_daily_login', { user_uuid: user.id });
 
         if (error) {
@@ -44,6 +53,9 @@ const Header = () => {
             coins: data.coins_earned,
           });
         }
+
+        // Mark as claimed for today in this session
+        try { sessionStorage.setItem(key, stamp); } catch {}
       } catch (e) {
         console.error('Exception handling daily login:', e);
       } finally {

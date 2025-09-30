@@ -3,7 +3,7 @@
   "type": "module",
   "version": "0.0.0",
   "private": true,
-  "homepage": "https://GOVIND702377.github.io/Quiz-Dangal",
+  "homepage": "https://quizdangal.com",
   "scripts": {
     "dev": "vite",
     "dev:lan": "vite --host --port 5173",
