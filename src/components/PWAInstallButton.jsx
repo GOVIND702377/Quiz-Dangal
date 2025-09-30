@@ -24,23 +24,15 @@ const PWAInstallButton = () => {
       if (mm.addListener) mm.addListener(onModeChange);
     }
 
-    // Probe fallback path to avoid showing a broken button when no APK exists
+    // Probe only when a valid custom URL is provided; skip fallback path to avoid console 404s
     const probe = async () => {
       if (!usingFallback) {
         setHasApk(true);
         return;
       }
-      // In local dev or when disabled via env, skip probing fallback path to avoid noisy 404s.
-      if (isDev || DISABLE_PROBE) {
-        setHasApk(false);
-        return;
-      }
-      try {
-        const resp = await fetch(DOWNLOAD_URL, { method: 'HEAD' });
-        setHasApk(resp.ok);
-      } catch {
-        setHasApk(false);
-      }
+      // Always skip probing the fallback path. Provide VITE_DOWNLOAD_URL to enable download.
+      setHasApk(false);
+      return;
     };
     probe();
 
