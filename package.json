@@ -8,6 +8,7 @@
     "dev": "vite",
     "dev:lan": "vite --host --port 5173",
     "build": "vite build",
+    "verify:api": "node ./scripts/verify-api.mjs",
     "preview": "vite preview",
     "preview:lan": "vite preview --host --port 5173",
     "predeploy": "npm run build",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/customSupabaseClient";
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -16,8 +16,43 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
   const [showLevelInfo, setShowLevelInfo] = useState(false);
-  const [nextInfo, setNextInfo] = useState(null); // { current_level, next_level, coins_required_next, coins_have, coins_remaining }
-  const [currentLevelReq, setCurrentLevelReq] = useState(0);
+  const [derivedLevel, setDerivedLevel] = useState(0);
+  const [derivedNext, setDerivedNext] = useState({ nextLevel: 1, nextReq: 50, have: 0, remaining: 50, currReq: 0 });
+
+  // Local thresholds (1..100) -> coins required (cumulative)
+  const LEVEL_THRESHOLDS = useMemo(() => ([
+    0, // level 0 baseline (not displayed)
+    50,200,450,800,1250,1800,2450,3200,4050,5000,
+    6050,7200,8450,9800,11250,12800,14450,16200,18050,20000,
+    22050,24200,26450,28800,31250,33800,36450,39200,42050,45000,
+    48050,51200,54450,57800,61250,64800,68450,72200,76050,80000,
+    84050,88200,92450,96800,101250,105800,110450,115200,120050,125000,
+    130050,135200,140450,145800,151250,156800,162450,168200,174050,180000,
+    186050,192200,198450,204800,211250,217800,224450,231200,238050,245000,
+    252050,259200,266450,273800,281250,288800,296450,304200,312050,320000,
+    328050,336200,344450,352800,361250,369800,378450,387200,396050,405000,
+    414050,423200,432450,441800,451250,460800,470450,480200,490050,500000,
+  ]), []);
+
+  const calcLevelFromCoins = useCallback((coins) => {
+    const c = Number(coins || 0);
+    let lvl = 0;
+    for (let i = 1; i < LEVEL_THRESHOLDS.length; i++) {
+      if (c >= LEVEL_THRESHOLDS[i]) lvl = i; else break;
+    }
+    return lvl;
+  }, [LEVEL_THRESHOLDS]);
+
+  const computeNextInfo = useCallback((coins, currLvl) => {
+    const have = Number(coins || 0);
+    const curr = Math.max(0, Number(currLvl || 0));
+    const maxLvl = 100;
+    const nextLvl = Math.min(maxLvl, curr + 1);
+    const currReq = LEVEL_THRESHOLDS[curr] || 0;
+    const nextReq = LEVEL_THRESHOLDS[nextLvl] || LEVEL_THRESHOLDS[maxLvl];
+    const remaining = Math.max(0, (nextReq || 0) - have);
+    return { nextLevel: nextLvl, nextReq, have, remaining, currReq };
+  }, [LEVEL_THRESHOLDS]);
   // Refer & Earn now opens as full page (/refer)
   // Language modal removed
   const fileInputRef = useRef(null);
@@ -37,31 +72,11 @@ export default function Profile() {
           .single();
         if (error) throw error;
         setProfile(data);
-        // After profile is loaded, prefetch next-level info and current level requirement
-        try {
-          if (u && data) {
-            // RPC to fetch next level info (requires function public.get_next_level_info)
-            const { data: nxt, error: nxtErr } = await supabase.rpc('get_next_level_info', { p_user_id: u.id });
-            if (!nxtErr && nxt && nxt.length > 0) {
-              setNextInfo(nxt[0]);
-            } else {
-              setNextInfo(null);
-            }
-            // Fetch current level threshold from levels table (level 0 => req 0)
-            const currLv = Math.max(0, Number(data.level || 0));
-            if (currLv > 0) {
-              const { data: lvlRow, error: lvlErr } = await supabase
-                .from('levels')
-                .select('coins_required')
-                .eq('level', currLv)
-                .single();
-              if (!lvlErr && lvlRow) setCurrentLevelReq(Number(lvlRow.coins_required || 0));
-              else setCurrentLevelReq(0);
-            } else {
-              setCurrentLevelReq(0);
-            }
-          }
-        } catch {}
+        // Derive level/progress locally (works even if DB migration not applied yet)
+        const coins = Number(data?.total_coins || 0);
+        const lvl = calcLevelFromCoins(coins);
+        setDerivedLevel(lvl);
+        setDerivedNext(computeNextInfo(coins, lvl));
         if (data?.avatar_url) {
           if (data.avatar_url.includes('://')) {
             setAvatarUrl(data.avatar_url);
@@ -137,10 +152,8 @@ export default function Profile() {
   const getLevelProgress = (totalCoins, level) => {
     const have = Number(totalCoins || 0);
     const curr = Math.max(0, Number(level || 0));
-    // If already max level (>=100), show full
     if (curr >= 100) return 100;
-    const nextReq = Number(nextInfo?.coins_required_next ?? 0);
-    const currReq = Number(currentLevelReq || 0);
+    const { nextReq, currReq } = derivedNext;
     if (!nextReq || nextReq <= currReq) return 0;
     const span = nextReq - currReq;
     const pos = Math.max(0, Math.min(span, have - currReq));
@@ -192,7 +205,7 @@ export default function Profile() {
               <div className="flex flex-col items-center -ml-2">
                 <div className="relative w-[5.5rem] h-[5.5rem]">
                   <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-400/20 via-fuchsia-400/20 to-transparent blur-[3px] animate-spin" style={{ animationDuration: '9s' }} />
-                  <div className={`relative w-[5.5rem] h-[5.5rem] rounded-full overflow-hidden flex items-center justify-center text-slate-100 font-bold ring-2 ring-offset-2 ring-offset-slate-900 ${getLevelRingClass(profile?.level)} bg-gradient-to-br from-slate-800 to-slate-700 shadow-md`}>
+                  <div className={`relative w-[5.5rem] h-[5.5rem] rounded-full overflow-hidden flex items-center justify-center text-slate-100 font-bold ring-2 ring-offset-2 ring-offset-slate-900 ${getLevelRingClass(derivedLevel)} bg-gradient-to-br from-slate-800 to-slate-700 shadow-md`}>
                     {avatarUrl ? (
                       <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" />
                     ) : (
@@ -241,25 +254,22 @@ export default function Profile() {
                     title="Show next level info"
                     aria-expanded={showLevelInfo}
                   >
-                    Level {profile?.level ?? '—'}
+                    Level {derivedLevel}
                   </button>
                   {showLevelInfo && (
                     <div className="absolute z-20 top-full left-0 mt-2 w-56 rounded-xl border border-slate-700/60 bg-slate-900/95 text-slate-100 shadow-xl p-3">
                       <div className="text-xs font-semibold mb-1">Next Level Info</div>
                       <div className="text-[11px] text-slate-300 space-y-1">
-                        <div className="flex justify-between"><span>Current</span><span>{Number(profile?.level || 0)}</span></div>
-                        <div className="flex justify-between"><span>Next</span><span>{Math.min(100, Number(profile?.level || 0) + 1)}</span></div>
-                        <div className="flex justify-between"><span>Required</span><span>{Number(nextInfo?.coins_required_next || 0).toLocaleString()} coins</span></div>
+                        <div className="flex justify-between"><span>Required</span><span>{Number(derivedNext.nextReq).toLocaleString()} coins</span></div>
                         <div className="flex justify-between"><span>You have</span><span>{Number(profile?.total_coins || 0).toLocaleString()} coins</span></div>
-                        <div className="flex justify-between"><span>Remaining</span><span>{Number(nextInfo?.coins_remaining || Math.max(0, (Number(nextInfo?.coins_required_next||0) - Number(profile?.total_coins||0)))).toLocaleString()} coins</span></div>
                       </div>
                     </div>
                   )}
                 </div>
               <div className="mt-1.5 relative h-2.5 bg-slate-800/70 rounded-full overflow-hidden">
                 <div className="absolute inset-0 bg-white/10" />
-                <div className="relative h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 shadow-[0_0_12px_rgba(99,102,241,0.35)]" style={{ width: `${getLevelProgress(profile?.total_coins, profile?.level)}%` }} />
-                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-slate-300">{getLevelProgress(profile?.total_coins, profile?.level)}%</span>
+                <div className="relative h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 shadow-[0_0_12px_rgba(99,102,241,0.35)]" style={{ width: `${getLevelProgress(profile?.total_coins, derivedLevel)}%` }} />
+                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-slate-300">{getLevelProgress(profile?.total_coins, derivedLevel)}%</span>
               </div>
               <div className="mt-1 text-[11px] text-slate-400">to next level</div>
             </div>
