@@ -15,6 +15,9 @@ export default function Profile() {
   const [avatarUrl, setAvatarUrl] = useState('');
   const [uploading, setUploading] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [showLevelInfo, setShowLevelInfo] = useState(false);
+  const [nextInfo, setNextInfo] = useState(null); // { current_level, next_level, coins_required_next, coins_have, coins_remaining }
+  const [currentLevelReq, setCurrentLevelReq] = useState(0);
   // Refer & Earn now opens as full page (/refer)
   // Language modal removed
   const fileInputRef = useRef(null);
@@ -34,6 +37,31 @@ export default function Profile() {
           .single();
         if (error) throw error;
         setProfile(data);
+        // After profile is loaded, prefetch next-level info and current level requirement
+        try {
+          if (u && data) {
+            // RPC to fetch next level info (requires function public.get_next_level_info)
+            const { data: nxt, error: nxtErr } = await supabase.rpc('get_next_level_info', { p_user_id: u.id });
+            if (!nxtErr && nxt && nxt.length > 0) {
+              setNextInfo(nxt[0]);
+            } else {
+              setNextInfo(null);
+            }
+            // Fetch current level threshold from levels table (level 0 => req 0)
+            const currLv = Math.max(0, Number(data.level || 0));
+            if (currLv > 0) {
+              const { data: lvlRow, error: lvlErr } = await supabase
+                .from('levels')
+                .select('coins_required')
+                .eq('level', currLv)
+                .single();
+              if (!lvlErr && lvlRow) setCurrentLevelReq(Number(lvlRow.coins_required || 0));
+              else setCurrentLevelReq(0);
+            } else {
+              setCurrentLevelReq(0);
+            }
+          }
+        } catch {}
         if (data?.avatar_url) {
           if (data.avatar_url.includes('://')) {
             setAvatarUrl(data.avatar_url);
@@ -101,19 +129,22 @@ export default function Profile() {
 
   const getLevelRingClass = (lvl) => {
     const n = Number(lvl || 0);
-    if (n >= 20) return 'ring-[#8b5cf6]';
-    if (n >= 10) return 'ring-[#f59e0b]';
-    if (n >= 5) return 'ring-[#9ca3af]';
-    return 'ring-[#cd7f32]';
+    if (n >= 80) return 'ring-[#8b5cf6]'; // 80+ premium
+    if (n >= 50) return 'ring-[#f59e0b]'; // 50+
+    if (n >= 20) return 'ring-[#9ca3af]'; // 20+
+    return 'ring-[#cd7f32]'; // below 20
   };
-  const getLevelTitle = (lvl) => {
-    // removed: no badge titles in UI
-  };
-  const getLevelProgress = (totalCoins) => {
-    const earned = Number(totalCoins || 0);
-    const target = 100;
-    const pct = Math.max(0, Math.min(100, Math.round((earned % target) / target * 100)));
-    return pct;
+  const getLevelProgress = (totalCoins, level) => {
+    const have = Number(totalCoins || 0);
+    const curr = Math.max(0, Number(level || 0));
+    // If already max level (>=100), show full
+    if (curr >= 100) return 100;
+    const nextReq = Number(nextInfo?.coins_required_next ?? 0);
+    const currReq = Number(currentLevelReq || 0);
+    if (!nextReq || nextReq <= currReq) return 0;
+    const span = nextReq - currReq;
+    const pos = Math.max(0, Math.min(span, have - currReq));
+    return Math.round((pos / span) * 100);
   };
 
   
@@ -202,13 +233,33 @@ export default function Profile() {
               </div>
             </div>
             <div className="w-full">
-              <div className="mt-1.5 inline-flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded-full text-[11px] chip-accent-b">Level {profile?.level ?? '—'}</span>
-              </div>
+                <div className="mt-1.5 inline-flex items-center gap-2 relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowLevelInfo((v) => !v)}
+                    className="px-2 py-0.5 rounded-full text-[11px] chip-accent-b focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                    title="Show next level info"
+                    aria-expanded={showLevelInfo}
+                  >
+                    Level {profile?.level ?? '—'}
+                  </button>
+                  {showLevelInfo && (
+                    <div className="absolute z-20 top-full left-0 mt-2 w-56 rounded-xl border border-slate-700/60 bg-slate-900/95 text-slate-100 shadow-xl p-3">
+                      <div className="text-xs font-semibold mb-1">Next Level Info</div>
+                      <div className="text-[11px] text-slate-300 space-y-1">
+                        <div className="flex justify-between"><span>Current</span><span>{Number(profile?.level || 0)}</span></div>
+                        <div className="flex justify-between"><span>Next</span><span>{Math.min(100, Number(profile?.level || 0) + 1)}</span></div>
+                        <div className="flex justify-between"><span>Required</span><span>{Number(nextInfo?.coins_required_next || 0).toLocaleString()} coins</span></div>
+                        <div className="flex justify-between"><span>You have</span><span>{Number(profile?.total_coins || 0).toLocaleString()} coins</span></div>
+                        <div className="flex justify-between"><span>Remaining</span><span>{Number(nextInfo?.coins_remaining || Math.max(0, (Number(nextInfo?.coins_required_next||0) - Number(profile?.total_coins||0)))).toLocaleString()} coins</span></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               <div className="mt-1.5 relative h-2.5 bg-slate-800/70 rounded-full overflow-hidden">
                 <div className="absolute inset-0 bg-white/10" />
-                <div className="relative h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 shadow-[0_0_12px_rgba(99,102,241,0.35)]" style={{ width: `${getLevelProgress(profile?.total_coins)}%` }} />
-                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-slate-300">{getLevelProgress(profile?.total_coins)}%</span>
+                <div className="relative h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-fuchsia-500 shadow-[0_0_12px_rgba(99,102,241,0.35)]" style={{ width: `${getLevelProgress(profile?.total_coins, profile?.level)}%` }} />
+                <span className="absolute right-1 top-1/2 -translate-y-1/2 text-[10px] text-slate-300">{getLevelProgress(profile?.total_coins, profile?.level)}%</span>
               </div>
               <div className="mt-1 text-[11px] text-slate-400">to next level</div>
             </div>
