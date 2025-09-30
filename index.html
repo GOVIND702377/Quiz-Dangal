@@ -38,13 +38,13 @@
 			gtag('js', new Date());
 			gtag('config', 'G-98624Q56YT');
 		</script>
-  <script type="module" crossorigin src="/assets/index-9ff65d13.js"></script>
+  <script type="module" crossorigin src="/assets/index-aebac8b0.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/react-8a702e3e.js">
   <link rel="modulepreload" crossorigin href="/assets/supabase-4c1332f7.js">
   <link rel="modulepreload" crossorigin href="/assets/router-bcacfb8d.js">
-  <link rel="modulepreload" crossorigin href="/assets/icons-c5cbdee3.js">
+  <link rel="modulepreload" crossorigin href="/assets/icons-b32a7949.js">
   <link rel="modulepreload" crossorigin href="/assets/motion-511bde03.js">
-  <link rel="stylesheet" href="/assets/index-a7550670.css">
+  <link rel="stylesheet" href="/assets/index-a7b5ce2f.css">
 </head>
 
 <body>
@@ -55,9 +55,10 @@
 	  (function(){const d=document;const l=d.createElement('link');if(l.relList&&l.relList.supports&&l.relList.supports('modulepreload'))return;for(const s of d.querySelectorAll('link[rel="modulepreload"]'))o(s);new MutationObserver(e=>{for(const t of e)if(t.type==='childList')for(const n of t.addedNodes)if(n.tagName==='LINK'&&n.rel==='modulepreload')o(n)}).observe(d,{childList:true,subtree:true});function o(e){if(e.ep)return;e.ep=true;const s={};if(e.integrity)s.integrity=e.integrity;if(e.referrerPolicy)s.referrerPolicy=e.referrerPolicy;s.credentials=e.crossOrigin==='use-credentials'?'include':e.crossOrigin==='anonymous'?'omit':'same-origin';fetch(e.href,s)}})();
 	</script>
 	<script>
-		// Register service worker only outside localhost to avoid dev cache issues
+		// Register service worker only outside local/dev hosts to avoid dev cache issues
 		(function() {
-			var isLocal = /(^localhost$)|(^127\.0\.0\.1$)/.test(window.location.hostname);
+			var h = window.location.hostname;
+			var isLocal = /(^localhost$)|(^127\.0\.0\.1$)|(^0\.0\.0\.0$)|(^192\.168\.)|(^10\.)|(^172\.(1[6-9]|2[0-9]|3[0-1])\.)|(\.local$)/.test(h);
 			if ('serviceWorker' in navigator && !isLocal) {
 				window.addEventListener('load', function() {
 					navigator.serviceWorker.register('/sw.js').then(function(registration) {

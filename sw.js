@@ -1,13 +1,13 @@
 const CACHE_NAME = 'qd-cache-v3';
 const PRECACHE_URLS = [
-  '/index.html',
-  '/site.webmanifest',
-  '/android-chrome-192x192.png',
-  '/android-chrome-512x512.png',
-  '/apple-touch-icon.png',
-  '/favicon-16x16.png',
-  '/favicon-32x32.png',
-  '/favicon.ico'
+  './index.html',
+  './site.webmanifest',
+  './android-chrome-192x192.png',
+  './android-chrome-512x512.png',
+  './apple-touch-icon.png',
+  './favicon-16x16.png',
+  './favicon-32x32.png',
+  './favicon.ico'
 ];
 
 self.addEventListener('install', (event) => {
@@ -32,7 +32,7 @@ self.addEventListener('fetch', (event) => {
 
   if (isNavigate) {
     event.respondWith(
-      fetch(req).catch(() => caches.match('/index.html'))
+      fetch(req).catch(() => caches.match('./index.html'))
     );
     return;
   }
@@ -90,11 +90,44 @@ self.addEventListener('push', function(event) {
   const title = pushData.title || 'New Notification';
   const options = {
     body: pushData.body || 'You have a new message.',
-    icon: '/android-chrome-192x192.png',
-    badge: '/favicon-32x32.png'
+  icon: './android-chrome-192x192.png',
+  badge: './favicon-32x32.png',
+    tag: 'quiz-dangal-general',
+    renotify: true,
+    actions: [
+      { action: 'open', title: 'Open App' },
+    ],
+    data: {
+      url: typeof pushData.url === 'string' ? pushData.url : undefined,
+    },
   };
 
   event.waitUntil(
     self.registration.showNotification(title, options)
   );
+});
+
+// Focus app on notification click (and open if not already open)
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  const urlFromData = event?.notification?.data?.url;
+  const targetUrl = typeof urlFromData === 'string' && urlFromData.length > 0 ? urlFromData : '/#/';
+  const action = event.action;
+  event.waitUntil((async () => {
+    // If an action was provided (like 'open'), we can branch logic here in future.
+    const allClients = await clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of allClients) {
+      // If app is already open, focus it and optionally navigate
+      try {
+        if ('focus' in client) await client.focus();
+        // Only navigate if a distinct URL is provided
+        if (urlFromData && client.url && !client.url.endsWith(urlFromData)) {
+          client.navigate(urlFromData).catch(()=>{});
+        }
+        return;
+      } catch {}
+    }
+    // Otherwise open a new window
+    try { await clients.openWindow(targetUrl); } catch {}
+  })());
 });
