@@ -21,20 +21,34 @@ webpush.setVapidDetails(
   VAPID_PRIVATE_KEY!
 );
 
-// Restrict CORS to configured origin (default to production domain)
-const ALLOWED_ORIGIN = Deno.env.get("ALLOWED_ORIGIN") || "https://quizdangal.com";
-const corsHeaders: Record<string, string> = {
-  "Access-Control-Allow-Origin": ALLOWED_ORIGIN,
-  "Vary": "Origin",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// CORS: support multiple origins (comma-separated). Default to production.
+const DEFAULT_ORIGIN = "https://quizdangal.com";
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS")
+  || Deno.env.get("ALLOWED_ORIGIN")
+  || DEFAULT_ORIGIN)
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function makeCorsHeaders(req: Request): Record<string, string> {
+  const reqOrigin = req.headers.get("Origin") || "";
+  const isLocal = reqOrigin.startsWith("http://localhost");
+  const isAllowed = ALLOWED_ORIGINS.includes("*")
+    || ALLOWED_ORIGINS.includes(reqOrigin)
+    || (isLocal && ALLOWED_ORIGINS.some((o) => o.startsWith("http://localhost")));
+  const allowOrigin = isAllowed ? reqOrigin : (ALLOWED_ORIGINS[0] || DEFAULT_ORIGIN);
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Vary": "Origin",
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  };
+}
 
 serve(async (req) => {
-  // Handle CORS
+  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    // Preflight
-    return new Response("", { status: 204, headers: { ...corsHeaders } });
+    return new Response("", { status: 204, headers: { ...makeCorsHeaders(req) } });
   }
   try {
     const { message, title } = await req.json();
@@ -48,16 +62,13 @@ serve(async (req) => {
     );
     const { data: { user }, error: userErr } = await supabaseUserClient.auth.getUser();
     if (userErr || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json', ...makeCorsHeaders(req) } });
     }
 
     if (!message || !title) {
       return new Response(
         JSON.stringify({ error: "Message and title are required." }),
-        {
-          status: 400,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
+        { status: 400, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } }
       );
     }
 
@@ -83,10 +94,7 @@ serve(async (req) => {
 
     if (error) {
       console.error("Error fetching subscriptions:", error);
-      return new Response(JSON.stringify({ error: error.message }), {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      });
+      return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } });
     }
 
     const notificationPayload = JSON.stringify({
@@ -120,18 +128,9 @@ serve(async (req) => {
 
     await Promise.all(sendPromises);
 
-    return new Response(
-      JSON.stringify({ message: "Notifications sent successfully." }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
-      }
-    );
+    return new Response(JSON.stringify({ message: "Notifications sent successfully." }), { status: 200, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } });
   } catch (e: any) {
     console.error("Main error:", e);
-    return new Response(JSON.stringify({ error: e?.message || String(e) }), {
-      status: 500,
-      headers: { "Content-Type": "application/json", ...corsHeaders },
-    });
+    return new Response(JSON.stringify({ error: e?.message || String(e) }), { status: 500, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } });
   }
 });

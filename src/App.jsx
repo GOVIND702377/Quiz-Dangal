@@ -21,6 +21,7 @@ const ContactUs = lazy(() => import('@/pages/ContactUs'));
 const TermsConditions = lazy(() => import('@/pages/TermsConditions'));
 const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 const Quiz = lazy(() => import('@/pages/Quiz'));
+const CategoryQuizzes = lazy(() => import('@/pages/CategoryQuizzes'));
 const Admin = lazy(() => import('@/pages/Admin'));
 const Results = lazy(() => import('@/pages/Results'));
 const Leaderboards = lazy(() => import('@/pages/Leaderboards'));
@@ -93,6 +94,7 @@ function App() {
             ) : (
               <>
                 <Route path="/quiz/:id" element={<Quiz />} />
+                <Route path="/category/:slug" element={<Page><CategoryQuizzes /></Page>} />
                 <Route path="/results/:id" element={<Results />} />
                 <Route path="/*" element={<MainLayout />} />
               </>

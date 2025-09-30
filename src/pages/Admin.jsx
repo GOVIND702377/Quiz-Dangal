@@ -208,13 +208,14 @@ export default function Admin() {
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [showQuestions, setShowQuestions] = useState(false);
   const [questions, setQuestions] = useState([]);
+  // Publish panel removed in simplified flow
   const [busyQuizId, setBusyQuizId] = useState(null);
   const categories = ['opinion', 'gk', 'movies', 'sports'];
 
   // Removed translation trigger and auto-sync; no-op now
 
   const [quizForm, setQuizForm] = useState({
-    title: '', prizes: ['', '', ''], start_time: '', end_time: '', result_time: '', category: ''
+    title: '', prizes: ['', '', ''], start_time: '', end_time: '', category: ''
   });
 
   useEffect(() => { if (activeTab === 'overview') fetchQuizzes(); }, [activeTab]);
@@ -307,21 +308,26 @@ export default function Admin() {
           title: quizForm.title,
           prize_pool: prizePool,
           prizes: prizesArray,
-          start_time: quizForm.start_time,
-          end_time: quizForm.end_time,
-          result_time: quizForm.result_time,
+          // Single-step creation with schedule
+          start_time: quizForm.start_time ? new Date(quizForm.start_time).toISOString() : null,
+          end_time: quizForm.end_time ? new Date(quizForm.end_time).toISOString() : null,
           status: 'upcoming',
           category: quizForm.category || null
         }])
-        .select('id')
+        .select('id, title, category, prizes, prize_pool, start_time, end_time')
         .single();
 
       if (error) throw error;
 
-      toast({ title: 'Success', description: 'Quiz create ho gaya.' });
+      toast({ title: 'Quiz created', description: 'Ab questions add karein; users ko schedule ke hisaab se dikhega.' });
 
       setShowCreateQuiz(false);
-      setQuizForm({ title: '', entry_fee: '', prizes: ['', '', ''], start_time: '', end_time: '', result_time: '', category: '' });
+      setQuizForm({ title: '', prizes: ['', '', ''], start_time: '', end_time: '', category: '' });
+      // Open Questions editor directly for the created draft
+      setSelectedQuiz(insertData);
+      await fetchQuestions(insertData.id);
+      setShowQuestions(true);
+      // Also refresh list in background
       fetchQuizzes();
     } catch (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -429,21 +435,17 @@ export default function Admin() {
                   <Input placeholder="3rd Prize (51)" value={quizForm.prizes[2]} onChange={(e) => { const p=[...quizForm.prizes]; p[2]=e.target.value; setQuizForm({...quizForm, prizes:p}); }} />
                 </div>
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="start_time">Start Time</Label>
-                  <Input id="start_time" type="datetime-local" value={quizForm.start_time} onChange={(e) => setQuizForm({...quizForm, start_time: e.target.value})} required />
+                  <Label>Start Time</Label>
+                  <Input type="datetime-local" value={quizForm.start_time} onChange={(e)=>setQuizForm({ ...quizForm, start_time: e.target.value })} required />
                 </div>
                 <div>
-                  <Label htmlFor="end_time">End Time</Label>
-                  <Input id="end_time" type="datetime-local" value={quizForm.end_time} onChange={(e) => setQuizForm({...quizForm, end_time: e.target.value})} required />
-                </div>
-                <div>
-                  <Label htmlFor="result_time">Result Time</Label>
-                  <Input id="result_time" type="datetime-local" value={quizForm.result_time} onChange={(e) => setQuizForm({...quizForm, result_time: e.target.value})} required />
+                  <Label>End Time</Label>
+                  <Input type="datetime-local" value={quizForm.end_time} onChange={(e)=>setQuizForm({ ...quizForm, end_time: e.target.value })} required />
                 </div>
               </div>
+              {/* Times will be set on Publish */}
 
               <div className="flex space-x-4">
                 <Button type="submit" className="bg-green-600 hover:bg-green-700">Create Quiz</Button>
@@ -469,32 +471,33 @@ export default function Admin() {
                     <span>Category: {quiz.category || '—'}</span>
                     <span>Prize Pool: ₹{quiz.prize_pool}</span>
                     <span>Prizes: ₹{quiz.prizes?.join(', ₹')}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs ${
-                      quiz.status === 'upcoming' ? 'bg-blue-600/10 text-blue-700 dark:text-blue-300' :
-                      quiz.status === 'active' ? 'bg-green-600/10 text-green-700 dark:text-green-300' :
-                      'bg-muted text-foreground/80'
-                    }`}>
-                      {quiz.status}
-                    </span>
+                    {/* status chip removed */}
                   </div>
                   <div className="mt-2 text-sm text-muted-foreground">
-                    <span>Start: {new Date(quiz.start_time).toLocaleString()}</span>
-                    <span className="ml-4">End: {new Date(quiz.end_time).toLocaleString()}</span>
+                    <span>Start: {quiz.start_time ? new Date(quiz.start_time).toLocaleString() : '—'}</span>
+                    <span className="ml-4">End: {quiz.end_time ? new Date(quiz.end_time).toLocaleString() : '—'}</span>
                   </div>
-                  {/* Inline times/status editor */}
-                  <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-2">
+                  {/* Inline editor: category/start/end only */}
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
                     <select className="border border-border bg-background text-foreground rounded-md px-2 py-2 capitalize" value={quiz.category || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ category: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }}>
                       <option value="">Select category</option>
                       {categories.map(c => (<option value={c} key={c}>{c}</option>))}
                     </select>
-                    <Input type="datetime-local" value={quiz.start_time?.slice(0,16) || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ start_time: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }} />
-                    <Input type="datetime-local" value={quiz.end_time?.slice(0,16) || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ end_time: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }} />
-                    <Input type="datetime-local" value={quiz.result_time?.slice(0,16) || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ result_time: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }} />
-                    <select className="border border-border bg-background text-foreground rounded-md px-2 py-2" value={quiz.status} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ status: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }}>
-                      <option value="upcoming">upcoming</option>
-                      <option value="active">active</option>
-                      <option value="finished">finished</option>
-                    </select>
+                    <Input type="datetime-local" value={quiz.start_time?.slice(0,16) || ''} onChange={async (e)=>{
+                      const val = e.target.value;
+                      // optimistic
+                      quizzes[index].start_time = val;
+                      setQuizzes([...quizzes]);
+                      const { error } = await supabase.from('quizzes').update({ start_time: val }).eq('id', quiz.id);
+                      if (error) { toast({ title:'Update failed', description:error.message, variant:'destructive' }); fetchQuizzes(); }
+                    }} />
+                    <Input type="datetime-local" value={quiz.end_time?.slice(0,16) || ''} onChange={async (e)=>{
+                      const val = e.target.value;
+                      quizzes[index].end_time = val;
+                      setQuizzes([...quizzes]);
+                      const { error } = await supabase.from('quizzes').update({ end_time: val }).eq('id', quiz.id);
+                      if (error) { toast({ title:'Update failed', description:error.message, variant:'destructive' }); fetchQuizzes(); }
+                    }} />
                   </div>
                 </div>
                 <div className="flex space-x-2">
@@ -531,6 +534,7 @@ export default function Admin() {
               <h3 className="text-lg font-semibold text-foreground">Questions for: {selectedQuiz.title}</h3>
               <div className="flex gap-2">
                 <Button onClick={addQuestion} className="bg-indigo-600 hover:bg-indigo-700" size="sm"><Plus className="w-4 h-4 mr-1"/>Add Question</Button>
+                {/* Publish panel removed */}
                 <Button variant="outline" size="sm" onClick={()=>setShowQuestions(false)}>Close</Button>
               </div>
             </div>

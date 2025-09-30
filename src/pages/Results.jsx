@@ -49,9 +49,9 @@ const Results = () => {
       // If results aren't published yet
       if (!resRow || leaderboard.length === 0) {
         setResults([]);
-        // Initialize countdown if result_time exists
-        if (quizData?.result_time) {
-          const target = new Date(quizData.result_time).getTime();
+        // Initialize countdown to end_time (results are computed at end_time)
+        if (quizData?.end_time) {
+          const target = new Date(quizData.end_time).getTime();
           const diff = target - Date.now();
           setTimeLeftMs(diff > 0 ? diff : 0);
         } else {
@@ -127,12 +127,12 @@ const Results = () => {
 
   // Live countdown updater when results aren't available yet
   useEffect(() => {
-    if (!quiz?.result_time || results.length > 0) {
+    if (!quiz?.end_time || results.length > 0) {
       setTimeLeftMs(null);
       return;
     }
 
-    const target = new Date(quiz.result_time).getTime();
+    const target = new Date(quiz.end_time).getTime();
     const tick = () => {
       const diff = target - Date.now();
       if (diff > 0) {
@@ -151,7 +151,7 @@ const Results = () => {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quiz?.result_time, results.length]);
+  }, [quiz?.end_time, results.length]);
 
   const formatTimeParts = (ms) => {
     const total = Math.max(0, Math.floor((ms ?? 0) / 1000));
@@ -190,11 +190,11 @@ const Results = () => {
       <div className="min-h-screen p-4 flex items-center justify-center">
         <div className="qd-card rounded-2xl p-6 shadow-lg text-center max-w-md w-full text-slate-100">
             <h2 className="text-2xl font-bold mb-2 text-white">Results not published yet</h2>
-          {quiz?.result_time ? (
+          {quiz?.end_time ? (
             <div className="mb-4">
               {timeLeftMs > 0 ? (
                 <div>
-                  <p className="text-slate-300 mb-3">Results will be published in</p>
+                  <p className="text-slate-300 mb-3">Quiz ends in</p>
                   {(() => {
                     const { days, hours, minutes, seconds } = formatTimeParts(timeLeftMs);
                     const part = (val, label) => (
@@ -212,14 +212,14 @@ const Results = () => {
                       </div>
                     );
                   })()}
-                  <p className="text-xs text-slate-400 mt-3">Result time: {new Date(quiz.result_time).toLocaleString()}</p>
+                  <p className="text-xs text-slate-400 mt-3">End time: {new Date(quiz.end_time).toLocaleString()}</p>
                 </div>
               ) : (
-                <p className="text-slate-300 mb-4">Publishing soon… please stay on this page.</p>
+                <p className="text-slate-300 mb-4">Finalizing results… please stay on this page.</p>
               )}
             </div>
           ) : (
-            <p className="text-slate-300 mb-4">Please check back after the result time.</p>
+            <p className="text-slate-300 mb-4">Please check back after the quiz end time.</p>
           )}
           <div className="flex justify-center gap-3">
             <Button variant="brand" onClick={handleRetry}>Refresh</Button>

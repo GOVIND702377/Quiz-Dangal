@@ -46,11 +46,11 @@ serve(async (req) => {
     console.error('Fetch starting quizzes error', startErr)
   }
 
-  // 2) Send result notifications for quizzes where result_time <= now and not already sent
-  const { data: resultQuizzes, error: resErr } = await admin
+  // 2) Send result notifications for quizzes where end_time <= now AND results exist (no longer using result_time)
+  const { data: endedQuizzes, error: resErr } = await admin
     .from('quizzes')
-    .select('id, title, result_time')
-    .lte('result_time', now.toISOString())
+    .select('id, title, end_time, status')
+    .lte('end_time', now.toISOString())
     .in('status', ['active','finished']);
 
   if (resErr) {
@@ -108,11 +108,24 @@ serve(async (req) => {
     await markAndSend(q.id, 'start_soon', 'Quiz Reminder', body);
   }
 
-  // Process result published
-  for (const q of resultQuizzes || []) {
-    const body = `${q.title} ka result aa chuka hai. Leaderboard dekhien!`;
-    await markAndSend(q.id, 'result', 'Quiz Result', body);
+  // Process result published: only if quiz_results exist for the quiz
+  let resultCount = 0;
+  for (const q of endedQuizzes || []) {
+    const { data: anyRes, error: rErr } = await admin
+      .from('quiz_results')
+      .select('id')
+      .eq('quiz_id', q.id)
+      .limit(1);
+    if (rErr) {
+      console.error('Check quiz_results error', rErr);
+      continue;
+    }
+    if (anyRes && anyRes.length > 0) {
+      const body = `${q.title} ka result aa chuka hai. Leaderboard dekhien!`;
+      await markAndSend(q.id, 'result', 'Quiz Result', body);
+      resultCount++;
+    }
   }
 
-  return new Response(JSON.stringify({ ok: true, startCount: startingQuizzes?.length || 0, resultCount: resultQuizzes?.length || 0 }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+  return new Response(JSON.stringify({ ok: true, startCount: startingQuizzes?.length || 0, resultCount }), { status: 200, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
 });

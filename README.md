@@ -80,6 +80,20 @@ Notification bhejne ka high-level flow:
 - Function admin role verify karke `push_subscriptions` table ke endpoints par notifications bhejta hai.
 - Invalid endpoints 404/410 par auto-clean ho jate hain.
 
+## Prize Data Normalization (Quizzes)
+
+Quizzes ki prize distribution ko normalized table `public.quiz_prizes` me store kiya jata hai (rank ranges + per-rank coins). Frontend compatibility ke liye `public.quizzes.prizes` (top-3 array) aur `public.quizzes.prize_pool` ko triggers ke through auto-sync rakha gaya hai.
+
+Migration SQL: `supabase/sql/2025-09-30_prize_normalization.sql`
+
+Isse yeh hoga:
+- `quiz_prizes` par sanity constraints add
+- Triggers: `quizzes.prizes` -> `quiz_prizes` rows; `quiz_prizes` -> `quizzes.prize_pool` + top-3 prizes
+- View: `public.quizzes_enriched` with computed `prize_pool_calc` and `prizes_top3`
+- RLS: `quiz_prizes` public read, admin manage
+
+Frontend ko change karne ki zaroorat nahi (wo `quizzes` se hi `prize_pool`/`prizes` padhta hai). Agar aap computed fields chahte hain to `quizzes_enriched` view use kar sakte hain.
+
 ## Deployment
 - Static site ke liye `npm run build` se `dist/` generate hota hai.
 - Custom domain (`public/CNAME`) ke saath base `'/'` configured hai (`vite.config.js`).

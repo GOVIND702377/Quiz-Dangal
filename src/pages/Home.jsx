@@ -7,6 +7,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { MessageSquare, Brain, Trophy, Clapperboard } from 'lucide-react';
 import StreakModal from '@/components/StreakModal';
+// Modal removed; navigate to a dedicated page instead
 
 // Use same count and names as existing app (styled like the screenshot)
 const HOME_TILES = [
@@ -22,11 +23,17 @@ const HOME_TILES = [
 
 const accentFor = (i) => ['a','b','c','d'][i % 4];
 const vividFor = (i) => ['1','2','3','4'][i % 4];
-const Tile = ({ tile, quizzes, onJoin, index, joiningId }) => {
-  const quiz = quizzes.find(q => (q.category || '').toLowerCase() === tile.slug.toLowerCase());
+const Tile = ({ tile, quizzes, onJoin, index, joiningId, onOpenList, navigateTo }) => {
+  // pick nearest upcoming or active quiz for this category
+  const relevant = quizzes
+    .filter(q => (q.category || '').toLowerCase() === tile.slug.toLowerCase())
+    .filter(q => q.status === 'upcoming' || q.status === 'active')
+    .sort((a,b) => new Date(a.start_time || a.end_time || 0) - new Date(b.start_time || b.end_time || 0));
+  const quiz = relevant[0];
   const isLoading = joiningId && quiz && joiningId === quiz.id;
   const Icon = tile.icon;
   const variants = ['neon-orange', 'neon-purple', 'neon-teal', 'neon-pink'];
+  const label = isLoading ? 'JOINING…' : (quiz ? (quiz.status === 'active' ? 'PLAY' : 'JOIN') : 'SOON');
   return (
     <motion.button
       type="button"
@@ -34,14 +41,11 @@ const Tile = ({ tile, quizzes, onJoin, index, joiningId }) => {
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.25, delay: index * 0.06 }}
       // Click sound handled globally via SoundProvider pointerdown listener
-      onClick={() => {
-        if (!quiz || isLoading) return; // prevent join when not available
-        onJoin(quiz);
-      }}
+      onClick={() => navigateTo(tile.slug)}
       className={`neon-card ${variants[index % variants.length]} group aspect-square w-full rounded-xl focus:outline-none will-change-transform transform-gpu ${(!quiz || isLoading) ? 'opacity-70 cursor-not-allowed' : ''}`}
       style={{ borderRadius: '0.75rem' }}
       aria-disabled={!quiz || isLoading}
-      aria-label={`${tile.title} - ${quiz ? (isLoading ? 'Joining…' : 'Play') : 'Coming soon'}`}
+      aria-label={`${tile.title} - ${quiz ? (isLoading ? 'Joining…' : (quiz.status === 'active' ? 'Play' : 'Join')) : 'Coming soon'}`}
     >
       <div className="neon-card-content select-none flex items-center justify-center">
         <div className="w-full flex flex-col items-center justify-center gap-2">
@@ -49,7 +53,7 @@ const Tile = ({ tile, quizzes, onJoin, index, joiningId }) => {
           <h3 className="text-base font-extrabold leading-tight text-white text-shadow-sm text-center">
             {tile.title}
           </h3>
-          <span className="play-pill">{isLoading ? 'JOINING…' : (quiz ? 'PLAY' : 'SOON')}</span>
+          <span className="play-pill">{label}</span>
         </div>
       </div>
     </motion.button>
@@ -65,16 +69,24 @@ const Home = () => {
   const [streakModal, setStreakModal] = useState({ open: false, day: 0, coins: 0 });
   const claimingRef = useRef(false);
   const [joiningId, setJoiningId] = useState(null);
+  // Removed list modal state
 
   const fetchQuizzesAndCounts = useCallback(async () => {
-    try { const { data: quizzesData, error } = await supabase.from('quizzes').select('*').order('start_time', { ascending: true }); if (error) throw error; setQuizzes(quizzesData || []); }
+    try {
+      const { data: quizzesData, error } = await supabase
+        .from('quizzes')
+        .select('id,title,category,start_time,end_time,status,prize_pool,prizes')
+        .order('start_time', { ascending: true });
+      if (error) throw error;
+      setQuizzes(quizzesData || []);
+    }
     catch (e) { console.error(e); toast({ title: 'Error', description: 'Could not fetch quizzes.', variant: 'destructive' }); setQuizzes([]); }
     finally { setLoading(false); }
   }, [toast]);
 
-  useEffect(() => { fetchQuizzesAndCounts(); const i = setInterval(fetchQuizzesAndCounts, 30000); return () => clearInterval(i); }, [fetchQuizzesAndCounts]);
+  useEffect(() => { fetchQuizzesAndCounts(); const i = setInterval(fetchQuizzesAndCounts, 60000); return () => clearInterval(i); }, [fetchQuizzesAndCounts]);
 
-  useEffect(() => { if (!user || claimingRef.current) return; const claim = async () => { claimingRef.current = true; try { const { data, error } = await supabase.rpc('handle_daily_login', { user_uuid: user.id }); if (error) return console.error(error); if (data && data.is_new_login) { await refreshUserProfile(user); setStreakModal({ open: true, day: data.streak_day, coins: data.coins_earned }); } } finally { claimingRef.current = false; } }; const t = setTimeout(claim, 1200); return () => clearTimeout(t); }, [user, refreshUserProfile]);
+  // Daily login claim handled in Header; avoid duplicate RPC here
 
   const handleJoinQuiz = async (quiz) => {
     if (!quiz || joiningId === quiz.id) return;
@@ -85,11 +97,17 @@ const Home = () => {
     }
     setJoiningId(quiz.id);
     try {
-      const { data, error } = await supabase.rpc('join_quiz', { p_quiz_id: quiz.id });
+      // Allow pre-join if upcoming; otherwise normal join
+      const rpc = quiz.status === 'upcoming' ? 'pre_join_quiz' : 'join_quiz';
+      const { data, error } = await supabase.rpc(rpc, { p_quiz_id: quiz.id });
       if (error) throw error;
-      if (data && data !== 'Joined Successfully') throw new Error(data);
-      toast({ title: 'Joined!', description: 'Redirecting you to the quiz.' });
-      navigate(`/quiz/${quiz.id}`);
+      if (quiz.status === 'upcoming') {
+        toast({ title: 'Pre-joined!', description: 'We will remind you 1 minute before start.' });
+      } else {
+        if (data && data !== 'Joined Successfully') throw new Error(data);
+        toast({ title: 'Joined!', description: 'Redirecting you to the quiz.' });
+        navigate(`/quiz/${quiz.id}`);
+      }
     } catch (err) {
       const msg = String(err?.message || '').toLowerCase();
       let description = err?.message || 'Could not join quiz.';
@@ -120,12 +138,21 @@ const Home = () => {
                 <div key={i} className="aspect-square w-full rounded-xl bg-slate-800/60 border border-slate-700/60 animate-pulse" />
               ))
               : HOME_TILES.map((t, i) => (
-                <Tile key={t.slug} tile={t} quizzes={quizzes} onJoin={handleJoinQuiz} index={i} joiningId={joiningId} />
+                <Tile
+                  key={t.slug}
+                  tile={t}
+                  quizzes={quizzes}
+                  onJoin={handleJoinQuiz}
+                  index={i}
+                  joiningId={joiningId}
+                  navigateTo={(slug) => navigate(`/category/${slug}`)}
+                />
               ))}
           </div>
         </div>
       </div>
       <StreakModal open={streakModal.open} day={streakModal.day} coins={streakModal.coins} onClose={() => setStreakModal(s => ({ ...s, open: false }))} />
+      {/* Category modal removed in favor of page navigation */}
     </div>
   );
 };

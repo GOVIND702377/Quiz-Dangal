@@ -5,6 +5,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
+import { formatDateTime, formatDateOnly, formatTimeOnly } from '@/lib/utils';
 import { Loader2, CheckCircle, Clock, Users, Trophy } from 'lucide-react';
 
 const Quiz = () => {
@@ -21,29 +22,11 @@ const Quiz = () => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [participantCount, setParticipantCount] = useState(0);
+  const [joined, setJoined] = useState(false);
 
   const fetchQuizData = useCallback(async () => {
     try {
-      // Check if user is a participant
-      const { data: participant, error: pError } = await supabase
-        .from('quiz_participants')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('quiz_id', quizId)
-        .single();
-
-      if (pError || !participant) {
-        toast({ title: "Not Joined", description: "You have not joined this quiz.", variant: "destructive" });
-        navigate('/');
-        return;
-      }
-
-      if (participant.status === 'completed') {
-        setQuizState('completed');
-        return;
-      }
-
-      // Get quiz details
+      // Get quiz details first (allow viewing lobby even if not joined)
       const { data: quizData, error: quizError } = await supabase
         .from('quizzes')
         .select('*')
@@ -57,26 +40,47 @@ const Quiz = () => {
       }
       setQuiz(quizData);
 
-      // Load base questions directly (no translations)
-      const { data: questionsData, error: questionsError } = await supabase
-        .from('questions')
-        .select(`
-          id,
-          question_text,
-          options (
-            id,
-            option_text
-          )
-        `)
-        .eq('quiz_id', quizId)
-        .order('id');
-
-      if (questionsError || !questionsData || questionsData.length === 0) {
-        toast({ title: "Error", description: "Could not load questions.", variant: "destructive" });
-        navigate('/');
-        return;
+      // Check if user already joined (only when logged in)
+      let participant = null;
+      if (user && user.id) {
+        const { data: pData, error: pError } = await supabase
+          .from('quiz_participants')
+          .select('status')
+          .eq('user_id', user.id)
+          .eq('quiz_id', quizId)
+          .maybeSingle();
+        if (!pError && pData) {
+          participant = pData;
+          setJoined(true);
+          if (participant.status === 'completed') setQuizState('completed');
+        } else {
+          setJoined(false);
+        }
+      } else {
+        setJoined(false);
       }
-      setQuestions(questionsData);
+
+      // Load questions only if joined (prevents answering without joining)
+      if (participant && participant.status !== 'completed') {
+        const { data: questionsData, error: questionsError } = await supabase
+          .from('questions')
+          .select(`
+            id,
+            question_text,
+            options (
+              id,
+              option_text
+            )
+          `)
+          .eq('quiz_id', quizId)
+          .order('id');
+
+        if (!questionsError && questionsData && questionsData.length > 0) {
+          setQuestions(questionsData);
+        } else {
+          setQuestions([]);
+        }
+      }
 
       // Get participant count
       const { data: participantTotal, error: participantError } = await supabase
@@ -100,25 +104,31 @@ const Quiz = () => {
     fetchQuizData();
   }, [fetchQuizData]);
 
-  // Timer logic
+  // Timer logic (robust to missing times)
   useEffect(() => {
-    if (!quiz || quizState === 'loading' || quizState === 'completed') return;
+    if (!quiz || quizState === 'completed') return;
 
     const update = () => {
       const now = new Date();
-      const startTime = new Date(quiz.start_time);
-      const endTime = new Date(quiz.end_time);
+      const st = quiz.start_time ? new Date(quiz.start_time) : null;
+      const et = quiz.end_time ? new Date(quiz.end_time) : null;
 
-      if (now < startTime) {
+      const isUpcoming = st && now < st;
+      const isActive = st && et && now >= st && now < et;
+
+      if (isUpcoming) {
         setQuizState('waiting');
-        setTimeLeft(Math.max(0, Math.round((startTime - now) / 1000)));
-      } else if (now >= startTime && now < endTime) {
-        setQuizState('active');
-        setTimeLeft(Math.max(0, Math.round((endTime - now) / 1000)));
-      } else {
-        setQuizState('finished');
-        setTimeLeft(0);
+        setTimeLeft(Math.max(0, Math.round((st.getTime() - now.getTime()) / 1000)));
+        return;
       }
+      if (isActive) {
+        setQuizState('active');
+        setTimeLeft(Math.max(0, Math.round((et.getTime() - now.getTime()) / 1000)));
+        return;
+      }
+      // Otherwise, it's finished
+      setQuizState('finished');
+      setTimeLeft(0);
     };
 
     update();
@@ -174,6 +184,34 @@ const Quiz = () => {
         variant: "destructive"
       });
   // no error tone; silent fail per requirement
+    }
+  };
+
+  // Join or Pre-join from lobby
+  const handleJoinOrPrejoin = async () => {
+    if (!quiz) return;
+    const now = new Date();
+    const st = quiz.start_time ? new Date(quiz.start_time) : null;
+    const et = quiz.end_time ? new Date(quiz.end_time) : null;
+    const isActive = quiz.status === 'active' && st && et && now >= st && now < et;
+    const rpc = isActive ? 'join_quiz' : 'pre_join_quiz';
+    try {
+      const { error } = await supabase.rpc(rpc, { p_quiz_id: quizId });
+      if (error) throw error;
+      setJoined(true);
+      toast({ title: isActive ? 'Joined!' : 'Pre-joined!', description: isActive ? 'Starting now.' : 'We will remind you before start.' });
+      // If active, fetch questions to begin
+      if (isActive) {
+        const { data: questionsData } = await supabase
+          .from('questions')
+          .select('id, question_text, options ( id, option_text )')
+          .eq('quiz_id', quizId)
+          .order('id');
+        setQuestions(questionsData || []);
+        setQuizState('active');
+      }
+    } catch (err) {
+      toast({ title: 'Error', description: err?.message || 'Could not join.', variant: 'destructive' });
     }
   };
 
@@ -233,6 +271,72 @@ const Quiz = () => {
     );
   }
 
+  const InfoChips = () => (
+    <div className="mt-3 text-xs text-slate-300">
+      <div className="text-[11px] text-slate-400">{quiz.start_time ? formatDateOnly(quiz.start_time) : '—'}</div>
+      <div className="mt-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2">
+          <div className="uppercase tracking-wide text-[10px] text-slate-400">Start</div>
+          <div>{quiz.start_time ? formatTimeOnly(quiz.start_time) : '—'}</div>
+        </div>
+        <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-3 py-2">
+          <div className="uppercase tracking-wide text-[10px] text-slate-400">End</div>
+          <div>{quiz.end_time ? formatTimeOnly(quiz.end_time) : '—'}</div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const PrizeChips = () => {
+    const prizes = Array.isArray(quiz.prizes) ? quiz.prizes : [];
+    const p1 = prizes[0] || 0, p2 = prizes[1] || 0, p3 = prizes[2] || 0;
+    return (
+      <div className="mt-2 flex items-center gap-2 text-xs">
+        <span className="px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-700/30">1st ₹{p1}</span>
+        <span className="px-2 py-1 rounded-md bg-sky-500/15 text-sky-300 border border-sky-700/30">2nd ₹{p2}</span>
+        <span className="px-2 py-1 rounded-md bg-violet-500/15 text-violet-300 border border-violet-700/30">3rd ₹{p3}</span>
+      </div>
+    );
+  };
+
+  // Show pre-lobby if not joined yet
+  if (!joined && quizState !== 'completed') {
+    const now = new Date();
+    const st = quiz.start_time ? new Date(quiz.start_time) : null;
+    const et = quiz.end_time ? new Date(quiz.end_time) : null;
+    const isActive = quiz.status === 'active' && st && et && now >= st && now < et;
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="qd-card rounded-2xl p-8 shadow-xl text-center max-w-md text-slate-100 w-full"
+        >
+          <Clock className="h-16 w-16 text-accent-b mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white text-shadow-sm mb-2">{quiz.title}</h2>
+          <p className="text-slate-300 mb-1">{isActive ? 'Quiz is live!' : 'Quiz starts in:'}</p>
+          <div className="text-4xl font-bold text-indigo-300 mb-4">{formatTime(timeLeft)}</div>
+          <div className="flex items-center justify-center space-x-4 text-sm text-gray-400">
+            <div className="flex items-center">
+              <Users className="h-4 w-4 mr-1" />
+              {participantCount} joined
+            </div>
+            <div className="flex items-center">
+              <Trophy className="h-4 w-4 mr-1" />
+              ₹{quiz.prize_pool} prize pool
+            </div>
+          </div>
+          <PrizeChips />
+          <InfoChips />
+          <div className="mt-6">
+            <Button onClick={handleJoinOrPrejoin} className={isActive ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-indigo-600 hover:bg-indigo-700'}>
+              {isActive ? 'Join & Start' : 'Pre-Join'}
+            </Button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
   if (quizState === 'completed') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -262,11 +366,11 @@ const Quiz = () => {
         >
           <Clock className="h-16 w-16 text-accent-b mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white text-shadow-sm mb-2">{quiz.title}</h2>
-          <p className="text-slate-300 mb-4">Quiz starts in:</p>
+          <p className="text-slate-300 mb-1">Quiz starts in:</p>
           <div className="text-4xl font-bold text-indigo-300 mb-4">
             {formatTime(timeLeft)}
           </div>
-          <div className="flex items-center justify-center space-x-4 text-sm text-gray-600">
+          <div className="flex items-center justify-center space-x-4 text-sm text-gray-400">
             <div className="flex items-center">
               <Users className="h-4 w-4 mr-1" />
               {participantCount} joined
@@ -276,6 +380,9 @@ const Quiz = () => {
               ₹{quiz.prize_pool} prize pool
             </div>
           </div>
+          <PrizeChips />
+          <InfoChips />
+          <div className="mt-4 text-xs text-slate-400">We’ll auto-start when the timer hits zero.</div>
         </motion.div>
       </div>
     );
