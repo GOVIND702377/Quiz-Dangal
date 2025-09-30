@@ -209,11 +209,12 @@ export default function Admin() {
   const [showQuestions, setShowQuestions] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [busyQuizId, setBusyQuizId] = useState(null);
+  const categories = ['opinion', 'gk', 'movies', 'sports'];
 
   // Removed translation trigger and auto-sync; no-op now
 
   const [quizForm, setQuizForm] = useState({
-    title: '', entry_fee: '', prizes: ['', '', ''], start_time: '', end_time: '', result_time: '', category: ''
+    title: '', prizes: ['', '', ''], start_time: '', end_time: '', result_time: '', category: ''
   });
 
   useEffect(() => { if (activeTab === 'overview') fetchQuizzes(); }, [activeTab]);
@@ -365,6 +366,7 @@ export default function Admin() {
         {[
           { key: 'overview', title: 'Overview' },
           { key: 'notifications', title: 'Notifications' },
+          { key: 'redemptions', title: 'Redemptions' },
         ].map(t => (
           <button
             key={t.key}
@@ -392,14 +394,28 @@ export default function Admin() {
             <h2 className="text-xl font-bold text-gray-800 mb-1">Create New Quiz</h2>
             {/* Note removed: translations no longer auto-generated */}
             <form onSubmit={handleCreateQuiz} className="space-y-4">
+              <div>
+                <Label>Category (Section)</Label>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {categories.map((c) => (
+                    <button
+                      type="button"
+                      key={c}
+                      onClick={() => setQuizForm({ ...quizForm, category: c })}
+                      className={`px-3 py-1 rounded-full border text-sm capitalize ${quizForm.category === c ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                {!quizForm.category && (
+                  <p className="text-xs text-red-600 mt-1">Please choose a category</p>
+                )}
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="title">Quiz Title</Label>
                   <Input id="title" value={quizForm.title} onChange={(e) => setQuizForm({...quizForm, title: e.target.value})} placeholder="Daily Opinion Quiz - Evening" required />
-                </div>
-                <div>
-                  <Label htmlFor="entry_fee">Entry Fee (₹)</Label>
-                  <Input id="entry_fee" type="number" step="0.01" value={quizForm.entry_fee} onChange={(e) => setQuizForm({...quizForm, entry_fee: e.target.value})} placeholder="11.00" required />
                 </div>
               </div>
 
@@ -425,10 +441,6 @@ export default function Admin() {
                   <Label htmlFor="result_time">Result Time</Label>
                   <Input id="result_time" type="datetime-local" value={quizForm.result_time} onChange={(e) => setQuizForm({...quizForm, result_time: e.target.value})} required />
                 </div>
-                <div>
-                  <Label htmlFor="category">Category</Label>
-                  <Input id="category" value={quizForm.category} onChange={(e) => setQuizForm({ ...quizForm, category: e.target.value })} placeholder="e.g., GK, Sports, Movies, Opinion" />
-                </div>
               </div>
 
               <div className="flex space-x-4">
@@ -452,7 +464,7 @@ export default function Admin() {
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-800">{quiz.title}</h3>
                   <div className="flex items-center space-x-4 mt-2 text-sm text-gray-600">
-                    <span>Entry: ₹{quiz.entry_fee}</span>
+                    <span>Category: {quiz.category || '—'}</span>
                     <span>Prize Pool: ₹{quiz.prize_pool}</span>
                     <span>Prizes: ₹{quiz.prizes?.join(', ₹')}</span>
                     <span className={`px-2 py-1 rounded-full text-xs ${
@@ -468,7 +480,11 @@ export default function Admin() {
                     <span className="ml-4">End: {new Date(quiz.end_time).toLocaleString()}</span>
                   </div>
                   {/* Inline times/status editor */}
-                  <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-2">
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-2">
+                    <select className="border rounded-md px-2 py-2 capitalize" value={quiz.category || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ category: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }}>
+                      <option value="">Select category</option>
+                      {categories.map(c => (<option value={c} key={c}>{c}</option>))}
+                    </select>
                     <Input type="datetime-local" value={quiz.start_time?.slice(0,16) || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ start_time: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }} />
                     <Input type="datetime-local" value={quiz.end_time?.slice(0,16) || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ end_time: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }} />
                     <Input type="datetime-local" value={quiz.result_time?.slice(0,16) || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ result_time: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }} />
@@ -560,6 +576,133 @@ export default function Admin() {
       )}
 
       {activeTab === 'notifications' && <AdminNotificationsSection />}
+
+      {activeTab === 'redemptions' && <AdminRedemptionsSection />}
+    </div>
+  );
+}
+
+function AdminRedemptionsSection() {
+  const { toast } = useToast();
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [adding, setAdding] = useState(false);
+  const [form, setForm] = useState({ title: '', coins_required: '', description: '', image_url: '' });
+
+  const load = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('reward_catalog')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) {
+      toast({ title: 'Load failed', description: error.message, variant: 'destructive' });
+      setItems([]);
+    } else {
+      setItems(data || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const addItem = async (e) => {
+    e.preventDefault();
+    const title = form.title.trim();
+    const coins = parseInt(form.coins_required, 10);
+    if (!title || isNaN(coins) || coins < 0) {
+      toast({ title: 'Invalid input', description: 'Title required and coins must be a non-negative number', variant: 'destructive' });
+      return;
+    }
+    setAdding(true);
+    const { error } = await supabase.from('reward_catalog').insert({
+      title: title,
+      coins_required: coins,
+      description: form.description?.trim() || null,
+      image_url: form.image_url?.trim() || null,
+      is_active: true,
+    });
+    if (error) toast({ title: 'Add failed', description: error.message, variant: 'destructive' });
+    else {
+      toast({ title: 'Added', description: 'Catalog item created' });
+      setForm({ title: '', coins_required: '', description: '', image_url: '' });
+      load();
+    }
+    setAdding(false);
+  };
+
+  const saveInline = async (id, patch) => {
+    const { error } = await supabase.from('reward_catalog').update(patch).eq('id', id);
+    if (error) toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
+    else load();
+  };
+
+  const removeItem = async (id) => {
+    if (!confirm('Delete this item?')) return;
+    const { error } = await supabase.from('reward_catalog').delete().eq('id', id);
+    if (error) toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    else { toast({ title: 'Deleted' }); load(); }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Admin: Redemptions Catalog</h2>
+        <p className="text-gray-600 text-sm">Items jinko users coins se redeem kar sakte hain</p>
+      </div>
+
+      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
+        <form onSubmit={addItem} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+          <div>
+            <Label htmlFor="rc_title">Title *</Label>
+            <Input id="rc_title" value={form.title} onChange={(e)=>setForm({ ...form, title: e.target.value })} placeholder="e.g., ₹100 Paytm" required />
+          </div>
+          <div>
+            <Label htmlFor="rc_coins">Coins *</Label>
+            <Input id="rc_coins" type="number" min="0" value={form.coins_required} onChange={(e)=>setForm({ ...form, coins_required: e.target.value })} placeholder="e.g., 1000" required />
+          </div>
+          <div>
+            <Label htmlFor="rc_img">Image URL (optional)</Label>
+            <Input id="rc_img" value={form.image_url} onChange={(e)=>setForm({ ...form, image_url: e.target.value })} placeholder="https://..." />
+          </div>
+          <div className="md:col-span-4">
+            <Label htmlFor="rc_desc">Description (optional)</Label>
+            <Textarea id="rc_desc" value={form.description} onChange={(e)=>setForm({ ...form, description: e.target.value })} placeholder="Short details" />
+          </div>
+          <div>
+            <Button type="submit" disabled={adding} className="bg-green-600 hover:bg-green-700">{adding ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Adding...</>) : 'Add Item'}</Button>
+          </div>
+        </form>
+      </div>
+
+      <div className="bg-white/80 backdrop-blur-md border border-gray-200/50 rounded-2xl p-4 shadow-lg">
+        <h3 className="font-semibold text-gray-800 mb-3">Catalog Items</h3>
+        {loading ? (
+          <div className="py-8 text-center text-gray-600"><Loader2 className="inline-block h-6 w-6 animate-spin text-indigo-500 mr-2"/> Loading...</div>
+        ) : items.length === 0 ? (
+          <div className="py-8 text-center text-gray-600">No items</div>
+        ) : (
+          <div className="space-y-2">
+            {items.map((it) => (
+              <div key={it.id} className="p-3 rounded-xl bg-white/70 border border-gray-200/50 flex items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Input defaultValue={it.title} onBlur={(e)=>{ const v=e.target.value.trim(); if (v && v !== it.title) saveInline(it.id, { title: v }); }} className="flex-1" />
+                    <Input type="number" min="0" defaultValue={it.coins_required} onBlur={(e)=>{ const n=parseInt(e.target.value,10); if (!isNaN(n) && n !== it.coins_required) saveInline(it.id, { coins_required: n }); }} className="w-32" />
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1 truncate">{it.description}</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-gray-700 flex items-center gap-1">
+                    <input type="checkbox" defaultChecked={!!it.is_active} onChange={(e)=>saveInline(it.id, { is_active: e.target.checked })} /> Active
+                  </label>
+                  <Button size="sm" variant="outline" className="text-red-600 border-red-300" onClick={()=>removeItem(it.id)}><Trash2 className="w-4 h-4"/></Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
