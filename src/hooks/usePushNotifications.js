@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 
 // Read VAPID key from env; do not hardcode in source.
@@ -16,6 +17,7 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 export function usePushNotifications() {
+  const { user } = useAuth?.() || { user: null };
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [subscription, setSubscription] = useState(null);
   const [error, setError] = useState(null);
@@ -34,6 +36,11 @@ export function usePushNotifications() {
   }, []);
 
   const subscribeToPush = async () => {
+    // Require login to bind subscription with user in DB (RLS-safe)
+    if (!user) {
+      setError('Notifications ke liye pehle login karein.');
+      return false;
+    }
     if (!('serviceWorker' in navigator && 'PushManager' in window)) {
       setError('Push notifications are not supported by this browser.');
       return;
