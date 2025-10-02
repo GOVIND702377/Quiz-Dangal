@@ -6,7 +6,7 @@ import { getSignedAvatarUrls } from '@/lib/avatar';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Trophy, Medal, Award, Users, ArrowLeft, Share2, MessageCircle } from 'lucide-react';
+import { Trophy, Users, ArrowLeft, Share2 } from 'lucide-react';
 
 const Results = () => {
   const { id: quizId } = useParams();
@@ -193,113 +193,22 @@ const Results = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [results.length, quizId, userRank?.rank, userRank?.score]);
 
-  // Helpers: static poster for Results page
-  // Prefers a dedicated results poster, then falls back to the shared refer poster.
-  const loadStaticResultsPoster = async () => {
-    const base = (typeof window !== 'undefined' ? window.location.origin : '') + (import.meta.env.BASE_URL || '/');
-    const resultsEnvUrl = import.meta.env.VITE_RESULTS_POSTER_URL; // optional dedicated results poster
-    const referEnvUrl = import.meta.env.VITE_REFER_POSTER_URL; // fallback poster
-    const version = Date.now();
-    const abs = (p) => (p?.startsWith('http') ? p : `${base}${p.replace(/^\//,'')}`);
-    const addV = (url) => url.includes('?') ? `${url}&v=${version}` : `${url}?v=${version}`;
-    // 1) Results-specific candidates (env then common names)
-    const resultCandidates = (resultsEnvUrl
-      ? [addV(abs(resultsEnvUrl))]
-      : [
-          '/result poster.png', '/results poster.png', '/result share poster.png', '/result share.png', '/result card.png',
-          '/result-poster.png', '/results-poster.png', '/result.png', '/results.png', '/result.webp', '/results.webp',
-          '/result%20poster.png', '/results%20poster.png', '/result%20share%20poster.png', '/result%20share.png', '/result%20card.png',
-          // subfolders
-          '/images/result poster.png', '/images/results poster.png', '/images/result-poster.png', '/images/results-poster.png',
-          '/assets/result poster.png', '/assets/results poster.png', '/assets/result-poster.png', '/assets/results-poster.png',
-          '/posters/result poster.png', '/posters/results poster.png', '/posters/result-poster.png', '/posters/results-poster.png'
-        ]).map((u) => addV(abs(u)));
+  // Removed static background poster; we render a clean gradient background only.
 
-    // 2) Fallback: shared refer poster candidates
-    const referCandidates = (referEnvUrl
-      ? [addV(abs(referEnvUrl))]
-      : [
-          // exact filename support (spaces and &)
-          '/refer & earn poster.png',
-          '/refer%20%26%20earn%20poster.png',
-          // common roots
-          '/refer-poster.png', '/refer-poster.jpg', '/refer-poster.jpeg', '/refer.jpg', '/refer.png', '/refer.webp',
-          // subfolders
-          '/images/refer-poster.png', '/images/refer-poster.jpg', '/images/refer-poster.jpeg', '/images/refer-poster.webp',
-          '/assets/refer-poster.png', '/assets/refer-poster.jpg', '/assets/refer-poster.jpeg', '/assets/refer-poster.webp',
-          '/posters/refer-poster.png', '/posters/refer-poster.jpg', '/posters/refer-poster.jpeg', '/posters/refer-poster.webp'
-        ]).map((u) => addV(abs(u)));
-
-    const candidates = [...resultCandidates, ...referCandidates];
-    for (const url of candidates) {
-      try {
-        const resp = await fetch(url, { cache: 'reload' });
-        if (!resp.ok) throw new Error('not ok');
-        const blob = await resp.blob();
-        if (blob && blob.size > 0 && /^image\//.test(blob.type || '')) {
-          const type = (blob.type || 'image/jpeg').toLowerCase();
-          if (type !== 'image/jpeg') {
-            // convert to jpeg for compatibility
-            try {
-              const tempUrl = URL.createObjectURL(blob);
-              const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = tempUrl; });
-              const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
-              const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0);
-              const jpg = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.92));
-              URL.revokeObjectURL(tempUrl);
-              if (jpg) return jpg;
-            } catch {}
-          }
-          return blob;
-        }
-      } catch {}
-    }
-    // last-resort tiny jpeg so share still carries an image
-    try {
-      const c = document.createElement('canvas'); c.width = 8; c.height = 8; const ctx = c.getContext('2d');
-      ctx.fillStyle = '#2b0b76'; ctx.fillRect(0,0,8,8);
-      const jpg = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.92));
-      return jpg;
-    } catch { return null; }
-  };
-
-  // Compose a dynamic Results poster on top of the static background.
-  // Controlled by env: VITE_RESULTS_POSTER_DYNAMIC ("1"/"true" to enable). Fallbacks to static poster if anything fails.
+  // Compose a dynamic Results poster with a clean gradient background (no static poster behind).
   const generateComposedResultsPoster = async () => {
     try {
-      // Load background image (results-specific or refer fallback)
-      const bgBlob = await loadStaticResultsPoster();
-      const bgUrl = bgBlob ? URL.createObjectURL(bgBlob) : null;
-
       // Canvas setup — square fits WhatsApp grid well
       const W = 1080, H = 1080;
       const canvas = document.createElement('canvas');
       canvas.width = W; canvas.height = H;
       const ctx = canvas.getContext('2d');
+  ctx.textBaseline = 'top';
 
-      // Background: draw image cover; else gradient
-      if (bgUrl) {
-        try {
-          const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = bgUrl; });
-          // cover logic
-          const rCanvas = W / H; const rImg = img.width / img.height;
-          let dw = W, dh = H, dx = 0, dy = 0;
-          if (rImg > rCanvas) { // image wider than canvas
-            dh = H; dw = H * rImg; dx = (W - dw) / 2; dy = 0;
-          } else { // image taller/narrower
-            dw = W; dh = W / rImg; dx = 0; dy = (H - dh) / 2;
-          }
-          ctx.drawImage(img, dx, dy, dw, dh);
-        } catch {
-          const g = ctx.createLinearGradient(0, 0, W, H);
-          g.addColorStop(0, '#130531'); g.addColorStop(1, '#1e0b4b'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-        } finally {
-          if (bgUrl) URL.revokeObjectURL(bgUrl);
-        }
-      } else {
-        const g = ctx.createLinearGradient(0, 0, W, H);
-        g.addColorStop(0, '#130531'); g.addColorStop(1, '#1e0b4b'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-      }
+      // Background: clean brand gradient (no external image)
+      const g = ctx.createLinearGradient(0, 0, W, H);
+      g.addColorStop(0, '#130531'); g.addColorStop(1, '#1e0b4b');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
       // Soft vignette overlay for contrast
       const vignette = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, H*0.7);
@@ -310,22 +219,22 @@ const Results = () => {
       // Content paddings
       const PAD = 64;
 
-      // Header: quiz title
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
-      ctx.font = '800 58px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      const title = quiz?.title ? String(quiz.title).toUpperCase() : 'QUIZ DANGAL RESULTS';
-      const maxTitleWidth = W - PAD * 2;
-      const measure = (t) => ctx.measureText(t).width;
-      let titleText = title;
-      while (titleText.length > 0 && measure(titleText) > maxTitleWidth) titleText = titleText.slice(0, -1);
-      if (titleText !== title) titleText += '…';
-      ctx.fillText(titleText, PAD, PAD);
+  // Header: quiz title
+  ctx.fillStyle = 'rgba(255,255,255,0.92)';
+  ctx.font = '800 54px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  const title = quiz?.title ? String(quiz.title).toUpperCase() : 'QUIZ DANGAL RESULTS';
+  const maxTitleWidth = W - PAD * 2;
+  const measure = (t) => ctx.measureText(t).width;
+  let titleText = title;
+  while (titleText.length > 0 && measure(titleText) > maxTitleWidth) titleText = titleText.slice(0, -1);
+  if (titleText !== title) titleText += '…';
+  ctx.fillText(titleText, PAD, PAD);
 
       // Participants count (top-right subtle)
       if (Array.isArray(results)) {
         const partText = `${results.length} participants`;
         ctx.fillStyle = 'rgba(203,213,225,0.85)';
-        ctx.font = '600 28px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+        ctx.font = '600 26px Inter, system-ui, -apple-system, Segoe UI, Roboto';
         const tw = ctx.measureText(partText).width;
         ctx.fillText(partText, W - PAD - tw, PAD);
       }
@@ -345,39 +254,36 @@ const Results = () => {
       ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(236,72,153,0.6)';
       pathRound(boxX, boxY, boxW, boxH, radius); ctx.stroke();
 
-      // Inside box: Rank, Prize, Score
+      // Inside box: Rank, Prize, Score (top-based incremental layout)
+      let y = boxY + 36;
+      const text = (fill, font, content, x, yval, maxW) => {
+        ctx.fillStyle = fill; ctx.font = font;
+        let s = content;
+        if (maxW) { while (s.length > 0 && ctx.measureText(s).width > maxW) s = s.slice(0, -1); if (s !== content) s += '…'; }
+        ctx.fillText(s, x, yval);
+        const m = ctx.measureText('M');
+        // approximate line height from font size
+        const fs = parseInt(font.match(/\s(\d+)px/)[1] || '32', 10);
+        return fs;
+      };
+      const maxInner = boxW - 100;
       const rankText = userRank?.rank ? `#${userRank.rank} Rank!` : 'Results Live!';
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '900 120px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText(rankText, boxX + 48, boxY + 150);
+      y += text('#ffffff', '900 110px Inter, system-ui, -apple-system, Segoe UI, Roboto', rankText, boxX + 48, y, maxInner) + 10;
 
       const prize = (userRank?.rank && Array.isArray(quiz?.prizes) && quiz.prizes[userRank.rank - 1]) ? quiz.prizes[userRank.rank - 1] : 0;
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
-      ctx.font = '700 40px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText(`Prize: ₹${prize}`, boxX + 50, boxY + 210);
+      y += text('rgba(255,255,255,0.92)', '700 38px Inter, system-ui, -apple-system, Segoe UI, Roboto', `Prize: ₹${prize}`, boxX + 50, y, maxInner) + 8;
 
       if (typeof userRank?.score === 'number') {
-        ctx.fillStyle = 'rgba(168, 255, 230, 0.95)';
-        ctx.font = '800 64px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-        ctx.fillText(`Score: ${userRank.score}`, boxX + 50, boxY + 280);
+        y += text('rgba(168, 255, 230, 0.95)', '800 58px Inter, system-ui, -apple-system, Segoe UI, Roboto', `Score: ${userRank.score}`, boxX + 50, y, maxInner) + 8;
       }
 
-      // Player name (under score)
-      {
-        const displayName = (userProfile?.username || userProfile?.full_name || 'You').toString();
-        ctx.fillStyle = 'rgba(226,232,240,0.92)';
-        ctx.font = '700 34px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-        // truncate if too long
-        let nameText = displayName;
-        const maxW = boxW - 100;
-        while (nameText.length > 0 && ctx.measureText(nameText).width > maxW) nameText = nameText.slice(0, -1);
-        if (nameText !== displayName) nameText += '…';
-        ctx.fillText(`Player: ${nameText}`, boxX + 50, boxY + 328);
-      }
+      const displayName = (userProfile?.username || userProfile?.full_name || 'You').toString();
+      y += text('rgba(226,232,240,0.92)', '700 32px Inter, system-ui, -apple-system, Segoe UI, Roboto', `Player: ${displayName}`, boxX + 50, y, maxInner);
 
+      // Tagline near box bottom
       ctx.fillStyle = 'rgba(226,232,240,0.92)';
-      ctx.font = '600 30px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText('Only legends make it this far ✨', boxX + 50, boxY + boxH - 50);
+      ctx.font = '600 28px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText('Only legends make it this far ✨', boxX + 50, boxY + boxH - 56);
 
       // CTA bar
       const ctaY = boxY + boxH + 24; const ctaH = 90;
@@ -394,20 +300,28 @@ const Results = () => {
 
       const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g, '').slice(0, 8)).toUpperCase();
       const siteBase = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://quizdangal.com').replace(/\/$/, '');
-      ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.font = '800 44px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText('Play & Win on Quiz Dangal', boxX + 36, footerY + 64);
-      ctx.fillStyle = 'rgba(203,213,225,0.98)'; ctx.font = '700 36px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText(siteBase.replace(/^https?:\/\//, ''), boxX + 36, footerY + 64 + 46);
-      ctx.fillStyle = 'rgba(190,242,100,1)'; ctx.font = '900 42px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText(`Referral: ${refCode}`, boxX + 36, footerY + 64 + 46 + 52);
-      ctx.fillStyle = 'rgba(203,213,225,0.9)'; ctx.font = '600 26px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText('#QuizDangal  #ChallengeAccepted  #PlayToWin', boxX + 36, footerY + footerH - 36);
+  ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.font = '800 42px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  ctx.fillText('Play & Win on Quiz Dangal', boxX + 36, footerY + 48);
+  ctx.fillStyle = 'rgba(203,213,225,0.98)'; ctx.font = '700 34px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  ctx.fillText(siteBase.replace(/^https?:\/\//, ''), boxX + 36, footerY + 48 + 42);
+  ctx.fillStyle = 'rgba(190,242,100,1)'; ctx.font = '900 40px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  ctx.fillText(`Referral: ${refCode}`, boxX + 36, footerY + 48 + 42 + 48);
+  ctx.fillStyle = 'rgba(203,213,225,0.9)'; ctx.font = '600 24px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  ctx.fillText('#QuizDangal  #ChallengeAccepted  #PlayToWin', boxX + 36, footerY + footerH - 40);
 
       // Export as JPEG
       const out = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
       return out;
     } catch (e) {
-      return await loadStaticResultsPoster();
+      // Minimal fallback: tiny gradient block as JPEG to keep share flow working
+      try {
+        const c = document.createElement('canvas'); c.width = 8; c.height = 8; const ctx = c.getContext('2d');
+        const g = ctx.createLinearGradient(0, 0, 8, 8);
+        g.addColorStop(0, '#130531'); g.addColorStop(1, '#1e0b4b');
+        ctx.fillStyle = g; ctx.fillRect(0,0,8,8);
+        const jpg = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.9));
+        return jpg;
+      } catch { return null; }
     }
   };
 
@@ -432,7 +346,7 @@ const Results = () => {
       const captionIOS = `My result on Quiz Dangal — Use code: ${refCode} — quizdangal.com`;
 
       // Always generate customized dynamic poster (fallback is handled inside)
-  const poster = posterBlob || (await generateComposedResultsPoster());
+      const poster = posterBlob || (await generateComposedResultsPoster());
       const useBlob = poster; // if null, no file will be attached
       const fname = `quizdangal-result-${quizId}-${userRank?.rank ?? 'NA'}.jpg`;
       const files = useBlob ? [new File([useBlob], fname, { type: 'image/jpeg' })] : [];
@@ -440,21 +354,25 @@ const Results = () => {
       // Pre-copy caption for safety (some apps drop text)
       try { await navigator.clipboard.writeText(isIOS ? captionIOS : captionFull); } catch {}
 
-      const canShareFiles = files.length > 0 && typeof navigator.canShare === 'function' && (() => { try { return navigator.canShare({ files }); } catch { return false; } })();
-
+      // Try sharing with image file first whenever share API exists
       if (typeof navigator.share === 'function') {
-        if (canShareFiles) {
-          if (isIOS) {
-            await navigator.share({ text: captionIOS, files }); // omit title on iOS with files
-            toast({ title: 'Caption copied', description: 'If the app didn\'t include it, just paste.' });
-          } else {
-            await navigator.share({ text: captionFull, files });
+        if (files.length > 0) {
+          try {
+            if (isIOS) {
+              await navigator.share({ text: captionIOS, files });
+              toast({ title: 'Caption copied', description: 'Agar text nahi gaya ho, paste kar dijiye.' });
+            } else {
+              await navigator.share({ text: captionFull, files });
+            }
+            return; // success with files
+          } catch (err) {
+            // If file-share fails, fall back to text-only share
           }
-          return;
         }
-        // Share sheet supported but cannot share files -> share text/link only
-        await navigator.share({ text: shareText || captionFull });
-        return;
+        try {
+          await navigator.share({ text: shareText || captionFull });
+          return;
+        } catch {}
       }
 
       // Final fallback: no share API -> keep it non-intrusive (no auto-download). Caption is already copied.
@@ -464,77 +382,7 @@ const Results = () => {
     }
   };
 
-  // Dedicated WhatsApp share helper
-  const shareResultToWhatsApp = async () => {
-    try {
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g, '').slice(0, 8));
-      const captionFull = [
-        '🔥 My result is here! 🔥',
-        'Checked out the poster? Now it’s your turn 👀',
-        '',
-        '👉 Just head over to www.quizdangal.com',
-        `Use Referral Code: ${refCode}`,
-        'and unlock your score 🚀',
-        '',
-        'Don’t just scroll, share your vibes 💯',
-        '#Results #ChallengeAccepted'
-      ].join('\n');
-      const captionIOS = `My result on Quiz Dangal — Use code: ${refCode} — quizdangal.com`;
-
-    // Always generate customized dynamic poster (fallback is handled inside)
-    const poster = await generateComposedResultsPoster();
-    const fname = `quizdangal-result-${quizId}-${userRank?.rank ?? 'NA'}.jpg`;
-    const files = poster ? [new File([poster], fname, { type: 'image/jpeg' })] : [];
-
-      // Copy caption for safety
-      try { await navigator.clipboard.writeText(isIOS ? captionIOS : captionFull); } catch {}
-
-      const canShareFiles = files.length > 0 && typeof navigator.canShare === 'function' && (() => { try { return navigator.canShare({ files }); } catch { return false; } })();
-
-      if (typeof navigator.share === 'function' && canShareFiles) {
-        // We can't force WhatsApp, but the system sheet will include it; ask user to pick WhatsApp.
-        await navigator.share({ text: isIOS ? captionIOS : captionFull, files });
-        if (isIOS) toast({ title: 'Choose WhatsApp', description: 'If caption is missing, paste from clipboard.' });
-        return;
-      }
-
-      // Fallback: save image, open WhatsApp text-only
-      if (poster) {
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(poster);
-        a.download = fname;
-        document.body.appendChild(a); a.click(); a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      }
-      const text = encodeURIComponent(isIOS ? captionIOS : captionFull);
-      window.open(`https://wa.me/?text=${text}`, '_blank');
-      toast({ title: 'Image saved', description: 'WhatsApp khul gaya. Image attach karke caption paste kar dijiye.' });
-    } catch (e) {
-      toast({ title: 'WhatsApp share failed', description: e?.message || 'Try again', variant: 'destructive' });
-    }
-  };
-
-  // Manual download helper for desktop/unsupported share environments
-  const downloadResultPoster = async () => {
-    try {
-  const poster = posterBlob || (await generateComposedResultsPoster());
-      const useBlob = poster || (await loadStaticResultsPoster());
-      if (!useBlob) {
-        toast({ title: 'Download failed', description: 'Could not generate poster. Try again.' , variant: 'destructive'});
-        return;
-      }
-      const fname = `quizdangal-result-${quizId}-${userRank?.rank ?? 'NA'}.jpg`;
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(useBlob);
-      a.download = fname;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      toast({ title: 'Poster downloaded', description: 'Share it in your app and paste the caption.' });
-    } catch (e) {
-      toast({ title: 'Download failed', description: e?.message || 'Try again', variant: 'destructive' });
-    }
-  };
+  // Removed WhatsApp-specific share helper per request
 
   // Live countdown updater when results aren't available yet
   useEffect(() => {
@@ -585,8 +433,7 @@ const Results = () => {
     return { refCode, site: base, resultUrl, shareText };
   };
 
-  // Note: any previous canvas-based result poster code has been removed.
-  // We now always use the single static brand poster for sharing, to keep it consistent.
+  // Note: We now use a single clean gradient background for the dynamic poster (no secondary poster behind).
 
   if (loading) {
     return (
@@ -752,28 +599,6 @@ const Results = () => {
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
           <div className="flex items-center gap-2">
-            <button onClick={shareResultToWhatsApp} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/90 text-white border border-emerald-500 hover:bg-emerald-600">
-              <MessageCircle className="w-4 h-4" /> WhatsApp
-            </button>
-            <button onClick={downloadResultPoster} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/70 text-white border border-slate-700 hover:bg-slate-800">Download Poster</button>
-            <button onClick={async () => {
-              const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g, '').slice(0, 8));
-              const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-              const captionFull = [
-                '🔥 My result is here! 🔥',
-                'Checked out the poster? Now it’s your turn 👀',
-                '',
-                '👉 Just head over to www.quizdangal.com',
-                `Use Referral Code: ${refCode}`,
-                'and unlock your score 🚀',
-                '',
-                'Don’t just scroll, share your vibes 💯',
-                '#Results #ChallengeAccepted'
-              ].join('\n');
-              const captionIOS = `My result on Quiz Dangal — Use code: ${refCode} — quizdangal.com`;
-              try { await navigator.clipboard.writeText(isIOS ? captionIOS : captionFull); } catch {}
-              toast({ title: 'Caption copied', description: 'Paste it in the app if needed.' });
-            }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/70 text-white border border-slate-700 hover:bg-slate-800">Copy Caption</button>
             <button onClick={shareResultDirect} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-extrabold border text-white shadow-[0_8px_18px_rgba(139,92,246,0.4)] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)] border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)]">
               <Share2 className="w-4 h-4" /> Share
             </button>
