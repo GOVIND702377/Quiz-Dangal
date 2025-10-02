@@ -5,20 +5,27 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getSignedAvatarUrls } from '@/lib/avatar';
-import { useToast } from '@/components/ui/use-toast';
 
 const ReferEarn = () => {
   const { user, userProfile } = useAuth();
-  const { toast } = useToast();
   const [referralStats, setReferralStats] = useState({ total: 0, earnings: 0 });
   const [referralHistory, setReferralHistory] = useState([]);
   const [copied, setCopied] = useState(''); // 'code' | 'link' | ''
   const [loading, setLoading] = useState(true);
-  const [posterBlob, setPosterBlob] = useState(null);
 
   const referralCode = userProfile?.referral_code || '';
   const referralLink = `${window.location.origin}?ref=${referralCode}`;
-  const shareCaption = 'Earn coins by playing quizzes! Use my referral to get started.';
+  const shareCaption = `Yo! 🤩 Ab dimaag se paisa banao 💸
+Join Quiz Dangal – jaha brains = fame ✨
+
+👉 बस https://www.quizdangal.com पर जाओ
+Referral Code: ${referralCode} डालो
+और turant coins kamao 🚀
+
+Don’t scroll, hustle smartly 💯
+
+Referral Link:
+${referralLink}`;
 
   useEffect(() => {
     let mounted = true;
@@ -77,23 +84,7 @@ const ReferEarn = () => {
     return () => { mounted = false; };
   }, [user]);
 
-  // Prepare static poster in background for faster share
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        // Always use the fixed poster from /public
-        const posterUrl = `${window.location.origin}/refer-earn-poster.png`;
-        const res = await fetch(posterUrl, { cache: 'force-cache' });
-        const blob = await res.blob();
-        if (!cancelled) setPosterBlob(blob);
-      } catch {
-        if (!cancelled) setPosterBlob(null);
-      }
-    })();
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [referralCode]);
+  // We rely on link previews (OG tags). No poster file sharing for Refer & Earn.
 
   const copyToClipboard = async (text, kind) => {
     try {
@@ -108,80 +99,45 @@ const ReferEarn = () => {
     }
   };
 
-  // Removed dynamic canvas poster. We always use the static image in /public now.
+  // Refer & Earn: text-only share (caption + link). Poster not attached; previews handled by meta tags.
 
   const shareReferralLink = async () => {
-    // Try to share static poster + caption together; copy caption as safety
-    const textPayload = `${shareCaption} ${referralLink}`;
-
-    // Try Web Share API v2 with the static poster file
+    // Text-only share: prefer Web Share API, else WhatsApp deep link with text
+  const textPayload = shareCaption;
     try {
-      const blob = posterBlob;
-      // Copy caption to clipboard first as a safety net in case the target app drops text
-      try { await navigator.clipboard.writeText(textPayload); } catch {}
-      if (blob && navigator.canShare && window.File) {
-        const file = new File([blob], 'refer-earn-poster.png', { type: 'image/png' });
-        if (navigator.canShare({ files: [file], text: textPayload })) {
-          await navigator.share({ files: [file], text: textPayload, title: 'Quiz Dangal' });
-          toast({ title: 'Shared', description: 'If the caption is missing in the app, it\'s copied. Just paste.' });
-          return;
-        }
-      }
-    } catch {}
-
-    // Fallbacks: open WhatsApp/Telegram with text-only; user can attach poster manually if needed
-    try {
-      const encoded = encodeURIComponent(`${shareCaption}\n${referralLink}`);
-      const ua = navigator.userAgent || '';
-      const isIOS = /iPhone|iPad|iPod/i.test(ua);
-      const wa = isIOS ? `https://wa.me/?text=${encoded}` : `whatsapp://send?text=${encoded}`;
-      const openedWa = window.open(wa, '_blank'); if (openedWa) {
-        // Offer poster download so user can attach
-        try {
-          if (posterBlob) {
-            const url = URL.createObjectURL(posterBlob);
-            const a = document.createElement('a'); a.href = url; a.download = 'refer-earn-poster.png'; a.rel = 'noopener';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 1500);
-          }
-        } catch {}
-        toast({ title: 'Caption ready', description: 'Caption copied. Poster saved — attach it in WhatsApp.' });
+      if (navigator.share) {
+        await navigator.share({ title: 'Quiz Dangal', text: textPayload });
         return;
       }
-      const tg = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareCaption)}`;
-      const openedTg = window.open(tg, '_blank'); if (openedTg) return;
     } catch {}
-    copyToClipboard(referralLink, 'link');
-  };
 
-  const downloadPoster = async () => {
     try {
-      const blob = posterBlob;
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = 'refer-earn-poster.png'; a.rel = 'noopener';
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      const encoded = encodeURIComponent(textPayload);
+  const ua = navigator.userAgent || '';
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
+  const waDeep = `whatsapp://send?text=${encoded}`;
+  const intentUrl = `intent://send?text=${encoded}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
+  const waWeb = `https://wa.me/?text=${encoded}`;
+  const openNew = (url) => { const w = window.open(url, '_blank'); return !!w; };
+
+      if (isAndroid) {
+        if (openNew(waDeep)) return;
+        window.location.href = intentUrl; setTimeout(() => { if (!document.hidden) window.location.href = waWeb; }, 700); return;
+      }
+      if (isIOS) {
+        window.location.href = waDeep; setTimeout(() => { if (!document.hidden) window.location.href = waWeb; }, 700); return;
+      }
+  if (openNew(waWeb)) return;
+  const tg = `https://t.me/share/url?text=${encodeURIComponent(textPayload)}`;
+  openNew(tg);
     } catch {}
   };
 
   // Dedicated WhatsApp button (deep link + fallback) for Refer & Earn
   const shareToWhatsApp = async () => {
     try {
-      const textPayload = `${shareCaption} ${referralLink}`;
-      // Prefer sharing with file + caption if supported (lets user pick WhatsApp and sends both)
-      try { await navigator.clipboard.writeText(textPayload); } catch {}
-      if (posterBlob && navigator.canShare && window.File) {
-        const file = new File([posterBlob], 'refer-earn-poster.png', { type: 'image/png' });
-        if (navigator.canShare({ files: [file], text: textPayload })) {
-          await navigator.share({ files: [file], text: textPayload, title: 'Quiz Dangal' });
-          toast({ title: 'Shared', description: 'Choose WhatsApp. If caption is missing, paste (copied).' });
-          return;
-        }
-      }
-
-      // Deep link to WhatsApp with text, and save poster for manual attach
+      const textPayload = shareCaption;
       const encoded = encodeURIComponent(textPayload);
       const ua = navigator.userAgent || '';
       const isAndroid = /Android/i.test(ua);
@@ -190,17 +146,6 @@ const ReferEarn = () => {
       const intentUrl = `intent://send?text=${encoded}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
       const waWeb = `https://wa.me/?text=${encoded}`;
       const openNew = (url) => { const w = window.open(url, '_blank'); return !!w; };
-
-      // Save poster in background so user can attach
-      try {
-        if (posterBlob) {
-          const url = URL.createObjectURL(posterBlob);
-          const a = document.createElement('a'); a.href = url; a.download = 'refer-earn-poster.png'; a.rel = 'noopener';
-          document.body.appendChild(a); a.click(); document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(url), 1500);
-        }
-      } catch {}
-      toast({ title: 'Caption copied', description: 'Poster saved. Attach it in WhatsApp chat.' });
 
       if (isAndroid) {
         if (openNew(waDeep)) return;
