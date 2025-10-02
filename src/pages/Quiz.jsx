@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { formatDateTime, formatDateOnly, formatTimeOnly } from '@/lib/utils';
-import { Loader2, CheckCircle, Clock, Users, Trophy } from 'lucide-react';
+import { Loader2, CheckCircle, Clock, Users, Trophy, X } from 'lucide-react';
 
 const Quiz = () => {
   const { id: quizId } = useParams();
@@ -21,8 +21,31 @@ const Quiz = () => {
   const [quizState, setQuizState] = useState('loading'); // loading, waiting, active, finished, completed
   const [timeLeft, setTimeLeft] = useState(0);
   const [submitting, setSubmitting] = useState(false);
-  const [participantCount, setParticipantCount] = useState(0);
+  // Engagement counts
+  const [engagement, setEngagement] = useState({ joined: 0, pre_joined: 0 });
+  const totalJoined = (engagement.joined || 0) + (engagement.pre_joined || 0);
   const [joined, setJoined] = useState(false);
+  const [participantStatus, setParticipantStatus] = useState(null); // 'pre_joined' | 'joined' | 'completed' | null
+
+  const loadQuestions = useCallback(async () => {
+    const { data: questionsData, error: questionsError } = await supabase
+      .from('questions')
+      .select(`
+        id,
+        question_text,
+        options (
+          id,
+          option_text
+        )
+      `)
+      .eq('quiz_id', quizId)
+      .order('id');
+    if (!questionsError) {
+      setQuestions(questionsData || []);
+    } else {
+      setQuestions([]);
+    }
+  }, [quizId]);
 
   const fetchQuizData = useCallback(async () => {
     try {
@@ -52,53 +75,48 @@ const Quiz = () => {
         if (!pError && pData) {
           participant = pData;
           setJoined(true);
+          setParticipantStatus(pData.status || null);
           if (participant.status === 'completed') setQuizState('completed');
         } else {
           setJoined(false);
+          setParticipantStatus(null);
         }
       } else {
         setJoined(false);
+        setParticipantStatus(null);
       }
 
-      // Load questions only if joined (prevents answering without joining)
+      // Load questions only if joined and not completed
       if (participant && participant.status !== 'completed') {
-        const { data: questionsData, error: questionsError } = await supabase
-          .from('questions')
-          .select(`
-            id,
-            question_text,
-            options (
-              id,
-              option_text
-            )
-          `)
-          .eq('quiz_id', quizId)
-          .order('id');
-
-        if (!questionsError && questionsData && questionsData.length > 0) {
-          setQuestions(questionsData);
-        } else {
-          setQuestions([]);
-        }
+        await loadQuestions();
       }
 
-      // Get participant count
-      const { data: participantTotal, error: participantError } = await supabase
-        .rpc('get_participant_count', { p_quiz_id: quizId });
-
-      if (participantError) {
-        console.warn('Participant count fetch failed:', participantError);
-        setParticipantCount(0);
-      } else {
-        setParticipantCount(typeof participantTotal === 'number' ? participantTotal : 0);
-      }
+      await refreshEngagement();
 
     } catch (error) {
       console.error('Error fetching quiz data:', error);
       toast({ title: "Error", description: "Failed to load quiz.", variant: "destructive" });
       navigate('/');
     }
-  }, [quizId, user.id, navigate, toast]);
+  }, [quizId, user.id, navigate, toast, loadQuestions]);
+
+  const refreshEngagement = useCallback(async () => {
+    try {
+      const { data: engagementData, error: engagementError } = await supabase
+        .rpc('get_engagement_counts', { p_quiz_id: quizId });
+      if (engagementError) {
+        console.warn('Engagement counts fetch failed:', engagementError);
+        setEngagement({ joined: 0, pre_joined: 0 });
+      } else {
+        const rec = Array.isArray(engagementData) ? engagementData[0] : engagementData;
+        const j = Number(rec?.joined ?? 0);
+        const pj = Number(rec?.pre_joined ?? 0);
+  setEngagement({ joined: isNaN(j) ? 0 : j, pre_joined: isNaN(pj) ? 0 : pj });
+      }
+    } catch (e) {
+      console.warn('Engagement refresh failed', e);
+    }
+  }, [quizId]);
 
   useEffect(() => {
     fetchQuizData();
@@ -136,6 +154,35 @@ const Quiz = () => {
     return () => clearInterval(timer);
   }, [quiz, quizState]);
 
+  // Periodically refresh engagement counts while waiting/active
+  useEffect(() => {
+    if (!quiz) return;
+    if (!(quizState === 'waiting' || quizState === 'active')) return;
+    const id = setInterval(refreshEngagement, 15000);
+    return () => clearInterval(id);
+  }, [quiz, quizState, refreshEngagement]);
+
+  // When timer flips to active: auto-join if pre-joined, then load questions
+  useEffect(() => {
+    const run = async () => {
+      if (!quiz) return;
+      if (quizState !== 'active') return;
+      if (!user) return;
+      try {
+        if (!joined || participantStatus === 'pre_joined') {
+          const { error } = await supabase.rpc('join_quiz', { p_quiz_id: quizId });
+          if (error) throw error;
+          setJoined(true);
+          setParticipantStatus('joined');
+        }
+        if (questions.length === 0) await loadQuestions();
+      } catch (e) {
+        toast({ title: 'Unable to start', description: e?.message || 'Could not start the quiz.', variant: 'destructive' });
+      }
+    };
+    run();
+  }, [quiz, quizState, user, joined, participantStatus, quizId, loadQuestions, questions.length, toast]);
+
   // Auto-submit when quiz ends
   useEffect(() => {
     if (quizState === 'finished' && Object.keys(answers).length > 0 && !submitting) {
@@ -144,6 +191,8 @@ const Quiz = () => {
   }, [quizState]);
 
   const handleAnswerSelect = async (questionId, optionId) => {
+    // Block changes if we're submitting, not in active state, or already completed
+    if (submitting || quizState !== 'active' || participantStatus === 'completed') return;
     try {
       // Save answer to database immediately
       const { error } = await supabase
@@ -190,6 +239,11 @@ const Quiz = () => {
   // Join or Pre-join from lobby
   const handleJoinOrPrejoin = async () => {
     if (!quiz) return;
+    if (!user) { toast({ title: 'Login required', description: 'Please sign in to join the quiz.', variant: 'destructive' }); navigate('/login'); return; }
+    if (participantStatus === 'completed') {
+      toast({ title: 'Already submitted', description: 'You have already completed this quiz and cannot join again.', variant: 'destructive' });
+      return;
+    }
     const now = new Date();
     const st = quiz.start_time ? new Date(quiz.start_time) : null;
     const et = quiz.end_time ? new Date(quiz.end_time) : null;
@@ -199,15 +253,13 @@ const Quiz = () => {
       const { error } = await supabase.rpc(rpc, { p_quiz_id: quizId });
       if (error) throw error;
       setJoined(true);
+  // refresh counts immediately
+  refreshEngagement();
+      setParticipantStatus(isActive ? 'joined' : 'pre_joined');
       toast({ title: isActive ? 'Joined!' : 'Pre-joined!', description: isActive ? 'Starting now.' : 'We will remind you before start.' });
       // If active, fetch questions to begin
       if (isActive) {
-        const { data: questionsData } = await supabase
-          .from('questions')
-          .select('id, question_text, options ( id, option_text )')
-          .eq('quiz_id', quizId)
-          .order('id');
-        setQuestions(questionsData || []);
+        await loadQuestions();
         setQuizState('active');
       }
     } catch (err) {
@@ -310,20 +362,24 @@ const Quiz = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="qd-card rounded-2xl p-8 shadow-xl text-center max-w-md text-slate-100 w-full"
+          className="qd-card relative rounded-2xl p-8 shadow-xl text-center max-w-md text-slate-100 w-full"
         >
+          {/* Close (X) */}
+          <button
+            aria-label="Close"
+            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+            className="absolute top-3 right-3 text-slate-400 hover:text-slate-200 transition"
+          >
+            <X className="h-5 w-5" />
+          </button>
           <Clock className="h-16 w-16 text-accent-b mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white text-shadow-sm mb-2">{quiz.title}</h2>
           <p className="text-slate-300 mb-1">{isActive ? 'Quiz is live!' : 'Quiz starts in:'}</p>
           <div className="text-4xl font-bold text-indigo-300 mb-4">{formatTime(timeLeft)}</div>
-          <div className="flex items-center justify-center space-x-4 text-sm text-gray-400">
+          <div className="flex items-center justify-center gap-4 text-sm text-gray-300">
             <div className="flex items-center">
               <Users className="h-4 w-4 mr-1" />
-              {participantCount} joined
-            </div>
-            <div className="flex items-center">
-              <Trophy className="h-4 w-4 mr-1" />
-              ₹{quiz.prize_pool} prize pool
+              {totalJoined} joined
             </div>
           </div>
           <PrizeChips />
@@ -362,22 +418,26 @@ const Quiz = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="qd-card rounded-2xl p-8 shadow-xl text-center max-w-md text-slate-100"
+          className="qd-card relative rounded-2xl p-8 shadow-xl text-center max-w-md text-slate-100"
         >
+          {/* Close (X) */}
+          <button
+            aria-label="Close"
+            onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}
+            className="absolute top-3 right-3 text-slate-400 hover:text-slate-200 transition"
+          >
+            <X className="h-5 w-5" />
+          </button>
           <Clock className="h-16 w-16 text-accent-b mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-white text-shadow-sm mb-2">{quiz.title}</h2>
           <p className="text-slate-300 mb-1">Quiz starts in:</p>
           <div className="text-4xl font-bold text-indigo-300 mb-4">
             {formatTime(timeLeft)}
           </div>
-          <div className="flex items-center justify-center space-x-4 text-sm text-gray-400">
+          <div className="flex items-center justify-center gap-4 text-sm text-gray-300">
             <div className="flex items-center">
               <Users className="h-4 w-4 mr-1" />
-              {participantCount} joined
-            </div>
-            <div className="flex items-center">
-              <Trophy className="h-4 w-4 mr-1" />
-              ₹{quiz.prize_pool} prize pool
+              {totalJoined} joined
             </div>
           </div>
           <PrizeChips />
@@ -425,29 +485,29 @@ const Quiz = () => {
   const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
 
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4 bg-[radial-gradient(1000px_600px_at_50%_-100px,rgba(59,130,246,0.25),transparent),radial-gradient(800px_500px_at_120%_0,rgba(168,85,247,0.18),transparent)]">
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="qd-card rounded-2xl p-4 shadow-lg mb-6 text-slate-100"
+          className="rounded-2xl p-4 mb-6 text-slate-100 border border-slate-800/60 bg-slate-900/60 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
         >
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-lg font-bold text-white">{quiz.title}</h1>
-              <p className="text-sm text-slate-300">Question {currentQuestionIndex + 1} of {questions.length}</p>
+              <h1 className="text-lg font-extrabold text-white tracking-tight">{quiz.title}</h1>
+              <p className="text-xs text-slate-400">Question {currentQuestionIndex + 1} of {questions.length}</p>
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-red-400">{formatTime(timeLeft)}</div>
-              <div className="text-xs text-slate-300">Time Left</div>
+              <div className="text-2xl font-black text-rose-300 tabular-nums">{formatTime(timeLeft)}</div>
+              <div className="text-[10px] text-slate-400 uppercase tracking-wide">Time Left</div>
             </div>
           </div>
-          
+
           {/* Progress Bar */}
-          <div className="w-full bg-slate-700/40 rounded-full h-2 mt-4">
+          <div className="w-full bg-slate-800/60 rounded-full h-2 mt-4 overflow-hidden">
             <motion.div
-              className="bg-accent-b h-2 rounded-full"
+              className="h-2 rounded-full bg-[linear-gradient(90deg,#22d3ee,#818cf8,#a78bfa,#f472b6)]"
               style={{ width: `${progress}%` }}
               transition={{ duration: 0.5 }}
             />
@@ -458,49 +518,56 @@ const Quiz = () => {
         <AnimatePresence mode="wait">
           <motion.div
             key={currentQuestion.id}
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -50 }}
-            transition={{ duration: 0.3 }}
-            className="qd-card rounded-2xl p-6 shadow-lg text-slate-100"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -16 }}
+            transition={{ duration: 0.25 }}
+            className="rounded-2xl p-6 text-slate-100 border border-slate-800/60 bg-slate-900/60 backdrop-blur-md shadow-[0_10px_30px_rgba(0,0,0,0.35)]"
           >
-            <h2 className="text-xl font-bold text-center text-white text-shadow-sm mb-8">
+            <h2 className="text-xl font-bold text-center text-white mb-6 leading-relaxed">
               {currentQuestion.question_text}
             </h2>
 
-            <div className="space-y-4">
-              {currentQuestion.options?.map((option, index) => (
-                <motion.button
-                  key={option.id}
-                  onClick={() => handleAnswerSelect(currentQuestion.id, option.id)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`w-full p-4 rounded-xl text-left font-medium transition-all duration-200 shadow-md border ${
-                    answers[currentQuestion.id] === option.id
-                      ? 'bg-emerald-600 text-white border-emerald-500'
-                      : 'bg-slate-800/70 hover:bg-slate-800 text-slate-100 border-slate-700'
-                  }`}
-                >
-                  <span className="font-bold mr-3 text-accent-b">
-                    {String.fromCharCode(65 + index)}.
-                  </span>
-                  {option.option_text}
-                </motion.button>
-              ))}
+            <div className="space-y-3">
+              {currentQuestion.options?.map((option, index) => {
+                const selected = answers[currentQuestion.id] === option.id;
+                return (
+                  <motion.button
+                    key={option.id}
+                    onClick={() => handleAnswerSelect(currentQuestion.id, option.id)}
+                    disabled={submitting || quizState !== 'active' || participantStatus === 'completed'}
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.99 }}
+                    className={`w-full p-4 rounded-xl text-left font-medium transition-all duration-200 border group relative overflow-hidden ${
+                      selected
+                        ? 'bg-emerald-600/90 text-white border-emerald-400 shadow-[0_10px_24px_rgba(16,185,129,0.25)]'
+                        : 'bg-slate-800/70 hover:bg-slate-800 text-slate-100 border-slate-700/80'
+                    }`}
+                  >
+                    <span className={`font-bold mr-3 ${selected ? 'text-white' : 'text-indigo-300'}`}>
+                      {String.fromCharCode(65 + index)}.
+                    </span>
+                    {option.option_text}
+                    {!selected && (
+                      <span className="absolute inset-y-0 right-0 w-0 group-hover:w-1/6 transition-[width] duration-200 bg-gradient-to-l from-indigo-500/20 to-transparent" />
+                    )}
+                  </motion.button>
+                );
+              })}
             </div>
 
             {/* Submit Button (only on last question) */}
             {currentQuestionIndex === questions.length - 1 && Object.keys(answers).length === questions.length && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="mt-8"
+                transition={{ delay: 0.25 }}
+                className="mt-7"
               >
                 <Button
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 text-lg"
+                  className="w-full text-white font-extrabold py-4 text-lg border border-violet-500/40 shadow-[0_8px_18px_rgba(139,92,246,0.35)] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)] bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)]"
                 >
                   {submitting ? (
                     <>

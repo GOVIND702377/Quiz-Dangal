@@ -50,3 +50,20 @@ export function formatTimeOnly(value, opts = {}) {
 		return typeof value === 'string' ? value : '—';
 	}
 }
+
+// For HTML <input type="datetime-local"> value attribute (local time, YYYY-MM-DDTHH:mm)
+export function toDatetimeLocalValue(value) {
+	if (!value) return '';
+	try {
+		const d = value instanceof Date ? value : new Date(value);
+		const pad = (n) => String(n).padStart(2, '0');
+		const yyyy = d.getFullYear();
+		const mm = pad(d.getMonth() + 1);
+		const dd = pad(d.getDate());
+		const hh = pad(d.getHours());
+		const mi = pad(d.getMinutes());
+		return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+	} catch {
+		return '';
+	}
+}

@@ -2,9 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
-import { formatDateTime, formatDateOnly, formatTimeOnly } from '@/lib/utils';
+import { formatDateOnly, formatTimeOnly } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
-import { Clock, Users, Flame, MessageSquare, Brain, Clapperboard } from 'lucide-react';
+import { Users, Flame, MessageSquare, Brain, Clapperboard, Play, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 function statusBadge(s) {
@@ -33,7 +33,6 @@ const CategoryQuizzes = () => {
   const [loading, setLoading] = useState(true);
   const [joiningId, setJoiningId] = useState(null);
   const [counts, setCounts] = useState({}); // { [quizId]: joined (pre+joined+completed as joined) }
-  const [engagement, setEngagement] = useState({}); // legacy; will be removed
   const [joinedMap, setJoinedMap] = useState({}); // quiz_id -> 'joined' | 'pre'
   const [tick, setTick] = useState(0); // force re-render for live countdown
 
@@ -129,6 +128,8 @@ const CategoryQuizzes = () => {
       const rpc = isUpcoming ? 'pre_join_quiz' : (isActive ? 'join_quiz' : 'pre_join_quiz');
       const { data, error } = await supabase.rpc(rpc, { p_quiz_id: q.id });
       if (error) throw error;
+      // Update UI state immediately so button shows JOINED without refresh
+      setJoinedMap(prev => ({ ...prev, [q.id]: isActive ? 'joined' : 'pre' }));
       if (isUpcoming) {
         toast({ title: 'Pre-joined!', description: 'We will remind you before start.' });
       } else {
@@ -142,45 +143,64 @@ const CategoryQuizzes = () => {
     }
   };
 
-  // Local filter: All | Active | Upcoming
-  const [filter, setFilter] = useState('all');
-
+  // Always show Active + Upcoming (hide finished)
   const filtered = quizzes.filter(q => {
     const now = Date.now();
     const st = q.start_time ? new Date(q.start_time).getTime() : 0;
     const et = q.end_time ? new Date(q.end_time).getTime() : 0;
     const isActive = st && et && now >= st && now < et;
     const isUpcoming = st && now < st;
-    if (filter === 'all') return isActive || isUpcoming; // hide finished by default
-    return filter === 'active' ? isActive : isUpcoming;
+    return isActive || isUpcoming;
   });
+
+  const meta = categoryMeta(slug);
+  
+  // Header stats: active/upcoming counts and next start
+  const nowHeader = Date.now();
+  const activeCount = (quizzes || []).reduce((acc, q) => {
+    const st = q.start_time ? new Date(q.start_time).getTime() : 0;
+    const et = q.end_time ? new Date(q.end_time).getTime() : 0;
+    return acc + (st && et && nowHeader >= st && nowHeader < et ? 1 : 0);
+  }, 0);
+  const upcomingCount = (quizzes || []).reduce((acc, q) => {
+    const st = q.start_time ? new Date(q.start_time).getTime() : 0;
+    return acc + (st && nowHeader < st ? 1 : 0);
+  }, 0);
+  const nextStartTs = (quizzes || [])
+    .map(q => q.start_time ? new Date(q.start_time).getTime() : null)
+    .filter(ts => ts && ts > nowHeader)
+    .sort((a,b) => a - b)[0] || null;
 
   return (
     <div className="container mx-auto px-4 py-3 text-foreground">
       {/* Hero Header */}
-      {(() => { const meta = categoryMeta(slug); const Icon = meta.Icon; return (
-        <div className={`relative overflow-hidden rounded-2xl border border-white/10 bg-gradient-to-br ${meta.from} ${meta.to} mb-4`}>          
-          <div className="absolute inset-0 pointer-events-none" style={{background:'radial-gradient(700px 180px at -10% -20%, rgba(255,255,255,0.07), transparent), radial-gradient(420px 100px at 110% 10%, rgba(255,255,255,0.05), transparent)'}} />
-          <div className="px-4 py-4 sm:px-5 sm:py-5">
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="text-xl sm:text-2xl" aria-hidden>{meta.emoji}</div>
-                <div>
-                  <h1 className="text-lg sm:text-xl font-extrabold text-white tracking-tight drop-shadow-sm">{meta.title}</h1>
-                  <p className="text-xs text-white/80">Pick an upcoming or live quiz to jump in.</p>
+      <div className={`relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-r ${meta.from} ${meta.to} shadow-xl mb-4`}>
+        <div className="absolute inset-0 pointer-events-none" style={{background:'radial-gradient(700px 180px at -10% -20%, rgba(255,255,255,0.07), transparent), radial-gradient(420px 100px at 110% 10%, rgba(255,255,255,0.05), transparent)'}} />
+        <div className="px-4 py-4 sm:px-5 sm:py-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            {/* Left: Title and meta */}
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="shrink-0 grid place-items-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl ring-2 ring-white/20 bg-white/10 text-white text-xl sm:text-2xl shadow" aria-hidden>
+                {meta.emoji}
+              </div>
+              <div className="min-w-0">
+                <h1 className="truncate text-base sm:text-xl font-extrabold text-white tracking-tight drop-shadow-sm">{meta.title}</h1>
+                <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-white/85">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-600/20 text-emerald-200 border border-emerald-500/30">{activeCount} live</span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-600/20 text-sky-200 border border-sky-500/30">{upcomingCount} upcoming</span>
+                  {nextStartTs && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 text-white/90 border border-white/20">
+                      <Clock className="w-3.5 h-3.5" /> Next: {formatDateOnly(nextStartTs)} • {formatTimeOnly(nextStartTs)}
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className={`inline-flex rounded-lg bg-slate-900/60 border border-slate-700/60 overflow-hidden shadow ${meta.ring}`}>
-                {['all','active','upcoming'].map(f => (
-                  <button key={f} onClick={() => setFilter(f)} className={`px-2.5 sm:px-3.5 py-1 text-[11px] font-semibold transition ${filter===f?'bg-white/10 text-white':'text-slate-300 hover:bg-white/5'}`}>
-                    {f.toUpperCase()}
-                  </button>
-                ))}
-              </div>
             </div>
+
+            {/* Right: removed filter pills per request */}
           </div>
         </div>
-      )})()}
+      </div>
 
       {loading ? (
         <div className="grid gap-3">
@@ -200,15 +220,14 @@ const CategoryQuizzes = () => {
             const isActive = st && et && now >= st && now < et;
             const isUpcoming = st && now < st;
             const canJoin = isActive || isUpcoming;
-            let label = joiningId === q.id ? 'JOINING…' : (isActive ? 'PLAY' : (isUpcoming ? 'JOIN' : 'SOON'));
             const secs = isUpcoming && st ? Math.max(0, Math.floor((st - now)/1000)) : (isActive && et ? Math.max(0, Math.floor((et - now)/1000)) : null);
             const prizes = Array.isArray(q.prizes) ? q.prizes : [];
             const p1 = prizes[0] || 0, p2 = prizes[1] || 0, p3 = prizes[2] || 0;
             const joined = counts[q.id] || 0;
             const myStatus = joinedMap[q.id];
-            let joinDisabled = !canJoin || joiningId === q.id;
-            if (isUpcoming && myStatus === 'pre') { label = 'PRE-JOINED'; joinDisabled = true; }
-            if (isActive && myStatus === 'joined') { label = 'PLAY'; }
+            // unified UX: show only JOIN/JOINED; treat pre-joined as Joined in UI
+            const already = !!myStatus; // 'pre' or 'joined' both count as joined for display
+            const btnDisabled = joiningId === q.id || already || !canJoin;
             const totalWindow = (st && et) ? Math.max(1, et - st) : null;
             const progressed = isActive && totalWindow ? Math.min(100, Math.max(0, Math.round(((now - st) / totalWindow) * 100))) : null;
             return (
@@ -226,17 +245,15 @@ const CategoryQuizzes = () => {
                 {/* Background accents */}
                 <div className="absolute inset-0 pointer-events-none" style={{background:'radial-gradient(1200px 300px at -10% -10%, rgba(99,102,241,0.06), transparent), radial-gradient(900px 200px at 110% 20%, rgba(16,185,129,0.05), transparent)'}} />
 
-                {/* Status ribbon */}
-                {isActive && (
-                  <div className="absolute -left-10 top-3 rotate-[-15deg]">
-                    <span className="bg-rose-600 text-white text-[10px] font-extrabold tracking-widest px-6 py-1 rounded shadow-lg ring-1 ring-rose-300/50">LIVE</span>
-                  </div>
-                )}
-                {isUpcoming && (
-                  <div className="absolute -left-10 top-3 rotate-[-15deg]">
-                    <span className="bg-sky-600 text-white text-[10px] font-extrabold tracking-widest px-6 py-1 rounded shadow-lg ring-1 ring-sky-300/50">SOON</span>
-                  </div>
-                )}
+                {/* Status chip (top-right, avoids title overlap) */}
+                <div className="absolute top-3 right-3 z-10 flex gap-2">
+                  {isActive && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-widest bg-rose-600 text-white ring-1 ring-rose-300/50 shadow">LIVE</span>
+                  )}
+                  {isUpcoming && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-widest bg-sky-600 text-white ring-1 ring-sky-300/50 shadow">SOON</span>
+                  )}
+                </div>
                 <div className="p-4 sm:p-5">
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
@@ -245,8 +262,8 @@ const CategoryQuizzes = () => {
                         <div className="truncate font-semibold text-slate-100 text-base sm:text-lg">{q.title}</div>
                         <span className={statusBadge(isActive ? 'active' : (isUpcoming ? 'upcoming' : 'finished'))}>{isActive ? 'active' : (isUpcoming ? 'upcoming' : 'finished')}</span>
                         {myStatus && (
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${myStatus==='pre'?'bg-indigo-500/15 text-indigo-300 border-indigo-700/40':'bg-emerald-500/15 text-emerald-300 border-emerald-700/40'}`}>
-                            {myStatus==='pre'?'Pre-joined':'Joined'}
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${isActive ? 'bg-emerald-500/15 text-emerald-300 border-emerald-700/40' : 'bg-indigo-500/15 text-indigo-300 border-indigo-700/40'}`}>
+                            Joined
                           </span>
                         )}
                       </div>
@@ -290,15 +307,22 @@ const CategoryQuizzes = () => {
                         </div>
                       )}
                     </div>
-                    <div className="shrink-0 flex flex-col sm:flex-row gap-2">
-                      <button
-                        disabled={joinDisabled}
-                        onClick={() => !joinDisabled && handleJoin({ ...q, status: isUpcoming ? 'upcoming' : (isActive ? 'active' : q.status) })}
-                        className={`px-3 py-2 rounded-lg text-sm font-semibold border transition ${joinDisabled ? 'bg-slate-700 text-slate-400 border-slate-700' : (isActive ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-emerald-500/20 shadow-lg' : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 shadow-indigo-500/20 shadow-lg')}`}
-                      >
-                        {label}
-                      </button>
-                    </div>
+                  </div>
+                  {/* Bottom action: JOIN/JOINED button; card itself opens lobby */}
+                  <div className="mt-3 flex">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (already) navigate(`/quiz/${q.id}`);
+                        else handleJoin(q);
+                      }}
+                      disabled={joiningId === q.id || !canJoin}
+                      className={`relative w-full px-4 py-2.5 rounded-lg text-sm sm:text-base font-extrabold border text-white transition focus:outline-none focus:ring-2 focus:ring-fuchsia-300 overflow-hidden ${btnDisabled ? 'opacity-80 cursor-not-allowed' : 'hover:scale-[1.015] active:scale-[0.99] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)]'} shadow-[0_8px_18px_rgba(139,92,246,0.4)] border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)]`}
+                    >
+                      <span className="inline-flex items-center justify-center gap-2">
+                        {already ? 'JOINED' : (joiningId === q.id ? 'JOINING…' : 'JOIN')}
+                      </span>
+                    </button>
                   </div>
                 </div>
               </motion.div>

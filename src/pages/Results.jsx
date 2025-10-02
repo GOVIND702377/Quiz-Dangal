@@ -6,20 +6,23 @@ import { getSignedAvatarUrls } from '@/lib/avatar';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Trophy, Medal, Award, Users } from 'lucide-react';
+import { Trophy, Medal, Award, Users, ArrowLeft, Share2, MessageCircle } from 'lucide-react';
 
 const Results = () => {
   const { id: quizId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [quiz, setQuiz] = useState(null);
   const [results, setResults] = useState([]);
   const [userRank, setUserRank] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isParticipant, setIsParticipant] = useState(true);
   const [timeLeftMs, setTimeLeftMs] = useState(null);
   const [didRefetchAfterCountdown, setDidRefetchAfterCountdown] = useState(false);
+  const [posterBlob, setPosterBlob] = useState(null); // cache composed poster for quick share
+  // no ShareSheet dialog anymore; direct share only
 
   useEffect(() => {
     fetchResults();
@@ -35,6 +38,25 @@ const Results = () => {
         .eq('id', quizId)
         .single();
       setQuiz(quizData || null);
+
+      // Check participation unless admin; admins can view all results
+      if (userProfile?.role !== 'admin') {
+        try {
+          const { data: meRow } = await supabase
+            .from('quiz_participants')
+            .select('status')
+            .eq('quiz_id', quizId)
+            .eq('user_id', user?.id)
+            .maybeSingle();
+          const amIn = !!meRow;
+          setIsParticipant(amIn);
+          if (!amIn) {
+            setErrorMessage('You did not participate in this quiz. Results are visible only to participants.');
+            setLoading(false);
+            return;
+          }
+        } catch {}
+      }
 
       // Load leaderboard from quiz_results (RLS-safe, shows only to participants)
       const { data: resRow, error: resErr } = await supabase
@@ -54,6 +76,35 @@ const Results = () => {
           const target = new Date(quizData.end_time).getTime();
           const diff = target - Date.now();
           setTimeLeftMs(diff > 0 ? diff : 0);
+
+          // If end time has passed but results row is missing, try JIT compute
+          if (diff <= 0) {
+            try {
+              await supabase.rpc('compute_results_if_due', { p_quiz_id: quizId });
+              // Brief delay and refetch
+              await new Promise(r => setTimeout(r, 500));
+              const { data: rr2 } = await supabase
+                .from('quiz_results')
+                .select('leaderboard')
+                .eq('quiz_id', quizId)
+                .maybeSingle();
+              const lb2 = Array.isArray(rr2?.leaderboard) ? rr2.leaderboard : [];
+              if (lb2.length > 0) {
+                const normalized2 = lb2
+                  .map((entry, idx) => ({
+                    id: `${quizId}-${entry.user_id}`,
+                    user_id: entry.user_id,
+                    score: Number(entry.score) || 0,
+                    rank: Number(entry.rank) || idx + 1,
+                    profiles: { username: entry.display_name?.startsWith('@') ? entry.display_name.slice(1) : undefined, full_name: entry.display_name, avatar_url: undefined },
+                  }))
+                  .sort((a, b) => b.score - a.score);
+                setResults(normalized2);
+                setLoading(false);
+                return;
+              }
+            } catch {}
+          }
         } else {
           setTimeLeftMs(null);
         }
@@ -125,6 +176,366 @@ const Results = () => {
     fetchResults();
   };
 
+  // Prepare poster in the background once results are available
+  useEffect(() => {
+    let cancelled = false;
+    const prep = async () => {
+      try {
+        if (results.length === 0) { setPosterBlob(null); return; }
+        const blob = await generateComposedResultsPoster();
+        if (!cancelled) setPosterBlob(blob);
+      } catch {
+        if (!cancelled) setPosterBlob(null);
+      }
+    };
+    prep();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results.length, quizId, userRank?.rank, userRank?.score]);
+
+  // Helpers: static poster for Results page
+  // Prefers a dedicated results poster, then falls back to the shared refer poster.
+  const loadStaticResultsPoster = async () => {
+    const base = (typeof window !== 'undefined' ? window.location.origin : '') + (import.meta.env.BASE_URL || '/');
+    const resultsEnvUrl = import.meta.env.VITE_RESULTS_POSTER_URL; // optional dedicated results poster
+    const referEnvUrl = import.meta.env.VITE_REFER_POSTER_URL; // fallback poster
+    const version = Date.now();
+    const abs = (p) => (p?.startsWith('http') ? p : `${base}${p.replace(/^\//,'')}`);
+    const addV = (url) => url.includes('?') ? `${url}&v=${version}` : `${url}?v=${version}`;
+    // 1) Results-specific candidates (env then common names)
+    const resultCandidates = (resultsEnvUrl
+      ? [addV(abs(resultsEnvUrl))]
+      : [
+          '/result poster.png', '/results poster.png', '/result share poster.png', '/result share.png', '/result card.png',
+          '/result-poster.png', '/results-poster.png', '/result.png', '/results.png', '/result.webp', '/results.webp',
+          '/result%20poster.png', '/results%20poster.png', '/result%20share%20poster.png', '/result%20share.png', '/result%20card.png',
+          // subfolders
+          '/images/result poster.png', '/images/results poster.png', '/images/result-poster.png', '/images/results-poster.png',
+          '/assets/result poster.png', '/assets/results poster.png', '/assets/result-poster.png', '/assets/results-poster.png',
+          '/posters/result poster.png', '/posters/results poster.png', '/posters/result-poster.png', '/posters/results-poster.png'
+        ]).map((u) => addV(abs(u)));
+
+    // 2) Fallback: shared refer poster candidates
+    const referCandidates = (referEnvUrl
+      ? [addV(abs(referEnvUrl))]
+      : [
+          // exact filename support (spaces and &)
+          '/refer & earn poster.png',
+          '/refer%20%26%20earn%20poster.png',
+          // common roots
+          '/refer-poster.png', '/refer-poster.jpg', '/refer-poster.jpeg', '/refer.jpg', '/refer.png', '/refer.webp',
+          // subfolders
+          '/images/refer-poster.png', '/images/refer-poster.jpg', '/images/refer-poster.jpeg', '/images/refer-poster.webp',
+          '/assets/refer-poster.png', '/assets/refer-poster.jpg', '/assets/refer-poster.jpeg', '/assets/refer-poster.webp',
+          '/posters/refer-poster.png', '/posters/refer-poster.jpg', '/posters/refer-poster.jpeg', '/posters/refer-poster.webp'
+        ]).map((u) => addV(abs(u)));
+
+    const candidates = [...resultCandidates, ...referCandidates];
+    for (const url of candidates) {
+      try {
+        const resp = await fetch(url, { cache: 'reload' });
+        if (!resp.ok) throw new Error('not ok');
+        const blob = await resp.blob();
+        if (blob && blob.size > 0 && /^image\//.test(blob.type || '')) {
+          const type = (blob.type || 'image/jpeg').toLowerCase();
+          if (type !== 'image/jpeg') {
+            // convert to jpeg for compatibility
+            try {
+              const tempUrl = URL.createObjectURL(blob);
+              const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = tempUrl; });
+              const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+              const ctx = c.getContext('2d'); ctx.drawImage(img, 0, 0);
+              const jpg = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.92));
+              URL.revokeObjectURL(tempUrl);
+              if (jpg) return jpg;
+            } catch {}
+          }
+          return blob;
+        }
+      } catch {}
+    }
+    // last-resort tiny jpeg so share still carries an image
+    try {
+      const c = document.createElement('canvas'); c.width = 8; c.height = 8; const ctx = c.getContext('2d');
+      ctx.fillStyle = '#2b0b76'; ctx.fillRect(0,0,8,8);
+      const jpg = await new Promise((res) => c.toBlob(res, 'image/jpeg', 0.92));
+      return jpg;
+    } catch { return null; }
+  };
+
+  // Compose a dynamic Results poster on top of the static background.
+  // Controlled by env: VITE_RESULTS_POSTER_DYNAMIC ("1"/"true" to enable). Fallbacks to static poster if anything fails.
+  const generateComposedResultsPoster = async () => {
+    try {
+      // Load background image (results-specific or refer fallback)
+      const bgBlob = await loadStaticResultsPoster();
+      const bgUrl = bgBlob ? URL.createObjectURL(bgBlob) : null;
+
+      // Canvas setup — square fits WhatsApp grid well
+      const W = 1080, H = 1080;
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      // Background: draw image cover; else gradient
+      if (bgUrl) {
+        try {
+          const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = bgUrl; });
+          // cover logic
+          const rCanvas = W / H; const rImg = img.width / img.height;
+          let dw = W, dh = H, dx = 0, dy = 0;
+          if (rImg > rCanvas) { // image wider than canvas
+            dh = H; dw = H * rImg; dx = (W - dw) / 2; dy = 0;
+          } else { // image taller/narrower
+            dw = W; dh = W / rImg; dx = 0; dy = (H - dh) / 2;
+          }
+          ctx.drawImage(img, dx, dy, dw, dh);
+        } catch {
+          const g = ctx.createLinearGradient(0, 0, W, H);
+          g.addColorStop(0, '#130531'); g.addColorStop(1, '#1e0b4b'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+        } finally {
+          if (bgUrl) URL.revokeObjectURL(bgUrl);
+        }
+      } else {
+        const g = ctx.createLinearGradient(0, 0, W, H);
+        g.addColorStop(0, '#130531'); g.addColorStop(1, '#1e0b4b'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      }
+
+      // Soft vignette overlay for contrast
+      const vignette = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, H*0.7);
+      vignette.addColorStop(0, 'rgba(0,0,0,0)');
+      vignette.addColorStop(1, 'rgba(0,0,0,0.35)');
+      ctx.fillStyle = vignette; ctx.fillRect(0, 0, W, H);
+
+      // Content paddings
+      const PAD = 64;
+
+      // Header: quiz title
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.font = '800 58px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      const title = quiz?.title ? String(quiz.title).toUpperCase() : 'QUIZ DANGAL RESULTS';
+      const maxTitleWidth = W - PAD * 2;
+      const measure = (t) => ctx.measureText(t).width;
+      let titleText = title;
+      while (titleText.length > 0 && measure(titleText) > maxTitleWidth) titleText = titleText.slice(0, -1);
+      if (titleText !== title) titleText += '…';
+      ctx.fillText(titleText, PAD, PAD);
+
+      // Participants count (top-right subtle)
+      if (Array.isArray(results)) {
+        const partText = `${results.length} participants`;
+        ctx.fillStyle = 'rgba(203,213,225,0.85)';
+        ctx.font = '600 28px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+        const tw = ctx.measureText(partText).width;
+        ctx.fillText(partText, W - PAD - tw, PAD);
+      }
+
+      // Neon result box
+      const boxX = PAD, boxY = PAD + 80, boxW = W - PAD*2, boxH = 380;
+      const radius = 36;
+      const pathRound = (x,y,w,h,r) => { ctx.beginPath(); ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r); ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h); ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r); ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y); ctx.closePath(); };
+      // glow
+      ctx.save();
+      ctx.shadowColor = 'rgba(236,72,153,0.6)';
+      ctx.shadowBlur = 28;
+      pathRound(boxX, boxY, boxW, boxH, radius);
+      ctx.fillStyle = 'rgba(15,23,42,0.72)';
+      ctx.fill();
+      ctx.restore();
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(236,72,153,0.6)';
+      pathRound(boxX, boxY, boxW, boxH, radius); ctx.stroke();
+
+      // Inside box: Rank, Prize, Score
+      const rankText = userRank?.rank ? `#${userRank.rank} Rank!` : 'Results Live!';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 120px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText(rankText, boxX + 48, boxY + 150);
+
+      const prize = (userRank?.rank && Array.isArray(quiz?.prizes) && quiz.prizes[userRank.rank - 1]) ? quiz.prizes[userRank.rank - 1] : 0;
+      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.font = '700 40px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText(`Prize: ₹${prize}`, boxX + 50, boxY + 210);
+
+      if (typeof userRank?.score === 'number') {
+        ctx.fillStyle = 'rgba(168, 255, 230, 0.95)';
+        ctx.font = '800 64px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+        ctx.fillText(`Score: ${userRank.score}`, boxX + 50, boxY + 280);
+      }
+
+      // Player name (under score)
+      {
+        const displayName = (userProfile?.username || userProfile?.full_name || 'You').toString();
+        ctx.fillStyle = 'rgba(226,232,240,0.92)';
+        ctx.font = '700 34px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+        // truncate if too long
+        let nameText = displayName;
+        const maxW = boxW - 100;
+        while (nameText.length > 0 && ctx.measureText(nameText).width > maxW) nameText = nameText.slice(0, -1);
+        if (nameText !== displayName) nameText += '…';
+        ctx.fillText(`Player: ${nameText}`, boxX + 50, boxY + 328);
+      }
+
+      ctx.fillStyle = 'rgba(226,232,240,0.92)';
+      ctx.font = '600 30px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText('Only legends make it this far ✨', boxX + 50, boxY + boxH - 50);
+
+      // CTA bar
+      const ctaY = boxY + boxH + 24; const ctaH = 90;
+      ctx.save(); ctx.shadowColor = 'rgba(59,130,246,0.5)'; ctx.shadowBlur = 15;
+      pathRound(boxX, ctaY, boxW, ctaH, 22); ctx.fillStyle = 'rgba(2,6,23,0.75)'; ctx.fill(); ctx.restore();
+      ctx.strokeStyle = 'rgba(59,130,246,0.5)'; ctx.lineWidth = 2; pathRound(boxX, ctaY, boxW, ctaH, 22); ctx.stroke();
+      ctx.fillStyle = 'rgba(250,204,21,0.95)'; ctx.font = '900 40px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText('⚡ My Result is Live!', boxX + 36, ctaY + 58);
+
+      // Footer info block
+      const footerY = ctaY + ctaH + 24; const footerH = H - footerY - PAD;
+      pathRound(boxX, footerY, boxW, footerH, 24); ctx.fillStyle = 'rgba(2,6,23,0.7)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(147,51,234,0.45)'; ctx.lineWidth = 2; pathRound(boxX, footerY, boxW, footerH, 24); ctx.stroke();
+
+      const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g, '').slice(0, 8)).toUpperCase();
+      const siteBase = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://quizdangal.com').replace(/\/$/, '');
+      ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.font = '800 44px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText('Play & Win on Quiz Dangal', boxX + 36, footerY + 64);
+      ctx.fillStyle = 'rgba(203,213,225,0.98)'; ctx.font = '700 36px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText(siteBase.replace(/^https?:\/\//, ''), boxX + 36, footerY + 64 + 46);
+      ctx.fillStyle = 'rgba(190,242,100,1)'; ctx.font = '900 42px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText(`Referral: ${refCode}`, boxX + 36, footerY + 64 + 46 + 52);
+      ctx.fillStyle = 'rgba(203,213,225,0.9)'; ctx.font = '600 26px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText('#QuizDangal  #ChallengeAccepted  #PlayToWin', boxX + 36, footerY + footerH - 36);
+
+      // Export as JPEG
+      const out = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
+      return out;
+    } catch (e) {
+      return await loadStaticResultsPoster();
+    }
+  };
+
+  // Direct device share (poster + caption)
+  const shareResultDirect = async () => {
+    try {
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g, '').slice(0, 8));
+      const { shareText } = buildSharePayload();
+      const captionFull = [
+        '🔥 My result is here! 🔥',
+        'Checked out the poster? Now it’s your turn 👀',
+        '',
+        '👉 Just head over to www.quizdangal.com',
+        `Use Referral Code: ${refCode}`,
+        'and unlock your score 🚀',
+        '',
+        'Don’t just scroll, share your vibes 💯',
+        '#Results #ChallengeAccepted'
+      ].join('\n');
+      // iOS compact single-line caption (higher chance to stick with image)
+      const captionIOS = `My result on Quiz Dangal — Use code: ${refCode} — quizdangal.com`;
+
+      // Always generate customized dynamic poster (fallback is handled inside)
+  const poster = posterBlob || (await generateComposedResultsPoster());
+      const useBlob = poster; // if null, no file will be attached
+      const fname = `quizdangal-result-${quizId}-${userRank?.rank ?? 'NA'}.jpg`;
+      const files = useBlob ? [new File([useBlob], fname, { type: 'image/jpeg' })] : [];
+
+      // Pre-copy caption for safety (some apps drop text)
+      try { await navigator.clipboard.writeText(isIOS ? captionIOS : captionFull); } catch {}
+
+      const canShareFiles = files.length > 0 && typeof navigator.canShare === 'function' && (() => { try { return navigator.canShare({ files }); } catch { return false; } })();
+
+      if (typeof navigator.share === 'function') {
+        if (canShareFiles) {
+          if (isIOS) {
+            await navigator.share({ text: captionIOS, files }); // omit title on iOS with files
+            toast({ title: 'Caption copied', description: 'If the app didn\'t include it, just paste.' });
+          } else {
+            await navigator.share({ text: captionFull, files });
+          }
+          return;
+        }
+        // Share sheet supported but cannot share files -> share text/link only
+        await navigator.share({ text: shareText || captionFull });
+        return;
+      }
+
+      // Final fallback: no share API -> keep it non-intrusive (no auto-download). Caption is already copied.
+      toast({ title: 'Sharing not supported', description: 'Caption copied. Use WhatsApp button or paste into your app.' });
+    } catch (e) {
+      toast({ title: 'Share failed', description: e?.message || 'Try again', variant: 'destructive' });
+    }
+  };
+
+  // Dedicated WhatsApp share helper
+  const shareResultToWhatsApp = async () => {
+    try {
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g, '').slice(0, 8));
+      const captionFull = [
+        '🔥 My result is here! 🔥',
+        'Checked out the poster? Now it’s your turn 👀',
+        '',
+        '👉 Just head over to www.quizdangal.com',
+        `Use Referral Code: ${refCode}`,
+        'and unlock your score 🚀',
+        '',
+        'Don’t just scroll, share your vibes 💯',
+        '#Results #ChallengeAccepted'
+      ].join('\n');
+      const captionIOS = `My result on Quiz Dangal — Use code: ${refCode} — quizdangal.com`;
+
+    // Always generate customized dynamic poster (fallback is handled inside)
+    const poster = await generateComposedResultsPoster();
+    const fname = `quizdangal-result-${quizId}-${userRank?.rank ?? 'NA'}.jpg`;
+    const files = poster ? [new File([poster], fname, { type: 'image/jpeg' })] : [];
+
+      // Copy caption for safety
+      try { await navigator.clipboard.writeText(isIOS ? captionIOS : captionFull); } catch {}
+
+      const canShareFiles = files.length > 0 && typeof navigator.canShare === 'function' && (() => { try { return navigator.canShare({ files }); } catch { return false; } })();
+
+      if (typeof navigator.share === 'function' && canShareFiles) {
+        // We can't force WhatsApp, but the system sheet will include it; ask user to pick WhatsApp.
+        await navigator.share({ text: isIOS ? captionIOS : captionFull, files });
+        if (isIOS) toast({ title: 'Choose WhatsApp', description: 'If caption is missing, paste from clipboard.' });
+        return;
+      }
+
+      // Fallback: save image, open WhatsApp text-only
+      if (poster) {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(poster);
+        a.download = fname;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      }
+      const text = encodeURIComponent(isIOS ? captionIOS : captionFull);
+      window.open(`https://wa.me/?text=${text}`, '_blank');
+      toast({ title: 'Image saved', description: 'WhatsApp khul gaya. Image attach karke caption paste kar dijiye.' });
+    } catch (e) {
+      toast({ title: 'WhatsApp share failed', description: e?.message || 'Try again', variant: 'destructive' });
+    }
+  };
+
+  // Manual download helper for desktop/unsupported share environments
+  const downloadResultPoster = async () => {
+    try {
+  const poster = posterBlob || (await generateComposedResultsPoster());
+      const useBlob = poster || (await loadStaticResultsPoster());
+      if (!useBlob) {
+        toast({ title: 'Download failed', description: 'Could not generate poster. Try again.' , variant: 'destructive'});
+        return;
+      }
+      const fname = `quizdangal-result-${quizId}-${userRank?.rank ?? 'NA'}.jpg`;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(useBlob);
+      a.download = fname;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      toast({ title: 'Poster downloaded', description: 'Share it in your app and paste the caption.' });
+    } catch (e) {
+      toast({ title: 'Download failed', description: e?.message || 'Try again', variant: 'destructive' });
+    }
+  };
+
   // Live countdown updater when results aren't available yet
   useEffect(() => {
     if (!quiz?.end_time || results.length > 0) {
@@ -161,6 +572,21 @@ const Results = () => {
     const seconds = total % 60;
     return { days, hours, minutes, seconds };
   };
+
+  // Build share text and URL (with referral)
+  const buildSharePayload = () => {
+    const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g, '').slice(0, 8));
+    const site = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://quizdangal.com');
+    const base = site.replace(/\/$/, '');
+    const resultUrl = `${base}/results/${quizId}?ref=${encodeURIComponent(refCode)}`;
+    const shareText = userRank
+      ? `I scored ${userRank.score} and rank #${userRank.rank} in ${quiz?.title || 'Quiz'} on Quiz Dangal! Play now: ${resultUrl}`
+      : `Check out the results of ${quiz?.title || 'Quiz'} on Quiz Dangal! ${resultUrl}`;
+    return { refCode, site: base, resultUrl, shareText };
+  };
+
+  // Note: any previous canvas-based result poster code has been removed.
+  // We now always use the single static brand poster for sharing, to keep it consistent.
 
   if (loading) {
     return (
@@ -234,167 +660,127 @@ const Results = () => {
   return (
     <div className="min-h-screen p-4">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
-        >
-          <h1 className="text-3xl font-bold text-white text-shadow mb-2">
-            Quiz Results
-          </h1>
-          <p className="text-slate-300">{quiz?.title}</p>
-        </motion.div>
-
-        <div className="flex justify-center gap-3 mb-8">
-          <Button variant="white" onClick={() => navigate('/my-quizzes')}>Back to My Quizzes</Button>
-          <Button variant="brand" onClick={async () => {
-            try {
-              const url = window.location.href;
-              if (navigator.clipboard?.writeText) {
-                await navigator.clipboard.writeText(url);
-                toast({ title: 'Link copied', description: 'Result link copied to clipboard' });
-              } else {
-                window.prompt('Copy result link:', url);
-              }
-            } catch (e) {
-              toast({ title: 'Copy failed', description: e.message, variant: 'destructive' });
-            }
-          }}>Share Result</Button>
+        {/* Compact header */}
+        <div className="mb-3">
+          <div className="flex items-center gap-2 text-slate-300 text-xs mb-1">
+            <Users className="w-3.5 h-3.5" />
+            <span>{results?.length || 0} participants</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-white truncate">Results</h1>
+          <p className="text-xs text-slate-400 truncate">{quiz?.title}</p>
         </div>
 
-        {/* User's Result */}
-        {userRank && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="qd-card rounded-2xl p-6 shadow-lg mb-8 text-slate-100"
-          >
-            <div className="text-center">
-              <div className="flex items-center justify-center mb-4">
-                {userRank.rank === 1 ? (
-                  <Trophy className="h-16 w-16 text-yellow-500" />
-                ) : userRank.rank === 2 ? (
-                  <Medal className="h-16 w-16 text-gray-400" />
-                ) : userRank.rank === 3 ? (
-                  <Award className="h-16 w-16 text-orange-500" />
-                ) : (
-                  <Users className="h-16 w-16 text-blue-500" />
-                )}
-              </div>
-              <h2 className="text-2xl font-bold text-white text-shadow-sm mb-2">
-                Your Result
-              </h2>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-3xl font-bold text-accent-b">#{userRank.rank}</p>
-                  <p className="text-sm text-slate-300">Rank</p>
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-green-400">{userRank.score}</p>
-                  <p className="text-sm text-slate-300">Score</p>
-                </div>
-                <div>
-                  <p className="text-3xl font-bold text-purple-300">
-                    ₹{userRank.rank <= 3 ? quiz?.prizes?.[userRank.rank - 1] || 0 : 0}
-                  </p>
-                  <p className="text-sm text-slate-300">Prize</p>
-                </div>
+        {/* Slim user summary */}
+        {(userRank && userProfile?.role !== 'admin') && (
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-600 text-white font-bold flex items-center justify-center ring-1 ring-indigo-300/40">#{userRank.rank}</div>
+              <div className="text-xs text-slate-300">
+                <div className="text-white font-semibold">Your Result</div>
+                <div>Out of {results.length} participants</div>
               </div>
             </div>
-          </motion.div>
+            <div className="flex items-center gap-3 text-center">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/15 text-indigo-200 border border-indigo-600/30">YOU</span>
+              <div>
+                <div className="text-[11px] text-slate-400">Score</div>
+                <div className="text-sm font-bold text-emerald-300">{userRank.score}</div>
+              </div>
+              <div className="min-w-[68px]">
+                <div className="text-[11px] text-slate-400">Prize</div>
+                <div className="text-sm font-bold text-purple-300">₹{userRank.rank && Array.isArray(quiz?.prizes) && quiz.prizes[userRank.rank-1] ? quiz.prizes[userRank.rank-1] : 0}</div>
+              </div>
+            </div>
+          </div>
         )}
 
-        {/* Prize Distribution */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="qd-card rounded-2xl p-6 shadow-lg mb-6 text-slate-100"
-        >
-          <h2 className="text-xl font-bold text-white mb-4">Prize Distribution</h2>
-          {Array.isArray(quiz?.prizes) && quiz.prizes.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {quiz.prizes.map((amount, idx) => (
-                <div key={idx} className="p-4 rounded-lg bg-slate-800/70 flex items-center justify-between">
-                  <div className="font-medium text-slate-100">{idx === 0 ? '1st' : idx === 1 ? '2nd' : idx === 2 ? '3rd' : `#${idx+1}`}</div>
-                  <div className="text-accent-b font-bold">₹{amount}</div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-sm text-slate-300">No prize data available</div>
-          )}
-        </motion.div>
+        {/* Prize chips */}
+        {Array.isArray(quiz?.prizes) && quiz.prizes.length > 0 && (
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 mb-4 overflow-x-auto whitespace-nowrap">
+            {quiz.prizes.map((amount, idx) => (
+              <span key={idx} className={`inline-block mr-2 mb-2 px-2.5 py-1 rounded-lg text-xs font-semibold border ${idx===0 ? 'bg-amber-500/10 text-amber-200 border-amber-500/30' : idx===1 ? 'bg-sky-500/10 text-sky-200 border-sky-500/30' : idx===2 ? 'bg-violet-500/10 text-violet-200 border-violet-500/30' : 'bg-slate-800/60 text-slate-200 border-slate-700'}`}>
+                {(idx===0 ? '🥇 1st' : idx===1 ? '🥈 2nd' : idx===2 ? '🥉 3rd' : `#${idx+1}`)} • ₹{amount}
+              </span>
+            ))}
+          </div>
+        )}
 
-        {/* Leaderboard */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="qd-card rounded-2xl p-6 shadow-lg text-slate-100"
-        >
-          <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-            <Trophy className="mr-2 text-accent-a" />
-            <span className="text-white">Leaderboard</span>
-          </h2>
-          
-          <div className="space-y-4">
-            {results.map((participant, index) => (
-              <motion.div
-                key={participant.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className={`flex items-center justify-between p-4 rounded-lg ${
-                  participant.user_id === user.id 
-                    ? 'bg-slate-800/70 border border-accent-b/50' 
-                    : 'bg-slate-800/60 border border-slate-700'
-                }`}
-              >
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-accent-b text-white font-bold">
-                    {index + 1}
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center text-gray-600 font-bold">
+        {/* Leaderboard compact */}
+        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+          <div className="text-sm font-semibold text-white mb-2 flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-300" />Leaderboard</div>
+          <div className="space-y-2">
+            {results.map((participant, index) => {
+              const prize = (participant.rank && Array.isArray(quiz?.prizes) && quiz.prizes[participant.rank - 1]) ? quiz.prizes[participant.rank - 1] : 0;
+              const isMe = participant.user_id === user?.id;
+              return (
+                <div key={participant.id} className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${isMe ? 'bg-indigo-950/40 border-indigo-700/40' : 'bg-slate-950/30 border-slate-800 hover:bg-slate-900/60'}`}>
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold ${index<3 ? 'bg-gradient-to-br from-amber-300 to-yellow-500 text-amber-900 ring-1 ring-amber-200/60' : 'bg-slate-800 text-slate-100 ring-1 ring-white/10'}`}>{index+1}</div>
+                    <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold">
                       {participant.profiles?.avatar_url ? (
                         <img src={participant.profiles.avatar_url} alt="avatar" className="w-full h-full object-cover" />
                       ) : (
                         <span>{(participant.profiles?.full_name || participant.profiles?.username || 'U').charAt(0).toUpperCase()}</span>
                       )}
                     </div>
-                    <div>
-                      <p className="font-semibold text-white">
-                        {participant.profiles?.username || participant.profiles?.full_name || 'Anonymous'}
-                      </p>
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{participant.profiles?.username || participant.profiles?.full_name || 'Anonymous'}</p>
                       {participant.profiles?.full_name && participant.profiles?.username && (
-                        <p className="text-xs text-slate-300">{participant.profiles.full_name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{participant.profiles.full_name}</p>
                       )}
                     </div>
                   </div>
-                </div>
-                
-                <div className="flex items-center space-x-6">
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-green-400">{participant.score}</p>
-                    <p className="text-xs text-slate-300">Score</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-bold text-purple-300">
-                      ₹{index < 3 ? (Array.isArray(quiz?.prizes) ? quiz.prizes[index] || 0 : 0) : 0}
-                    </p>
-                    <p className="text-xs text-slate-300">Prize</p>
-                  </div>
-                  {index < 3 && (
-                    <div className="text-2xl">
-                      {index === 0 ? '🥇' : index === 1 ? '🥈' : '🥉'}
+                  <div className="flex items-center gap-5 shrink-0">
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-emerald-300 leading-none">{participant.score}</p>
+                      <p className="text-[10px] text-slate-400 leading-none">Score</p>
                     </div>
-                  )}
+                    <div className="text-right min-w-[64px]">
+                      <p className="text-sm font-bold text-purple-300 leading-none">₹{prize}</p>
+                      <p className="text-[10px] text-slate-400 leading-none">Prize</p>
+                    </div>
+                  </div>
                 </div>
-              </motion.div>
-            ))}
+              );
+            })}
           </div>
-        </motion.div>
+        </div>
+
+        {/* Bottom actions */}
+        <div className="mt-4 flex items-center justify-between">
+          <button onClick={() => navigate('/my-quizzes')} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/70 text-white border border-slate-700 hover:bg-slate-800">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={shareResultToWhatsApp} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/90 text-white border border-emerald-500 hover:bg-emerald-600">
+              <MessageCircle className="w-4 h-4" /> WhatsApp
+            </button>
+            <button onClick={downloadResultPoster} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/70 text-white border border-slate-700 hover:bg-slate-800">Download Poster</button>
+            <button onClick={async () => {
+              const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g, '').slice(0, 8));
+              const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+              const captionFull = [
+                '🔥 My result is here! 🔥',
+                'Checked out the poster? Now it’s your turn 👀',
+                '',
+                '👉 Just head over to www.quizdangal.com',
+                `Use Referral Code: ${refCode}`,
+                'and unlock your score 🚀',
+                '',
+                'Don’t just scroll, share your vibes 💯',
+                '#Results #ChallengeAccepted'
+              ].join('\n');
+              const captionIOS = `My result on Quiz Dangal — Use code: ${refCode} — quizdangal.com`;
+              try { await navigator.clipboard.writeText(isIOS ? captionIOS : captionFull); } catch {}
+              toast({ title: 'Caption copied', description: 'Paste it in the app if needed.' });
+            }} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/70 text-white border border-slate-700 hover:bg-slate-800">Copy Caption</button>
+            <button onClick={shareResultDirect} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-extrabold border text-white shadow-[0_8px_18px_rgba(139,92,246,0.4)] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)] border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)]">
+              <Share2 className="w-4 h-4" /> Share
+            </button>
+          </div>
+        </div>
       </div>
+      {/* No ShareSheet dialog — direct device share used */}
     </div>
   );
 };

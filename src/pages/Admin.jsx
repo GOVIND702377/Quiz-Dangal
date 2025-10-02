@@ -4,11 +4,13 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
+import { formatDateTime, toDatetimeLocalValue } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, Settings, Loader2, ShieldCheck, RefreshCcw, LayoutDashboard, BellRing, Gift, ListChecks } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { Plus, Trash2, Settings, Loader2, ShieldCheck, RefreshCcw, LayoutDashboard, BellRing, Gift, ListChecks, Eye } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 
 function AdminNotificationsSection() {
   const { toast } = useToast();
@@ -208,14 +210,26 @@ export default function Admin() {
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [showQuestions, setShowQuestions] = useState(false);
   const [questions, setQuestions] = useState([]);
+  // Inline question composer state
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [newQ, setNewQ] = useState({ text: '', options: ['','', '', ''], correctIndex: 0 });
+  // Bulk add dialog state
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkMode, setBulkMode] = useState('append'); // 'append' | 'replace'
+  const [bulkWorking, setBulkWorking] = useState(false);
   // Publish panel removed in simplified flow
   const [busyQuizId, setBusyQuizId] = useState(null);
   const categories = ['opinion', 'gk', 'movies', 'sports'];
+  // Create flow: entry mode and structured builder state
+  const [entryMode, setEntryMode] = useState('form'); // 'form' | 'paste'
+  const makeBlankQuestion = () => ({ text: '', options: ['', ''], correctIndex: 0 });
+  const [questionsDraft, setQuestionsDraft] = useState([makeBlankQuestion()]);
 
   // Removed translation trigger and auto-sync; no-op now
 
   const [quizForm, setQuizForm] = useState({
-    title: '', prizes: ['', '', ''], start_time: '', end_time: '', category: ''
+    title: '', prizes: ['', '', ''], start_time: '', end_time: '', category: '', bulk_text: '', prize_type: 'money'
   });
 
   useEffect(() => { if (activeTab === 'overview') fetchQuizzes(); }, [activeTab]);
@@ -248,14 +262,172 @@ export default function Admin() {
     }
   };
 
+  // Util: parse bulk text into structured questions with strict validation and RAW checkbox support
+  const parseBulkQuestions = (text, { strict = false, allowZeroCorrect = false } = {}) => {
+    const blocks = String(text || '').trim().split(/\n\s*\n+/); // split by blank lines
+    const items = [];
+    const errors = [];
+    const warnings = [];
+    let qCounter = 0;
+    for (const block of blocks) {
+      const lines = block.split(/\r?\n/).map(l => l.trim());
+      const nonEmpty = lines.filter(Boolean);
+      if (!nonEmpty.length) continue;
+      qCounter += 1;
+      // First non-empty line is question
+      const qline = nonEmpty[0].replace(/^Q\d*\.?\s*/i, '').replace(/^Question\s*[:\-]\s*/i, '');
+      const opts = [];
+      let answerLine = '';
+      let tickedCount = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const ln = lines[i];
+        if (!ln) continue;
+        if (/^ans(wer)?\s*[:\-]/i.test(ln)) { answerLine = ln; continue; }
+        // Support RAW checkbox style: - [x] text or - [ ] text
+        const cb = ln.match(/^[-*•]?\s*\[(x|X| )\]\s*(.+)$/);
+        if (cb) {
+          const isX = /x/i.test(cb[1]);
+          if (isX) tickedCount += 1;
+          opts.push({ option_text: cb[2].trim(), is_correct: isX });
+          continue;
+        }
+        // Fallback option markers: -, *, A) B) 1) etc
+        const m = ln.match(/^(?:[-*•]|[A-Da-d]\)|\d+\)|[A-Da-d][.:])\s*(.+)$/);
+        let textOnly = m ? m[1].trim() : ln.replace(/^[*]\s*/, '').trim();
+        const isStar = /^\*/.test(ln);
+        if (isStar) tickedCount += 1;
+        if (textOnly) opts.push({ option_text: textOnly, is_correct: isStar });
+      }
+      // Determine correct from Answer: X (if provided)
+      if (answerLine) {
+        const ans = answerLine.split(/[:\-]/).slice(1).join(':').trim();
+        const letter = ans.match(/^[A-Da-d]/)?.[0]?.toUpperCase();
+        const indexNum = parseInt(ans, 10);
+        if (letter) {
+          const idx = { A:0, B:1, C:2, D:3 }[letter];
+          if (Number.isInteger(idx) && opts[idx]) { opts.forEach((o, i) => o.is_correct = i === idx); tickedCount = 1; }
+        } else if (!isNaN(indexNum) && indexNum >= 1 && opts[indexNum-1]) {
+          opts.forEach((o, i) => o.is_correct = i === (indexNum-1));
+          tickedCount = 1;
+        } else {
+          // match by text include
+          const target = ans.toLowerCase();
+          const found = opts.findIndex(o => o.option_text.toLowerCase() === target || o.option_text.toLowerCase().includes(target));
+          if (found >= 0) { opts.forEach((o, i) => o.is_correct = i === found); tickedCount = 1; }
+        }
+      }
+      // Clean and enforce max 4 options (preserve correct if possible)
+      let cleanOpts = opts.filter(o => o.option_text);
+      if (cleanOpts.length > 4) {
+        // Keep the first marked-correct if any, plus first 3 others preserving order
+        const correctIdx = cleanOpts.findIndex(o => o.is_correct);
+        if (correctIdx >= 0) {
+          const correct = cleanOpts[correctIdx];
+          const others = cleanOpts.filter((_, i) => i !== correctIdx);
+          cleanOpts = [correct, ...others.slice(0, 3)];
+        } else {
+          cleanOpts = cleanOpts.slice(0, 4);
+        }
+        warnings.push(`Q${qCounter}: More than 4 options found; trimmed to 4 (kept the marked correct).`);
+      }
+      // Validation: question text
+      if (!qline) { errors.push(`Q${qCounter}: Question text missing.`); continue; }
+      // Validation: min 2 options
+      if (cleanOpts.length < 2) { errors.push(`Q${qCounter}: At least 2 options required.`); continue; }
+      // Validation: exactly one correct if strict
+      let correctCount = cleanOpts.filter(o => o.is_correct).length;
+      if (allowZeroCorrect) {
+        // Opinion: ignore any correctness marks; set all to false
+        if (correctCount > 0) warnings.push(`Q${qCounter}: Correct marks ignored for opinion category.`);
+        cleanOpts = cleanOpts.map(o => ({ ...o, is_correct: false }));
+      } else if (strict) {
+        if (correctCount === 0) {
+          errors.push(`Q${qCounter}: Mark exactly one correct option with [x] or provide an Answer: line.`);
+        } else if (correctCount > 1) {
+          errors.push(`Q${qCounter}: Multiple correct marks detected; keep only one [x] or use a single Answer: line.`);
+        }
+      } else {
+        // Non-strict: ensure at least one correct by defaulting to first if none
+        if (correctCount === 0) cleanOpts[0].is_correct = true;
+        else if (correctCount > 1) {
+          let seen = false;
+          cleanOpts = cleanOpts.map(o => {
+            if (o.is_correct && !seen) { seen = true; return o; }
+            return { ...o, is_correct: false };
+          });
+        }
+      }
+      items.push({ question_text: qline, options: cleanOpts });
+    }
+    return { items, errors, warnings };
+  };
+
+  // Bulk insert using RPC if available; else fallback to client-side
+  const bulkInsertQuestions = async (quizId, items, mode = 'append') => {
+    // Try RPC first
+    try {
+      const { error } = await supabase.rpc('admin_bulk_upsert_questions', {
+        p_quiz_id: quizId,
+        p_payload: items,
+        p_mode: mode,
+      });
+      if (!error) return { ok: true };
+    } catch { /* fallback */ }
+
+    // Fallback: client-side inserts
+    if (mode === 'replace') {
+      await supabase.from('questions').delete().eq('quiz_id', quizId);
+    }
+    // Insert questions
+    for (const it of items) {
+      const { data: qrow, error: qerr } = await supabase
+        .from('questions')
+        .insert({ quiz_id: quizId, question_text: it.question_text })
+        .select('id')
+        .single();
+      if (qerr) return { ok: false, message: qerr.message };
+      const qid = qrow.id;
+      const optsRows = it.options.map(o => ({ question_id: qid, option_text: o.option_text, is_correct: !!o.is_correct }));
+      const { error: oerr } = await supabase.from('options').insert(optsRows);
+      if (oerr) return { ok: false, message: oerr.message };
+    }
+    return { ok: true };
+  };
+
   // Questions & Options CRUD
-  const addQuestion = async () => {
+  const addQuestion = () => {
+    // Toggle inline composer instead of prompt
+    setComposerOpen(true);
+  };
+
+  const saveNewQuestion = async () => {
     if (!selectedQuiz) return;
-    const text = window.prompt('Question text daalein');
-    if (!text || !text.trim()) return;
-    const { error } = await supabase.from('questions').insert({ quiz_id: selectedQuiz.id, question_text: text.trim() });
-    if (error) return toast({ title: 'Add failed', description: error.message, variant: 'destructive' });
-  await fetchQuestions(selectedQuiz.id);
+    const locked = selectedQuiz?.start_time ? (new Date(selectedQuiz.start_time).getTime() <= Date.now()) : false;
+    if (locked) { toast({ title:'Locked', description:'Cannot add after quiz start', variant:'destructive' }); return; }
+    const text = (newQ.text || '').trim();
+  const opts = (newQ.options || []).map(o => (o || '').trim()).filter(Boolean).slice(0, 4);
+    if (!text) { toast({ title:'Question required', variant:'destructive' }); return; }
+    if (opts.length < 2) { toast({ title:'At least 2 options required', variant:'destructive' }); return; }
+  const isOpinionSel = selectedQuiz?.category === 'opinion';
+  const cIdx = Math.min(Math.max(newQ.correctIndex || 0, 0), opts.length - 1);
+    try {
+      const { data: qrow, error: qerr } = await supabase
+        .from('questions')
+        .insert({ quiz_id: selectedQuiz.id, question_text: text })
+        .select('id')
+        .single();
+      if (qerr) throw qerr;
+    const qid = qrow.id;
+    const rows = opts.map((opt, i) => ({ question_id: qid, option_text: opt, is_correct: isOpinionSel ? false : i === cIdx }));
+      const { error: oerr } = await supabase.from('options').insert(rows);
+      if (oerr) throw oerr;
+      toast({ title:'Added', description:'Question created' });
+      setComposerOpen(false);
+      setNewQ({ text:'', options:['','','',''], correctIndex:0 });
+      await fetchQuestions(selectedQuiz.id);
+    } catch (e) {
+      toast({ title:'Add failed', description:e.message, variant:'destructive' });
+    }
   };
 
   const saveQuestion = async (qid, text) => {
@@ -299,9 +471,64 @@ export default function Admin() {
   const handleCreateQuiz = async (e) => {
     e.preventDefault();
     try {
+      // Validate required fields
+      const errs = [];
+      const title = (quizForm.title || '').trim();
+      if (!quizForm.category) errs.push('Please choose a category');
+      if (!title || title.length < 3) errs.push('Title is too short');
+      if (!quizForm.start_time) errs.push('Start time is required');
+      if (!quizForm.end_time) errs.push('End time is required');
+      // Build from structured form mode always (require review)
+      let prepared = { items: [], errors: [], warnings: [] };
+      const items = [];
+      if (!questionsDraft.length) errs.push('Add at least one question');
+      questionsDraft.forEach((q, i) => {
+        const qText = (q.text || '').trim();
+        const opts = (q.options || []).map(o => (o || '').trim()).filter(Boolean).slice(0,4);
+        if (!qText) prepared.errors.push(`Q${i+1}: Question text is required`);
+        if (opts.length < 2) prepared.errors.push(`Q${i+1}: At least 2 options required`);
+        if (opts.length > 4) prepared.warnings.push(`Q${i+1}: Max 4 options; extra ignored`);
+        const cIdx = Math.max(0, Math.min(q.correctIndex ?? 0, opts.length - 1));
+        // Ensure exactly one correct
+        const builtOpts = opts.map((t, idx) => ({ option_text: t, is_correct: idx === cIdx }));
+        if (qText && opts.length >= 2) items.push({ question_text: qText, options: builtOpts });
+      });
+      prepared.items = items;
+      if (prepared.errors.length) errs.push(prepared.errors[0]);
+      if (!prepared.items.length) errs.push('No valid questions detected');
+      if (entryMode === 'paste') errs.push('Load pasted questions into Form and review before creating');
+
+      const toLocalDate = (val) => { try { const d = new Date(val); return isNaN(d.getTime()) ? null : d; } catch { return null; } };
+      const dStart = toLocalDate(quizForm.start_time);
+      const dEnd = toLocalDate(quizForm.end_time);
+      if (!dStart || !dEnd) errs.push('Invalid start/end time');
+      if (dStart && dEnd && dEnd <= dStart) errs.push('End time must be after start time');
+      // Optional: enforce future start time
+      if (dStart && dStart.getTime() < Date.now() - 60_000) errs.push('Start time must be in the future');
+
+      // Prizes: require 1st prize positive integer; others >= 0 if provided
+      const p0 = parseInt(quizForm.prizes[0] || '', 10);
+      const p1 = quizForm.prizes[1] ? parseInt(quizForm.prizes[1], 10) : 0;
+      const p2 = quizForm.prizes[2] ? parseInt(quizForm.prizes[2], 10) : 0;
+      if (isNaN(p0) || p0 <= 0) errs.push('1st prize must be a positive number');
+      if (quizForm.prizes[1] && (isNaN(p1) || p1 < 0)) errs.push('2nd prize must be 0 or more');
+      if (quizForm.prizes[2] && (isNaN(p2) || p2 < 0)) errs.push('3rd prize must be 0 or more');
+
+      if (errs.length) {
+        toast({ title: 'Please fix the form', description: errs[0], variant: 'destructive' });
+        return;
+      }
+
       const prizesArray = quizForm.prizes.filter(p => p).map(p => parseInt(p));
       const prizePool = prizesArray.reduce((sum, prize) => sum + prize, 0);
 
+      // Convert local datetime-local strings to UTC ISO
+      const toISOorNull = (val) => {
+        if (!val) return null;
+        // val is like '2025-10-01T21:30'
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? null : d.toISOString();
+      };
       const { data: insertData, error } = await supabase
         .from('quizzes')
         .insert([{
@@ -309,22 +536,38 @@ export default function Admin() {
           prize_pool: prizePool,
           prizes: prizesArray,
           // Single-step creation with schedule
-          start_time: quizForm.start_time ? new Date(quizForm.start_time).toISOString() : null,
-          end_time: quizForm.end_time ? new Date(quizForm.end_time).toISOString() : null,
+          start_time: toISOorNull(quizForm.start_time),
+          end_time: toISOorNull(quizForm.end_time),
           status: 'upcoming',
-          category: quizForm.category || null
+          category: quizForm.category || null,
+          prize_type: quizForm.prize_type || 'money'
         }])
         .select('id, title, category, prizes, prize_pool, start_time, end_time')
         .single();
 
       if (error) throw error;
 
-      toast({ title: 'Quiz created', description: 'Ab questions add karein; users ko schedule ke hisaab se dikhega.' });
+  toast({ title: 'Quiz created', description: 'Questions will be saved now.' });
+  // Use prepared items BEFORE resetting form state
+  const initialItems = prepared.items;
 
       setShowCreateQuiz(false);
-      setQuizForm({ title: '', prizes: ['', '', ''], start_time: '', end_time: '', category: '' });
+  setQuizForm({ title: '', prizes: ['', '', ''], start_time: '', end_time: '', category: '', bulk_text: '', prize_type: 'money' });
+  setEntryMode('form');
+  setQuestionsDraft([makeBlankQuestion()]);
       // Open Questions editor directly for the created draft
       setSelectedQuiz(insertData);
+      // If bulk text was provided in create form, apply immediately (replace)
+      if (initialItems.length > 0) {
+        setBulkWorking(true);
+        const res = await bulkInsertQuestions(insertData.id, initialItems, 'replace');
+        setBulkWorking(false);
+        if (!res.ok) {
+          toast({ title: 'Bulk add failed', description: res.message || 'Please try again', variant: 'destructive' });
+        } else {
+          toast({ title: 'Questions added', description: `${initialItems.length} questions created.` });
+        }
+      }
       await fetchQuestions(insertData.id);
       setShowQuestions(true);
       // Also refresh list in background
@@ -428,11 +671,19 @@ export default function Admin() {
               </div>
 
               <div>
-                <Label>Prize Distribution (₹)</Label>
+                <Label>Prize Distribution</Label>
+                <div className="flex items-center gap-3 mt-1 text-sm">
+                  <span className="text-muted-foreground">Type:</span>
+                  <div className="flex gap-2">
+                    {['money','coins','others'].map(pt => (
+                      <button type="button" key={pt} onClick={()=>setQuizForm({...quizForm, prize_type: pt})} className={`px-2 py-1 rounded border text-xs capitalize ${quizForm.prize_type===pt?'bg-primary text-primary-foreground border-transparent':'bg-muted text-muted-foreground border-border'}`}>{pt}</button>
+                    ))}
+                  </div>
+                </div>
                 <div className="grid grid-cols-3 gap-2">
-                  <Input placeholder="1st Prize (251)" value={quizForm.prizes[0]} onChange={(e) => { const p=[...quizForm.prizes]; p[0]=e.target.value; setQuizForm({...quizForm, prizes:p}); }} />
-                  <Input placeholder="2nd Prize (151)" value={quizForm.prizes[1]} onChange={(e) => { const p=[...quizForm.prizes]; p[1]=e.target.value; setQuizForm({...quizForm, prizes:p}); }} />
-                  <Input placeholder="3rd Prize (51)" value={quizForm.prizes[2]} onChange={(e) => { const p=[...quizForm.prizes]; p[2]=e.target.value; setQuizForm({...quizForm, prizes:p}); }} />
+                  <Input placeholder={quizForm.prize_type==='coins'?"1st Prize (coins)":"1st Prize (amount)"} value={quizForm.prizes[0]} onChange={(e) => { const p=[...quizForm.prizes]; p[0]=e.target.value; setQuizForm({...quizForm, prizes:p}); }} />
+                  <Input placeholder={quizForm.prize_type==='coins'?"2nd Prize (coins)":"2nd Prize (amount)"} value={quizForm.prizes[1]} onChange={(e) => { const p=[...quizForm.prizes]; p[1]=e.target.value; setQuizForm({...quizForm, prizes:p}); }} />
+                  <Input placeholder={quizForm.prize_type==='coins'?"3rd Prize (coins)":"3rd Prize (amount)"} value={quizForm.prizes[2]} onChange={(e) => { const p=[...quizForm.prizes]; p[2]=e.target.value; setQuizForm({...quizForm, prizes:p}); }} />
                 </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -445,10 +696,105 @@ export default function Admin() {
                   <Input type="datetime-local" value={quizForm.end_time} onChange={(e)=>setQuizForm({ ...quizForm, end_time: e.target.value })} required />
                 </div>
               </div>
+
+              {/* Entry mode toggle */}
+              <div className="flex items-center gap-3">
+                <Label>Questions entry mode:</Label>
+                <div className="flex gap-2">
+                  <button type="button" className={`px-3 py-1 rounded-md text-sm border ${entryMode==='form'?'bg-primary text-primary-foreground border-transparent':'bg-muted text-muted-foreground border-border'}`} onClick={()=>setEntryMode('form')}>Form</button>
+                  <button type="button" className={`px-3 py-1 rounded-md text-sm border ${entryMode==='paste'?'bg-primary text-primary-foreground border-transparent':'bg-muted text-muted-foreground border-border'}`} onClick={()=>setEntryMode('paste')}>Paste</button>
+                </div>
+              </div>
+
+              {entryMode === 'form' ? (
+                <div className="space-y-3">
+                  <div className="text-sm text-muted-foreground">
+                    {quizForm.category === 'opinion' ? 'Add questions with 2–4 options. No correct option in Opinion category.' : 'Add questions with 2–4 options. Select exactly one correct.'}
+                  </div>
+                  {questionsDraft.map((q, qi) => (
+                    <div key={qi} className="p-3 rounded-xl border border-border">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground w-10">Q{qi+1}.</span>
+                        <Input value={q.text} onChange={(e)=>{ const arr=[...questionsDraft]; arr[qi] = { ...arr[qi], text: e.target.value }; setQuestionsDraft(arr); }} placeholder="Question text" className="flex-1" />
+                        <Button type="button" variant="outline" size="sm" className="border-red-300 text-red-600" onClick={()=>{ const arr=[...questionsDraft]; arr.splice(qi,1); setQuestionsDraft(arr.length?arr:[makeBlankQuestion()]); }}>Remove</Button>
+                      </div>
+                      <div className="mt-2 space-y-2">
+                        {(q.options||[]).slice(0,4).map((opt, oi) => (
+                          <div key={oi} className="flex items-center gap-2">
+                            {quizForm.category !== 'opinion' && (
+                              <input type="radio" name={`qdraft-${qi}`} checked={(q.correctIndex??0)===oi} onChange={()=>{ const arr=[...questionsDraft]; arr[qi] = { ...arr[qi], correctIndex: oi }; setQuestionsDraft(arr); }} />
+                            )}
+                            <Input value={opt} onChange={(e)=>{ const arr=[...questionsDraft]; const ops=[...(arr[qi].options||[])]; ops[oi] = e.target.value; arr[qi] = { ...arr[qi], options: ops }; setQuestionsDraft(arr); }} placeholder={`Option ${oi+1}`} className="flex-1" />
+                            {(q.options||[]).length>2 && (
+                              <Button type="button" variant="outline" size="sm" className="border-red-300 text-red-600" onClick={()=>{ const arr=[...questionsDraft]; const ops=[...(arr[qi].options||[])]; ops.splice(oi,1); const newCorrect=Math.min(arr[qi].correctIndex??0, ops.length-1); arr[qi] = { ...arr[qi], options: ops, correctIndex: newCorrect }; setQuestionsDraft(arr); }}>Delete</Button>
+                            )}
+                          </div>
+                        ))}
+                        <div className="flex items-center gap-2">
+                          <Button type="button" size="sm" className="bg-green-600 hover:bg-green-700 disabled:opacity-60" disabled={(q.options||[]).length>=4} onClick={()=>{ const arr=[...questionsDraft]; const ops=[...(arr[qi].options||[])].slice(0,4).concat(''); arr[qi] = { ...arr[qi], options: ops }; setQuestionsDraft(arr); }}><Plus className="w-4 h-4 mr-1"/>Add Option</Button>
+                          <div className="text-xs text-muted-foreground">Max 4 options.</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div>
+                    <Button type="button" onClick={()=> setQuestionsDraft(prev => [...prev, makeBlankQuestion()])}><Plus className="w-4 h-4 mr-1"/>Add Question</Button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <Label>Paste Questions (RAW format) *</Label>
+                  <Textarea
+                    placeholder={'Use RAW format with [x]/[ ] tick and max 4 options. Example:\nQ1. Capital of India?\n- [ ] Mumbai\n- [x] Delhi\n- [ ] Kolkata\n- [ ] Jaipur\n\nQ2. Best color?\n- [x] Blue\n- [ ] Red\n- [ ] Green\n(Alternatively, provide Answer: B or Answer: 2 line)'}
+                    value={quizForm.bulk_text}
+                    onChange={(e)=>setQuizForm({ ...quizForm, bulk_text: e.target.value })}
+                    className="mt-1 h-40"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">{quizForm.category === 'opinion' ? 'No correct option required for Opinion category.' : 'Mark exactly one correct option per question with [x] or Answer: A/B/1.'} Max 4 options per question.</p>
+                  {(() => { const { items, errors, warnings } = parseBulkQuestions(quizForm.bulk_text, { strict: true, allowZeroCorrect: quizForm.category === 'opinion' }); return (
+                    <div className="mt-2 space-y-1 text-sm">
+                      <div className="text-foreground/80">Preview: {items.length} questions</div>
+                      {warnings.length > 0 && (
+                        <div className="text-xs text-amber-600">{warnings[0]}{warnings.length>1?` (+${warnings.length-1} more)`:''}</div>
+                      )}
+                      {errors.length > 0 && (
+                        <div className="text-xs text-destructive">{errors[0]}{errors.length>1?` (+${errors.length-1} more)`:''}</div>
+                      )}
+                      <div className="pt-2">
+                        <Button type="button" onClick={() => {
+                          const parsed = parseBulkQuestions(quizForm.bulk_text, { strict: true, allowZeroCorrect: quizForm.category === 'opinion' });
+                          if (parsed.errors.length) { toast({ title:'Fix pasted input', description: parsed.errors[0], variant:'destructive' }); return; }
+                          if (!parsed.items.length) { toast({ title:'No valid questions', variant:'destructive' }); return; }
+                          const draft = parsed.items.map((it) => {
+                            const opts = (it.options || []).slice(0,4);
+                            const correctIdx = quizForm.category === 'opinion' ? 0 : Math.max(0, opts.findIndex(o => o.is_correct));
+                            return { text: it.question_text, options: opts.map(o => o.option_text), correctIndex: correctIdx < 0 ? 0 : correctIdx };
+                          });
+                          setQuestionsDraft(draft.length ? draft : [makeBlankQuestion()]);
+                          setEntryMode('form');
+                          toast({ title:'Loaded into form', description:`${draft.length} questions ready to review & edit.` });
+                        }} className="bg-indigo-600 hover:bg-indigo-700">Load into Form (Preview & Edit)</Button>
+                      </div>
+                    </div>
+                  ); })()}
+                </div>
+              )}
               {/* Times will be set on Publish */}
 
               <div className="flex space-x-4">
-                <Button type="submit" className="bg-green-600 hover:bg-green-700">Create Quiz</Button>
+                {(() => {
+                  let disableCreate = false;
+                  if (entryMode === 'paste') {
+                    disableCreate = true;
+                  } else {
+                    // Form mode: ensure at least one valid question
+                    const valid = questionsDraft.some(q => (q.text||'').trim() && (q.options||[]).filter(o => (o||'').trim()).length >= 2);
+                    disableCreate = !valid;
+                  }
+                  return (
+                    <Button type="submit" disabled={disableCreate} className="bg-green-600 hover:bg-green-700 disabled:opacity-60">Create Quiz</Button>
+                  );
+                })()}
                 <Button type="button" variant="outline" onClick={() => setShowCreateQuiz(false)}>Cancel</Button>
               </div>
             </form>
@@ -462,80 +808,167 @@ export default function Admin() {
             <div className="py-8 text-center text-muted-foreground">
               <Loader2 className="inline-block h-6 w-6 animate-spin text-indigo-500 mr-2" /> Loading quizzes...
             </div>
-          ) : quizzes.map((quiz, index) => (
-            <motion.div key={quiz.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.1 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-foreground">{quiz.title}</h3>
-                  <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
-                    <span>Category: {quiz.category || '—'}</span>
-                    <span>Prize Pool: ₹{quiz.prize_pool}</span>
-                    <span>Prizes: ₹{quiz.prizes?.join(', ₹')}</span>
-                    {/* status chip removed */}
-                  </div>
-                  <div className="mt-2 text-sm text-muted-foreground">
-                    <span>Start: {quiz.start_time ? new Date(quiz.start_time).toLocaleString() : '—'}</span>
-                    <span className="ml-4">End: {quiz.end_time ? new Date(quiz.end_time).toLocaleString() : '—'}</span>
-                  </div>
-                  {/* Inline editor: category/start/end only */}
-                  <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <select className="border border-border bg-background text-foreground rounded-md px-2 py-2 capitalize" value={quiz.category || ''} onChange={async (e)=>{ const { error } = await supabase.from('quizzes').update({ category: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }}>
-                      <option value="">Select category</option>
-                      {categories.map(c => (<option value={c} key={c}>{c}</option>))}
-                    </select>
-                    <Input type="datetime-local" value={quiz.start_time?.slice(0,16) || ''} onChange={async (e)=>{
-                      const val = e.target.value;
-                      // optimistic
-                      quizzes[index].start_time = val;
-                      setQuizzes([...quizzes]);
-                      const { error } = await supabase.from('quizzes').update({ start_time: val }).eq('id', quiz.id);
-                      if (error) { toast({ title:'Update failed', description:error.message, variant:'destructive' }); fetchQuizzes(); }
-                    }} />
-                    <Input type="datetime-local" value={quiz.end_time?.slice(0,16) || ''} onChange={async (e)=>{
-                      const val = e.target.value;
-                      quizzes[index].end_time = val;
-                      setQuizzes([...quizzes]);
-                      const { error } = await supabase.from('quizzes').update({ end_time: val }).eq('id', quiz.id);
-                      if (error) { toast({ title:'Update failed', description:error.message, variant:'destructive' }); fetchQuizzes(); }
-                    }} />
-                  </div>
-                </div>
-                <div className="flex space-x-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => recomputeResults(quiz.id)}
-                    disabled={busyQuizId === quiz.id}
-                    className="text-indigo-600 hover:text-indigo-700"
-                  >
-                    {busyQuizId === quiz.id ? (
-                      <><Loader2 className="h-4 w-4 mr-1 animate-spin"/>Recomputing</>
-                    ) : (
-                      <><RefreshCcw className="h-4 w-4 mr-1"/>Recompute</>
-                    )}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => { setSelectedQuiz(quiz); fetchQuestions(quiz.id); setShowQuestions(true); }} className="text-blue-600 hover:text-blue-700">
-                    <Settings className="h-4 w-4" />
-                    Questions
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => deleteQuiz(quiz.id)} className="text-red-600 hover:text-red-700">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+          ) : (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Active / Upcoming</h3>
+                <div className="space-y-4 mt-2">
+                  {quizzes.filter(q => { const now=Date.now(); const st=q.start_time?new Date(q.start_time).getTime():null; const en=q.end_time?new Date(q.end_time).getTime():null; return en===null || now<=en; }).map((quiz, index) => (
+                    <motion.div key={quiz.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-foreground">{quiz.title}</h3>
+                          <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
+                            <span>Category: {quiz.category || '—'}</span>
+                            <span>Prize Type: {quiz.prize_type || 'money'}</span>
+                            <span>Prize Pool: {quiz.prize_type==='coins'?'🪙':''}₹{quiz.prize_pool}</span>
+                            <span>Prizes: {quiz.prize_type==='coins'?'🪙 ':''}{Array.isArray(quiz.prizes)?quiz.prizes.join(', '):''}</span>
+                          </div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            <span>Start: {quiz.start_time ? formatDateTime(quiz.start_time) : '—'}</span>
+                            <span className="ml-4">End: {quiz.end_time ? formatDateTime(quiz.end_time) : '—'}</span>
+                          </div>
+                          {(() => { const locked = quiz.start_time ? (new Date(quiz.start_time).getTime() <= Date.now()) : false; return (
+                          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <select disabled={locked} title={locked ? 'Locked after start time' : undefined} className={`border border-border bg-background text-foreground rounded-md px-2 py-2 capitalize ${locked ? 'opacity-60 cursor-not-allowed' : ''}`} value={quiz.category || ''} onChange={async (e)=>{ if (locked) { toast({ title:'Locked', description:'Cannot change after start', variant:'destructive' }); return; } const { error } = await supabase.from('quizzes').update({ category: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }}>
+                              <option value="">Select category</option>
+                              {categories.map(c => (<option value={c} key={c}>{c}</option>))}
+                            </select>
+                            <Input type="datetime-local" disabled={locked} title={locked ? 'Locked after start time' : undefined} value={toDatetimeLocalValue(quiz.start_time)} onChange={async (e)=>{
+                              if (locked) { toast({ title:'Locked', description:'Cannot change after start', variant:'destructive' }); return; }
+                              const val = e.target.value;
+                              const iso = val ? new Date(val).toISOString() : null;
+                              quizzes[index].start_time = iso;
+                              setQuizzes([...quizzes]);
+                              const { error } = await supabase.from('quizzes').update({ start_time: iso }).eq('id', quiz.id);
+                              if (error) { toast({ title:'Update failed', description:error.message, variant:'destructive' }); fetchQuizzes(); }
+                            }} />
+                            <Input type="datetime-local" disabled={locked} title={locked ? 'Locked after start time' : undefined} value={toDatetimeLocalValue(quiz.end_time)} onChange={async (e)=>{
+                              if (locked) { toast({ title:'Locked', description:'Cannot change after start', variant:'destructive' }); return; }
+                              const val = e.target.value;
+                              const iso = val ? new Date(val).toISOString() : null;
+                              quizzes[index].end_time = iso;
+                              setQuizzes([...quizzes]);
+                              const { error } = await supabase.from('quizzes').update({ end_time: iso }).eq('id', quiz.id);
+                              if (error) { toast({ title:'Update failed', description:error.message, variant:'destructive' }); fetchQuizzes(); }
+                            }} />
+                          </div>
+                          ); })()}
+                        </div>
+                        {(() => { const now = Date.now(); const st = quiz.start_time ? new Date(quiz.start_time).getTime() : null; const canDelete = !st || now < st; return (
+                        <div className="flex space-x-2">
+                          <Button size="sm" variant="outline" onClick={() => recomputeResults(quiz.id)} disabled={busyQuizId === quiz.id} className="text-indigo-600 hover:text-indigo-700">{busyQuizId === quiz.id ? (<><Loader2 className="h-4 w-4 mr-1 animate-spin"/>Recomputing</>) : (<><RefreshCcw className="h-4 w-4 mr-1"/>Recompute</>)}</Button>
+                          <Link to={`/results/${quiz.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md border border-border hover:bg-muted text-blue-600"><Eye className="h-4 w-4"/> Results</Link>
+                          <Button size="sm" variant="outline" onClick={() => { setSelectedQuiz(quiz); fetchQuestions(quiz.id); setShowQuestions(true); }} className="text-blue-600 hover:text-blue-700"><Settings className="h-4 w-4" />Questions</Button>
+                          <div className="relative group">
+                            <Button size="sm" variant="outline" onClick={() => deleteQuiz(quiz.id)} disabled={!canDelete} className={`${canDelete ? 'text-red-600 hover:text-red-700' : 'text-muted-foreground opacity-60 cursor-not-allowed'}`}><Trash2 className="h-4 w-4" /></Button>
+                            {!canDelete && (<div className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs bg-popover text-popover-foreground border border-border px-2 py-1 rounded shadow hidden group-hover:block">Cannot delete after start time</div>)}
+                          </div>
+                        </div>
+                        ); })()}
+                      </div>
+                    </motion.div>
+                  ))}
                 </div>
               </div>
-            </motion.div>
-          ))}
+
+              <div>
+                <h3 className="text-lg font-semibold text-foreground">Finished</h3>
+                <div className="space-y-4 mt-2">
+                  {quizzes.filter(q => { const now=Date.now(); const en=q.end_time?new Date(q.end_time).getTime():null; return en!==null && now>en; }).map((quiz, index) => (
+                    <motion.div key={quiz.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-foreground">{quiz.title}</h3>
+                          <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
+                            <span>Category: {quiz.category || '—'}</span>
+                            <span>Prize Type: {quiz.prize_type || 'money'}</span>
+                            <span>Prize Pool: {quiz.prize_type==='coins'?'🪙':''}₹{quiz.prize_pool}</span>
+                            <span>Prizes: {quiz.prize_type==='coins'?'🪙 ':''}{Array.isArray(quiz.prizes)?quiz.prizes.join(', '):''}</span>
+                          </div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            <span>Start: {quiz.start_time ? formatDateTime(quiz.start_time) : '—'}</span>
+                            <span className="ml-4">End: {quiz.end_time ? formatDateTime(quiz.end_time) : '—'}</span>
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Link to={`/results/${quiz.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md border border-border hover:bg-muted text-blue-600"><Eye className="h-4 w-4"/> Results</Link>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Questions Editor Panel */}
         {showQuestions && selectedQuiz && (
           <div className="mt-6 bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
-            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3">
               <h3 className="text-lg font-semibold text-foreground">Questions for: {selectedQuiz.title}</h3>
               <div className="flex gap-2">
-                <Button onClick={addQuestion} className="bg-indigo-600 hover:bg-indigo-700" size="sm"><Plus className="w-4 h-4 mr-1"/>Add Question</Button>
+                {(() => { const locked = selectedQuiz?.start_time ? (new Date(selectedQuiz.start_time).getTime() <= Date.now()) : false; return (
+                <>
+                <Button onClick={() => { if (locked) { toast({ title:'Locked', description:'Cannot add after quiz start', variant:'destructive' }); return; } setComposerOpen(true); }} disabled={locked} className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60" size="sm"><Plus className="w-4 h-4 mr-1"/>{composerOpen ? 'Composer Open' : 'Add Question'}</Button>
+                <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={locked}>Bulk Add/Replace</Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Bulk add questions</DialogTitle>
+                      <DialogDescription>Paste multiple questions with options. Supported formats shown below.</DialogDescription>
+                    </DialogHeader>
+                    <div>
+                      <Textarea value={bulkText} onChange={(e)=>setBulkText(e.target.value)} className="h-56" disabled={locked} placeholder={
+                        'RAW format with [x]/[ ] and max 4 options. Example:\nQ. Sample?\n- [x] Option 1\n- [ ] Option 2\n- [ ] Option 3\n- [ ] Option 4\n\nAlternatively: use Answer: B or Answer: 2'
+                      } />
+                      {(() => { const { items, errors, warnings } = parseBulkQuestions(bulkText, { strict: true, allowZeroCorrect: selectedQuiz?.category === 'opinion' }); return (
+                        <div className="mt-2 space-y-1 text-sm">
+                          <div className="flex items-center justify-between">
+                            <div className="text-foreground/80">Preview: {items.length} questions</div>
+                            <label className="text-sm text-foreground/80 flex items-center gap-2">
+                              <span>Mode:</span>
+                              <select value={bulkMode} onChange={(e)=>setBulkMode(e.target.value)} className="border border-border bg-background text-foreground rounded-md px-2 py-1 text-sm" disabled={locked}>
+                                <option value="append">Append</option>
+                                <option value="replace">Replace existing</option>
+                              </select>
+                            </label>
+                          </div>
+                          {warnings.length > 0 && (
+                            <div className="text-xs text-amber-600">{warnings[0]}{warnings.length>1?` (+${warnings.length-1} more)`:''}</div>
+                          )}
+                          {errors.length > 0 && (
+                            <div className="text-xs text-destructive">{errors[0]}{errors.length>1?` (+${errors.length-1} more)`:''}</div>
+                          )}
+                        </div>
+                      ); })()}
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button variant="outline">Cancel</Button>
+                      </DialogClose>
+                      <Button disabled={bulkWorking || locked || parseBulkQuestions(bulkText, { strict: true, allowZeroCorrect: selectedQuiz?.category === 'opinion' }).errors.length > 0} onClick={async ()=>{
+                        const parsed = parseBulkQuestions(bulkText, { strict: true, allowZeroCorrect: selectedQuiz?.category === 'opinion' });
+                        const items = parsed.items;
+                        if (!items.length) { toast({ title: 'No valid questions detected', variant: 'destructive' }); return; }
+                        setBulkWorking(true);
+                        const res = await bulkInsertQuestions(selectedQuiz.id, items, bulkMode);
+                        setBulkWorking(false);
+                        if (!res.ok) { toast({ title: 'Bulk add failed', description: res.message || 'Try again', variant: 'destructive' }); return; }
+                        toast({ title: 'Questions added', description: `${items.length} questions processed.` });
+                        setBulkOpen(false); setBulkText('');
+                        await fetchQuestions(selectedQuiz.id);
+                      }}>{bulkWorking ? (<><Loader2 className="w-4 h-4 mr-1 animate-spin"/>Working…</>) : 'Apply'}</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
                 {/* Publish panel removed */}
                 <Button variant="outline" size="sm" onClick={()=>setShowQuestions(false)}>Close</Button>
+                </>
+                ); })()}
               </div>
             </div>
 
@@ -543,37 +976,102 @@ export default function Admin() {
               <div className="py-6 text-center text-muted-foreground">No questions yet</div>
             ) : (
               <div className="space-y-4">
-                {questions.map((q) => (
+                {/* Inline Composer */}
+                {(() => { const locked = selectedQuiz?.start_time ? (new Date(selectedQuiz.start_time).getTime() <= Date.now()) : false; if (!composerOpen) return null; const isOpinionSel = selectedQuiz?.category === 'opinion'; return (
+                  <div className="p-3 rounded-xl bg-card/80 border border-border">
+                    <div className="mb-2 text-sm font-semibold text-foreground">New Question</div>
+                    <Input
+                      placeholder="Type your question"
+                      value={newQ.text}
+                      disabled={locked}
+                      onChange={(e)=>setNewQ(prev => ({...prev, text: e.target.value }))}
+                      className="mb-3"
+                    />
+                    <div className="space-y-2">
+                      {(newQ.options || []).slice(0,4).map((opt, idx) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          {!isOpinionSel && (
+                            <input
+                              type="radio"
+                              name="newq-correct"
+                              checked={newQ.correctIndex === idx}
+                              disabled={locked}
+                              onChange={()=>setNewQ(prev => ({...prev, correctIndex: idx }))}
+                            />
+                          )}
+                          <Input
+                            placeholder={`Option ${idx+1}`}
+                            value={opt}
+                            disabled={locked}
+                            onChange={(e)=>{
+                              const arr = [...newQ.options]; arr[idx] = e.target.value; setNewQ(prev => ({...prev, options: arr }));
+                            }}
+                            className="flex-1"
+                          />
+                          {newQ.options.length > 2 && (
+                            <Button type="button" variant="outline" size="sm" className={`border-red-300 ${locked ? 'text-muted-foreground opacity-60 cursor-not-allowed' : 'text-red-600'}`} disabled={locked}
+                              onClick={()=>{ const arr=[...newQ.options]; arr.splice(idx,1); setNewQ(prev => ({...prev, options: arr, correctIndex: Math.min(prev.correctIndex, arr.length-1) })); }}>
+                              <Trash2 className="w-4 h-4"/>
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                      <div className="flex items-center gap-2">
+                        <Button type="button" size="sm" className="bg-green-600 hover:bg-green-700 disabled:opacity-60" disabled={locked || (newQ.options || []).length >= 4}
+                          onClick={()=> setNewQ(prev => ({...prev, options: [...prev.options].slice(0,4).concat('') }))}>
+                          <Plus className="w-4 h-4 mr-1"/> Add Option
+                        </Button>
+                        <div className="text-xs text-muted-foreground">{isOpinionSel ? 'Opinion: no correct option needed.' : 'Select the correct option. Max 4 options.'}</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <Button type="button" onClick={saveNewQuestion} className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60" disabled={locked}>Save Question</Button>
+                      <Button type="button" variant="outline" onClick={()=>{ setComposerOpen(false); setNewQ({ text:'', options:['','','',''], correctIndex:0 }); }}>Cancel</Button>
+                    </div>
+                  </div>
+                ); })()}
+
+                {questions.map((q) => { const locked = selectedQuiz?.start_time ? (new Date(selectedQuiz.start_time).getTime() <= Date.now()) : false; const isOpinionSel = selectedQuiz?.category === 'opinion'; return (
                   <div key={q.id} className="p-3 rounded-xl bg-card/80 border border-border">
                     <div className="flex items-center gap-2">
-                      <Input defaultValue={q.question_text} onBlur={(e)=>saveQuestion(q.id, e.target.value)} className="flex-1" />
-                      <Button variant="outline" size="sm" className="text-red-600 border-red-300" onClick={()=>deleteQuestion(q.id)}><Trash2 className="w-4 h-4"/></Button>
+                      <Input defaultValue={q.question_text} onBlur={(e)=>{ if (locked) { toast({ title:'Locked', description:'Cannot edit after quiz start', variant:'destructive' }); return; } saveQuestion(q.id, e.target.value); }} className="flex-1" disabled={locked} />
+                      <Button variant="outline" size="sm" className={`border-red-300 ${locked ? 'text-muted-foreground opacity-60 cursor-not-allowed' : 'text-red-600'}`} onClick={()=>{ if (locked) { toast({ title:'Locked', description:'Cannot delete after quiz start', variant:'destructive' }); return; } deleteQuestion(q.id); }} disabled={locked}><Trash2 className="w-4 h-4"/></Button>
                     </div>
                     <div className="mt-2 pl-1">
                       <div className="text-xs text-muted-foreground mb-1">Options</div>
                       <div className="space-y-2">
                         {(q.options || []).map((o)=> (
                           <div key={o.id} className="flex items-center gap-2">
-                            <Input defaultValue={o.option_text} onBlur={(e)=>saveOption(o.id, e.target.value)} className="flex-1" />
-                            <label className="flex items-center gap-1 text-xs text-foreground/80">
-                              <input
-                                type="checkbox"
-                                defaultChecked={!!o.is_correct}
-                                onChange={async (e)=>{
-                                  const { error } = await supabase.from('options').update({ is_correct: e.target.checked }).eq('id', o.id);
-                                  if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' });
-                                }}
-                              />
-                              Correct
-                            </label>
-                            <Button variant="outline" size="sm" className="text-red-600 border-red-300" onClick={()=>deleteOption(o.id)}><Trash2 className="w-4 h-4"/></Button>
+                            <Input defaultValue={o.option_text} onBlur={(e)=>{ if (locked) { toast({ title:'Locked', description:'Cannot edit after quiz start', variant:'destructive' }); return; } saveOption(o.id, e.target.value); }} className="flex-1" disabled={locked} />
+                            {!isOpinionSel && (
+                              <label className="flex items-center gap-1 text-xs text-foreground/80">
+                                <input
+                                  type="radio"
+                                  name={`correct-${q.id}`}
+                                  defaultChecked={!!o.is_correct}
+                                  disabled={locked}
+                                  onChange={async (e)=>{
+                                    if (locked) { e.preventDefault(); return; }
+                                    if (!e.target.checked) return;
+                                    // Set this option correct and others false
+                                    const { error: e1 } = await supabase.from('options').update({ is_correct: false }).eq('question_id', q.id);
+                                    if (e1) { toast({ title:'Update failed', description:e1.message, variant:'destructive' }); return; }
+                                    const { error: e2 } = await supabase.from('options').update({ is_correct: true }).eq('id', o.id);
+                                    if (e2) toast({ title:'Update failed', description:e2.message, variant:'destructive' });
+                                    await fetchQuestions(selectedQuiz.id);
+                                  }}
+                                />
+                                Correct
+                              </label>
+                            )}
+                            <Button variant="outline" size="sm" className={`border-red-300 ${locked ? 'text-muted-foreground opacity-60 cursor-not-allowed' : 'text-red-600'}`} onClick={()=>{ if (locked) { toast({ title:'Locked', description:'Cannot delete after quiz start', variant:'destructive' }); return; } deleteOption(o.id); }} disabled={locked}><Trash2 className="w-4 h-4"/></Button>
                           </div>
                         ))}
-                        <Button onClick={()=>addOption(q.id)} size="sm" className="bg-green-600 hover:bg-green-700"><Plus className="w-4 h-4 mr-1"/>Add Option</Button>
+                        <Button onClick={()=>{ if (locked) { toast({ title:'Locked', description:'Cannot add after quiz start', variant:'destructive' }); return; } if ((q.options||[]).length >= 4) { toast({ title:'Limit reached', description:'Max 4 options per question', variant:'destructive' }); return; } addOption(q.id); }} size="sm" className="bg-green-600 hover:bg-green-700 disabled:opacity-60" disabled={locked}><Plus className="w-4 h-4 mr-1"/>Add Option</Button>
                       </div>
                     </div>
                   </div>
-                ))}
+                ); })}
               </div>
             )}
           </div>

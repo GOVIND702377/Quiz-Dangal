@@ -16,7 +16,7 @@ function statusBadge(s) {
 }
 
 
-const LeaderboardDisplay = ({ leaderboard, currentUser }) => {
+const LeaderboardDisplay = ({ leaderboard, currentUser, prizes = [] }) => {
   const top10 = leaderboard.slice(0, 10);
   const userRank = leaderboard.find(p => p.user_id === currentUser.id);
 
@@ -44,8 +44,21 @@ const LeaderboardDisplay = ({ leaderboard, currentUser }) => {
               <span className={`font-extrabold tabular-nums w-8 text-center ${rankColor(player.rank)}`}>{player.rank}.</span>
               <span className="font-medium text-slate-100 truncate">{player.display_name}</span>
             </div>
-            <div className="text-right">
-              <p className="font-bold text-indigo-300">{player.score} <span className="text-sm font-normal text-slate-300">pts</span></p>
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <p className="font-bold text-indigo-300">{player.score} <span className="text-sm font-normal text-slate-300">pts</span></p>
+              </div>
+              <div className="text-right min-w-[64px]">
+                <p className="font-bold text-purple-300">
+                  ₹{player.rank && player.rank <= prizes.length ? (prizes[player.rank - 1] || 0) : 0}
+                </p>
+                <p className="text-xs text-slate-300">Prize</p>
+              </div>
+              {player.rank <= 3 && (
+                <div className="text-xl" aria-hidden>
+                  {player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : '🥉'}
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -133,6 +146,22 @@ const MyQuizzes = () => {
   const [tick, setTick] = useState(0); // live re-render for countdowns
   const [counts, setCounts] = useState({}); // quiz_id -> joined (pre + joined, where joined includes completed)
 
+  const joinAndPlay = useCallback(async (quiz) => {
+    try {
+      const st = quiz.start_time ? new Date(quiz.start_time).getTime() : 0;
+      const et = quiz.end_time ? new Date(quiz.end_time).getTime() : 0;
+      const now = Date.now();
+      const isActive = st && et && now >= st && now < et;
+      if (!isActive) return; // upcoming: no action; already pre-joined
+      if (quiz.participant_status === 'pre_joined') {
+        await supabase.rpc('join_quiz', { p_quiz_id: quiz.id });
+      }
+      navigate(`/quiz/${quiz.id}`);
+    } catch (e) {
+      console.error('join/play failed', e);
+    }
+  }, [navigate]);
+
   const fetchMyQuizzes = useCallback(async () => {
     if (!user) return;
     try {
@@ -148,16 +177,27 @@ const MyQuizzes = () => {
         return;
       }
 
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  // View returns combined info already
+  const combinedData = (data || []).map(s => ({ ...s }));
 
-    // **FIX**: अब डेटा को कंबाइन करने की जरूरत नहीं है, क्योंकि व्यू से सब कुछ एक साथ आता है।
-    const combinedData = (data || []).map(s => {
-        // Hide result if it's older than 1 hour
-        if (s.leaderboard && new Date(s.result_shown_at) < oneHourAgo) {
-            return { ...s, leaderboard: null, resultExpired: true };
-        }
-        return { ...s };
-    });
+    // JIT compute: if quiz has ended and leaderboard missing, compute and refetch once
+    const now = Date.now();
+    const needsCompute = (combinedData || [])
+      .filter(row => row.end_time && new Date(row.end_time).getTime() <= now && (!Array.isArray(row.leaderboard) || row.leaderboard.length === 0))
+      .map(row => row.id);
+
+    if (needsCompute.length) {
+      try {
+        await Promise.allSettled(needsCompute.map(id => supabase.rpc('compute_results_if_due', { p_quiz_id: id })));
+        // refetch latest view data after compute
+        const { data: data2, error: err2 } = await supabase.from('my_quizzes_view').select('*');
+        const combined2 = (data2 || []).map(s => ({ ...s }));
+        setQuizzes(combined2);
+        return;
+      } catch (e) {
+        // even if compute fails, fall back to original data
+      }
+    }
 
     setQuizzes(combinedData);
     } catch (err) {
@@ -240,9 +280,9 @@ const MyQuizzes = () => {
   if (quizzes.length === 0) {
     return (
       <div className="min-h-screen">
-        <div className="container mx-auto px-4 py-6">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="text-center text-slate-100">
-            <h1 className="text-3xl font-bold heading-gradient text-shadow mb-8">My Quizzes</h1>
+        <div className="container mx-auto px-4 py-4">
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center text-slate-100">
+            <h1 className="text-2xl font-bold heading-gradient text-shadow mb-4">My Quizzes</h1>
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -252,7 +292,7 @@ const MyQuizzes = () => {
               <GoldTrophy size={104} />
               <h3 className="text-xl font-semibold text-white mb-2">No Quizzes Yet</h3>
               <p className="text-slate-300 mb-6">You haven't joined any quizzes. Play one to see your history!</p>
-              <Button onClick={() => navigate('/')} variant="brand" className="w-full rounded-xl">
+              <Button onClick={() => navigate('/')} variant="brand" className="w-full rounded-lg py-2.5 text-sm">
                 <Play className="w-5 h-5 mr-2" /> Play Now
               </Button>
             </motion.div>
@@ -281,13 +321,13 @@ const MyQuizzes = () => {
 
   return (
   <div className="min-h-screen">
-      <div className="container mx-auto px-4 py-6">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-3xl font-bold heading-gradient text-shadow mb-8 text-center">My Quizzes</h1>
+      <div className="container mx-auto px-4 py-4">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <h1 className="text-2xl font-bold heading-gradient text-shadow mb-4 text-center">My Quizzes</h1>
 
           {liveUpcoming.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-xl font-semibold text-white mb-3">Live/Upcoming</h2>
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-white mb-2">Live/Upcoming</h2>
               <div className="space-y-3">
                 {liveUpcoming.map((quiz, index) => {
                   const st = quiz.start_time ? new Date(quiz.start_time) : null;
@@ -301,6 +341,10 @@ const MyQuizzes = () => {
                   const prizes = Array.isArray(quiz.prizes) ? quiz.prizes : [];
                   const p1 = prizes[0] || 0, p2 = prizes[1] || 0, p3 = prizes[2] || 0;
                   const joined = counts[quiz.id] || 0;
+                  const already = quiz.participant_status === 'pre_joined' || quiz.participant_status === 'joined';
+                  const btnDisabled = false; // always allow lobby navigation
+                  const btnLabel = 'PLAY';
+                  const btnColor = isActive ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-emerald-500/25 shadow-xl' : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 shadow-indigo-500/25 shadow-xl';
                   return (
                     <motion.div
                       key={`lu-${quiz.id}`}
@@ -308,22 +352,20 @@ const MyQuizzes = () => {
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
                       onClick={() => navigate(`/quiz/${quiz.id}`)}
-                      className={`relative overflow-hidden rounded-2xl border ${isActive ? 'border-emerald-700/50' : 'border-slate-800'} bg-gradient-to-br from-slate-950/90 via-slate-900/85 to-slate-900/60 shadow-xl cursor-pointer group hover:-translate-y-0.5 transition-transform qd-card p-4`}
+                      className={`relative overflow-hidden rounded-2xl border ${isActive ? 'border-emerald-700/50' : 'border-slate-800'} bg-gradient-to-br from-slate-950/90 via-slate-900/85 to-slate-900/60 shadow-xl cursor-pointer group hover:-translate-y-0.5 transition-transform qd-card p-4 sm:p-5`}
                     >
                       {/* Background accents to match Category */}
                       <div className="absolute inset-0 pointer-events-none" style={{background:'radial-gradient(1200px 300px at -10% -10%, rgba(99,102,241,0.06), transparent), radial-gradient(900px 200px at 110% 20%, rgba(16,185,129,0.05), transparent)'}} />
 
-                      {/* Status ribbon */}
-                      {isActive && (
-                        <div className="absolute -left-10 top-3 rotate-[-15deg]">
-                          <span className="bg-rose-600 text-white text-[10px] font-extrabold tracking-widest px-6 py-1 rounded shadow-lg ring-1 ring-rose-300/50">LIVE</span>
-                        </div>
-                      )}
-                      {!isActive && st && (
-                        <div className="absolute -left-10 top-3 rotate-[-15deg]">
-                          <span className="bg-sky-600 text-white text-[10px] font-extrabold tracking-widest px-6 py-1 rounded shadow-lg ring-1 ring-sky-300/50">SOON</span>
-                        </div>
-                      )}
+                      {/* Status chips (top-right, consistent with Category) */}
+                      <div className="absolute top-3 right-3 z-10 flex gap-2">
+                        {isActive && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-widest bg-rose-600 text-white ring-1 ring-rose-300/50 shadow">LIVE</span>
+                        )}
+                        {!isActive && st && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-widest bg-sky-600 text-white ring-1 ring-sky-300/50 shadow">SOON</span>
+                        )}
+                      </div>
 
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex-1 min-w-0">
@@ -375,6 +417,17 @@ const MyQuizzes = () => {
                           )}
                         </div>
                       </div>
+                      {/* Bottom action: big JOIN/JOINED or PLAY button */}
+                      <div className="mt-3 flex">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/quiz/${quiz.id}`); }}
+                          className="relative w-full px-4 py-2.5 rounded-lg text-sm sm:text-base font-extrabold border border-violet-500/40 text-white shadow-[0_8px_18px_rgba(139,92,246,0.4)] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)] hover:scale-[1.015] active:scale-[0.99] transition focus:outline-none focus:ring-2 focus:ring-fuchsia-300 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)] overflow-hidden"
+                        >
+                          <span className="inline-flex items-center justify-center gap-2">
+                            <Play className="w-5 h-5" /> PLAY
+                          </span>
+                        </button>
+                      </div>
                     </motion.div>
                   );
                 })}
@@ -383,7 +436,7 @@ const MyQuizzes = () => {
           )}
 
           <h2 className="text-xl font-semibold text-white mb-3">Finished</h2>
-          <div className="space-y-4">
+      <div className="space-y-3">
           {finished.map((quiz, index) => {
             const now = new Date();
             const endTime = new Date(quiz.end_time);
@@ -392,42 +445,51 @@ const MyQuizzes = () => {
             
             return(
               <motion.div key={quiz.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.06 }}
-                onClick={() => navigate(`/quiz/${quiz.id}`)}
-                className="qd-card rounded-2xl p-6 shadow-xl text-slate-100 cursor-pointer group">
-                <div className="flex items-center justify-between mb-4">
-                   <h3 className="text-xl font-semibold text-white truncate pr-3">{quiz.title}</h3>
-             <div className={`px-3 py-1 rounded-full text-xs sm:text-sm font-medium border ${isResultOut ? 'bg-emerald-900/25 text-emerald-200 border-emerald-500/30' : (quiz.resultExpired ? 'bg-slate-800/60 text-slate-300 border-slate-700/60' : 'bg-amber-900/25 text-amber-200 border-amber-500/30')}`}>
-                      {isResultOut ? 'Completed' : (quiz.resultExpired ? 'Expired' : 'Awaiting Results')}
-                   </div>
+                onClick={() => navigate(`/results/${quiz.id}`)}
+                className="qd-card relative overflow-hidden rounded-xl p-4 shadow-lg text-slate-100 cursor-pointer group border border-slate-800 hover:-translate-y-0.5 transition-transform">
+                {/* Decorative overlays to differentiate finished cards */}
+                <span className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] bg-[linear-gradient(180deg,#9333ea,#4f46e5,#06b6d4)] opacity-70" />
+                <div className="pointer-events-none absolute inset-0 -z-10 opacity-50 mix-blend-screen [background-image:radial-gradient(circle_at_18%_28%,rgba(99,102,241,0.22),rgba(0,0,0,0)60%),radial-gradient(circle_at_82%_72%,rgba(168,85,247,0.18),rgba(0,0,0,0)65%),radial-gradient(circle_at_50%_50%,rgba(236,72,153,0.12),rgba(0,0,0,0)55%)]" />
+                <div className="pointer-events-none absolute -top-1/2 left-1/4 w-2/3 h-full rotate-12 bg-gradient-to-b from-white/10 via-transparent to-transparent opacity-20" />
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-[linear-gradient(135deg,rgba(99,102,241,0.25),rgba(236,72,153,0.2))] ring-1 ring-white/10 text-base">
+                      {isResultOut ? '🏆' : '⏳'}
+                    </span>
+                    <h3 className="text-base sm:text-lg font-semibold text-white truncate pr-3">{quiz.title}</h3>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${isResultOut ? 'bg-emerald-900/25 text-emerald-200 border-emerald-500/30' : 'bg-amber-900/25 text-amber-200 border-amber-500/30'}`}>
+                      {isResultOut ? 'Completed' : 'Awaiting Results'}
+                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/results/${quiz.id}`); }}
+                      className="px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-extrabold border text-white transition focus:outline-none focus:ring-2 focus:ring-fuchsia-300 overflow-hidden hover:scale-[1.015] active:scale-[0.99] shadow-[0_8px_18px_rgba(139,92,246,0.4)] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)] border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)]">
+                      RESULT
+                    </button>
+                  </div>
                 </div>
 
                 {isResultOut ? (
-                    <>
-                        {userRank && (
-                            <div className="bg-slate-900/60 rounded-xl p-4 flex justify-around items-center text-center mb-4 border border-slate-700/60">
-                                <div>
-                                    <p className="text-xs text-slate-400">Your Rank</p>
-                                    <p className="text-2xl font-bold bg-gradient-to-r from-violet-300 via-indigo-200 to-fuchsia-300 bg-clip-text text-transparent">#{userRank.rank}</p>
-                                </div>
-                                <div>
-                                    <p className="text-xs text-slate-400">Your Score</p>
-                                    <p className="text-2xl font-bold text-indigo-300">{userRank.score}</p>
-                                </div>
-                            </div>
-                        )}
-                        <LeaderboardDisplay leaderboard={quiz.leaderboard} currentUser={user} />
-                    </>
-                ) : quiz.resultExpired ? (
-                    <div className="text-center p-4 bg-slate-900/60 rounded-xl border border-slate-700/60">
-                        <Clock className="mx-auto h-8 w-8 text-slate-400 mb-2"/>
-                        <p className="font-semibold text-slate-200">Results for this quiz have expired.</p>
+                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                    <div className="bg-slate-900/60 border border-slate-700/60 rounded-lg px-2 py-1.5 text-center">
+                      <div className="uppercase text-[10px] text-slate-400">Your Rank</div>
+                      <div className="font-semibold text-indigo-200">#{userRank?.rank ?? '-'}</div>
                     </div>
+                    <div className="bg-slate-900/60 border border-slate-700/60 rounded-lg px-2 py-1.5 text-center">
+                      <div className="uppercase text-[10px] text-slate-400">Your Score</div>
+                      <div className="font-semibold text-indigo-200">{userRank?.score ?? '-'}</div>
+                    </div>
+                    <div className="bg-slate-900/60 border border-slate-700/60 rounded-lg px-2 py-1.5 text-center">
+                      <div className="uppercase text-[10px] text-slate-400">Your Prize</div>
+                      <div className="font-semibold text-purple-200">₹{userRank?.rank && Array.isArray(quiz.prizes) && quiz.prizes[userRank.rank - 1] ? quiz.prizes[userRank.rank - 1] : 0}</div>
+                    </div>
+                  </div>
                 ) : (
-                    <div className="text-center p-4 bg-slate-900/60 rounded-xl border border-slate-700/60">
-                        <Clock className="mx-auto h-8 w-8 text-slate-400 mb-2"/>
-                        <p className="font-semibold text-slate-200">Results will be declared at</p>
-                        <p className="text-slate-300">{endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                    </div>
+                  <div className="mt-3 flex items-center gap-2 text-xs text-slate-300">
+                    <Clock className="h-4 w-4 text-slate-400" />
+                    <span>Results will be declared at {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
                 )}
               </motion.div>
             )

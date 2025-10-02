@@ -5,3 +5,11 @@ node_modules
 dist
 .DS_Store
 *.log
+*.sql
+*.sqlite
+*.db
+*.db-wal
+*.db-shm
+/.qodo/
+/.vscode/*
+!/.vscode/tasks.json

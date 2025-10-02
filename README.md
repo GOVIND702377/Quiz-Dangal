@@ -94,6 +94,21 @@ Isse yeh hoga:
 
 Frontend ko change karne ki zaroorat nahi (wo `quizzes` se hi `prize_pool`/`prizes` padhta hai). Agar aap computed fields chahte hain to `quizzes_enriched` view use kar sakte hain.
 
+## Results computation (opinion vs knowledge)
+
+- Opinion quizzes: Inmein koi "correct" option nahi hota. Har question pe majority vote ko winner option mana jata hai. Jo users majority option select karte hain unko 1 point milta hai. Ranking tie-breaker: matching answers ka average answer time (jaldi waley upar).
+- Knowledge quizzes (gk, movies, sports): Score = sahi answers ki count. "Sahi" ka signal `public.options.is_correct = true` se aata hai. Tie-breaker: jis time pe user ne last correct answer complete kiya (jaldi complete karne wale upar).
+
+DB Functions
+- `public.compute_quiz_results(quiz_id)`: Leaderboard jsonb compute karta hai aur `public.quiz_results` me upsert karta hai.
+- `public.admin_recompute_quiz_results(quiz_id)`: Admin-only wrapper.
+- `public.finalize_due_quizzes(p_limit)`: Jin quizzes ka result_time nikal gaya hai unke results compute karta hai.
+
+Deployment
+1) Supabase SQL Editor me `supabase/sql/quiz_results_functions.sql` ka content run karein, ya psql se apply karein.
+2) Admin panel se "Recompute Results" use karke kisi quiz par verify karein.
+3) Opinion category ki questions me sab options `is_correct = false` rehne chahiye. Knowledge categories me exactly 1 option `is_correct = true` hona chahiye (UI enforce karta hai).
+
 ## Deployment
 - Static site ke liye `npm run build` se `dist/` generate hota hai.
 - Custom domain (`public/CNAME`) ke saath base `'/'` configured hai (`vite.config.js`).
@@ -120,3 +135,19 @@ Frontend ko change karne ki zaroorat nahi (wo `quizzes` se hi `prize_pool`/`priz
 
 ---
 Agar aapko multi-origin CORS whitelist (prod + localhost) chahiye, edge function me uska support add kiya ja sakta hai. Push flow, referrals, ya leaderboards par aur docs chahiye ho to batayein, hum expand kar denge.
+
+## Static Share Poster (Brand)
+
+Refer & Earn aur Results pages ab ek hi static brand poster image share karte hain (plus personalized caption). Configure karne ke do tarike:
+
+1) Public file (recommended)
+- Poster ko `public/refer-poster.png` ke naam se rakhein.
+- App runtime me is file ko absolute URL se fetch karta hai, aur cache-busting query (`?v=<timestamp>`) add karta hai taa ki PWA/CDN cache bypass ho jaye.
+
+2) CDN URL via env
+- `.env` me set karein: `VITE_REFER_POSTER_URL=https://cdn.example.com/path/to/poster.png`
+- Absolute URL hona chahiye (http/https). App is URL par bhi cache-busting add karta hai.
+
+Compatibility notes
+- Agar poster PNG/JPG nahi hai (e.g. WebP/SVG), to runtime pe JPEG me convert karke share kiya jata hai, kyunki kuch apps JPEG ke saath zyada reliable hoti hain (specially iOS/WhatsApp).
+- Agar poster file nahi milti, app last-resort ek chhota JPEG generate karta hai taa ki share me hamesha image attach ho.

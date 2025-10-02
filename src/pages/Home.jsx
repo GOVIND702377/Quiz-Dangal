@@ -24,16 +24,34 @@ const HOME_TILES = [
 const accentFor = (i) => ['a','b','c','d'][i % 4];
 const vividFor = (i) => ['1','2','3','4'][i % 4];
 const Tile = ({ tile, quizzes, onJoin, index, joiningId, onOpenList, navigateTo }) => {
-  // pick nearest upcoming or active quiz for this category
+  // pick active or upcoming by TIME (ignore possibly stale status)
+  const now = Date.now();
   const relevant = quizzes
     .filter(q => (q.category || '').toLowerCase() === tile.slug.toLowerCase())
-    .filter(q => q.status === 'upcoming' || q.status === 'active')
+    .filter(q => {
+      const st = q.start_time ? new Date(q.start_time).getTime() : 0;
+      const et = q.end_time ? new Date(q.end_time).getTime() : 0;
+      const isActive = st && et && now >= st && now < et;
+      const isUpcoming = st && now < st;
+      return isActive || isUpcoming;
+    })
     .sort((a,b) => new Date(a.start_time || a.end_time || 0) - new Date(b.start_time || b.end_time || 0));
   const quiz = relevant[0];
+  // Accurate total count for this category: only active or upcoming quizzes
+  const totalCount = relevant.length;
   const isLoading = joiningId && quiz && joiningId === quiz.id;
   const Icon = tile.icon;
   const variants = ['neon-orange', 'neon-purple', 'neon-teal', 'neon-pink'];
-  const label = isLoading ? 'JOINING…' : (quiz ? (quiz.status === 'active' ? 'PLAY' : 'JOIN') : 'SOON');
+  // Palette for badge per tile
+  const palettes = [
+    { from: 'from-rose-500', to: 'to-amber-400' },
+    { from: 'from-violet-500', to: 'to-indigo-400' },
+    { from: 'from-emerald-500', to: 'to-teal-400' },
+    { from: 'from-sky-500', to: 'to-cyan-400' },
+  ];
+  const pal = palettes[index % palettes.length];
+  // Always show PLAY instead of SOON/other states (as requested)
+  const label = 'PLAY';
   return (
     <motion.button
       type="button"
@@ -42,18 +60,31 @@ const Tile = ({ tile, quizzes, onJoin, index, joiningId, onOpenList, navigateTo 
       transition={{ duration: 0.25, delay: index * 0.06 }}
       // Click sound handled globally via SoundProvider pointerdown listener
       onClick={() => navigateTo(tile.slug)}
-      className={`neon-card ${variants[index % variants.length]} group aspect-square w-full rounded-xl focus:outline-none will-change-transform transform-gpu ${(!quiz || isLoading) ? 'opacity-70 cursor-not-allowed' : ''}`}
+      className={`neon-card ${variants[index % variants.length]} group aspect-square w-full rounded-xl focus:outline-none will-change-transform transform-gpu transition-transform hover:scale-[1.02] hover:shadow-xl relative`}
       style={{ borderRadius: '0.75rem' }}
-      aria-disabled={!quiz || isLoading}
-      aria-label={`${tile.title} - ${quiz ? (isLoading ? 'Joining…' : (quiz.status === 'active' ? 'Play' : 'Join')) : 'Coming soon'}`}
+      aria-label={`${tile.title} - Play`}
     >
+      {/* Count badge top-right (distinct gradient mini-card) */}
+      <div className="absolute top-1.5 right-1.5 z-10">
+        <div className={`relative rounded-lg p-[1px] bg-gradient-to-r ${pal.from} ${pal.to} shadow-[0_4px_10px_rgba(0,0,0,0.35)]`}>
+          <div className="rounded-[9px] bg-slate-950/70 backdrop-blur-md px-2 py-1 flex items-center gap-1 border border-white/10">
+            <div className="relative w-5 h-5">
+              <div className={`absolute -inset-0.5 rounded-full blur-[6px] opacity-80 bg-gradient-to-r ${pal.from} ${pal.to}`} aria-hidden></div>
+              <div className="relative w-5 h-5 rounded-full grid place-items-center bg-black/40 border border-white/20 text-white text-[10px] font-extrabold">
+                {totalCount}
+              </div>
+            </div>
+            <span className="text-[9px] font-semibold uppercase tracking-wider text-white/90">{totalCount === 1 ? 'Quiz' : 'Quizzes'}</span>
+          </div>
+        </div>
+      </div>
       <div className="neon-card-content select-none flex items-center justify-center">
         <div className="w-full flex flex-col items-center justify-center gap-2">
           <Icon className="w-8 h-8 text-white drop-shadow" />
           <h3 className="text-base font-extrabold leading-tight text-white text-shadow-sm text-center">
             {tile.title}
           </h3>
-          <span className="play-pill">{label}</span>
+          <span className="play-pill group-hover:shadow-lg group-hover:brightness-110">{label}</span>
         </div>
       </div>
     </motion.button>
@@ -130,7 +161,7 @@ const Home = () => {
 
   return (
     <div className="h-full relative overflow-hidden">
-      <div className="relative z-10 h-full flex items-center justify-center px-4 mt-1 sm:mt-2">
+      <div className="relative z-10 h-full flex items-center justify-center px-4 mt-1 sm:mt-2 mb-6">
         <div className="w-full max-w-[420px]">
           <div className="grid grid-cols-2 gap-3">
             {loading
