@@ -324,70 +324,66 @@ const Results = () => {
     return { refCode, site: base, resultUrl, shareText };
   };
 
-  // Direct device share with poster (fallbacks to text/link)
+  // Direct device share with poster only (no text)
   const shareResultDirect = async () => {
     try {
-      const { shareText, resultUrl } = buildSharePayload();
       let blob = posterBlob;
       if (!blob) blob = await generateComposedResultsPoster();
       if (blob && navigator.canShare && window.File) {
         const file = new File([blob], 'quiz-dangal-result.jpg', { type: 'image/jpeg' });
-        if (navigator.canShare({ files: [file], text: shareText })) {
-          await navigator.share({ files: [file], text: shareText });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'Quiz Dangal Result' });
           toast({ title: 'Shared!', description: 'Poster shared from your device.' });
           return;
         }
       }
-      // Fallback: share text only
-      if (navigator.share) {
-        await navigator.share({ text: shareText });
+      // Fallback: download poster so user can share manually
+      if (blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'quiz-dangal-result.jpg'; a.rel = 'noopener';
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+        toast({ title: 'Poster saved', description: 'Share the image from your gallery.' });
         return;
       }
-      await navigator.clipboard.writeText(resultUrl);
-      toast({ title: 'Link copied', description: 'Paste in your favorite app.' });
+      toast({ title: 'Share unavailable', description: 'Try again after poster is ready.' });
     } catch (e) {
       toast({ title: 'Share failed', description: e?.message || 'Try again', variant: 'destructive' });
     }
   };
 
-  // WhatsApp share: open app directly with deep link (no generic share sheet)
+  // WhatsApp share: poster image only
   const shareToWhatsApp = async () => {
     try {
-      const { shareText } = buildSharePayload();
-      const encoded = encodeURIComponent(shareText);
+      let blob = posterBlob;
+      if (!blob) blob = await generateComposedResultsPoster();
+      // Try to share file via Web Share so user can pick WhatsApp with just the image
+      if (blob && navigator.canShare && window.File) {
+        const file = new File([blob], 'quiz-dangal-result.jpg', { type: 'image/jpeg' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file], title: 'Quiz Dangal Result' });
+          return;
+        }
+      }
+
+      // Fallback: save image and open WhatsApp app without text; user attaches from gallery
+      if (blob) {
+        try {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a'); a.href = url; a.download = 'quiz-dangal-result.jpg'; a.rel = 'noopener';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 1500);
+        } catch {}
+      }
       const ua = navigator.userAgent || '';
       const isAndroid = /Android/i.test(ua);
       const isIOS = /iPhone|iPad|iPod/i.test(ua);
-
-      const waDeep = `whatsapp://send?text=${encoded}`;
-      const intentUrl = `intent://send?text=${encoded}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
-      const waWeb = `https://wa.me/?text=${encoded}`;
-
-      const openNew = (url) => {
-        const w = window.open(url, '_blank');
-        return !!w;
-      };
-
-      if (isAndroid) {
-        // Prefer deep link in a new window; fallback to intent and then web
-        if (openNew(waDeep)) return;
-        window.location.href = intentUrl;
-        setTimeout(() => {
-          if (!document.hidden) window.location.href = waWeb;
-        }, 700);
-        return;
-      }
-
-      if (isIOS) {
-        // iOS works better with direct location change to whatsapp://, then web fallback
-        window.location.href = waDeep;
-        setTimeout(() => {
-          if (!document.hidden) window.location.href = waWeb;
-        }, 700);
-        return;
-      }
-
-      // Desktop fallback to web
+      const waDeep = `whatsapp://send`;
+      const intentUrl = `intent://send#Intent;scheme=whatsapp;package=com.whatsapp;end`;
+      const waWeb = `https://wa.me/`;
+      const openNew = (url) => { const w = window.open(url, '_blank'); return !!w; };
+      if (isAndroid) { if (openNew(waDeep)) return; window.location.href = intentUrl; setTimeout(() => { if (!document.hidden) window.location.href = waWeb; }, 700); return; }
+      if (isIOS) { window.location.href = waDeep; setTimeout(() => { if (!document.hidden) window.location.href = waWeb; }, 700); return; }
       openNew(waWeb);
     } catch (e) {
       toast({ title: 'WhatsApp share failed', description: e?.message || 'Try again', variant: 'destructive' });
