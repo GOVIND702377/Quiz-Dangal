@@ -350,7 +350,7 @@ const Results = () => {
     }
   };
 
-  // WhatsApp share: open the app directly with deep link; fallback to wa.me
+  // WhatsApp share: open app directly with deep link (no generic share sheet)
   const shareToWhatsApp = async () => {
     try {
       const { shareText } = buildSharePayload();
@@ -359,25 +359,27 @@ const Results = () => {
       const isAndroid = /Android/i.test(ua);
       const isIOS = /iPhone|iPad|iPod/i.test(ua);
 
-      const intentUrl = `intent://send?text=${encoded}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
       const waDeep = `whatsapp://send?text=${encoded}`;
+      const intentUrl = `intent://send?text=${encoded}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
       const waWeb = `https://wa.me/?text=${encoded}`;
 
+      const openNew = (url) => {
+        const w = window.open(url, '_blank');
+        return !!w;
+      };
+
       if (isAndroid) {
-        // Try intent first (best on Android), then deep link, then web
+        // Prefer deep link in a new window; fallback to intent and then web
+        if (openNew(waDeep)) return;
         window.location.href = intentUrl;
         setTimeout(() => {
-          if (!document.hidden) {
-            window.location.href = waDeep;
-            setTimeout(() => {
-              if (!document.hidden) window.location.href = waWeb;
-            }, 700);
-          }
+          if (!document.hidden) window.location.href = waWeb;
         }, 700);
         return;
       }
 
       if (isIOS) {
+        // iOS works better with direct location change to whatsapp://, then web fallback
         window.location.href = waDeep;
         setTimeout(() => {
           if (!document.hidden) window.location.href = waWeb;
@@ -385,8 +387,8 @@ const Results = () => {
         return;
       }
 
-      // Desktop fallback
-      window.open(waWeb, '_blank', 'noopener');
+      // Desktop fallback to web
+      openNew(waWeb);
     } catch (e) {
       toast({ title: 'WhatsApp share failed', description: e?.message || 'Try again', variant: 'destructive' });
     }

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { Gift, Users, Coins, Share2, Copy, Check } from 'lucide-react';
-import QRCode from 'qrcode';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -17,6 +16,7 @@ const ReferEarn = () => {
 
   const referralCode = userProfile?.referral_code || '';
   const referralLink = `${window.location.origin}?ref=${referralCode}`;
+  const shareCaption = 'Earn coins by playing quizzes! Use my referral to get started.';
 
   useEffect(() => {
     let mounted = true;
@@ -75,12 +75,15 @@ const ReferEarn = () => {
     return () => { mounted = false; };
   }, [user]);
 
-  // Prepare poster in background for faster share
+  // Prepare static poster in background for faster share
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const blob = await generateReferralPoster();
+        // Always use the fixed poster from /public
+        const posterUrl = `${window.location.origin}/refer-earn-poster.png`;
+        const res = await fetch(posterUrl, { cache: 'force-cache' });
+        const blob = await res.blob();
         if (!cancelled) setPosterBlob(blob);
       } catch {
         if (!cancelled) setPosterBlob(null);
@@ -103,70 +106,32 @@ const ReferEarn = () => {
     }
   };
 
-  // Generate a referral poster (square) with QR + referral code
-  const generateReferralPoster = async () => {
-    const W = 1080, H = 1080;
-    const c = document.createElement('canvas'); c.width = W; c.height = H;
-    const ctx = c.getContext('2d'); ctx.textBaseline = 'top';
-    const font = (w, s) => { ctx.font = `${w} ${s}px Inter, system-ui, -apple-system, Segoe UI, Roboto`; };
-    const mw = (t) => ctx.measureText(t).width;
-    const roundRect = (x,y,w,h,r)=>{ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); };
-    // Background
-    const bg = ctx.createLinearGradient(0,0,W,H); bg.addColorStop(0,'#150a36'); bg.addColorStop(1,'#0f0926'); ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
-    const PAD=64; let y = PAD;
-    // Title
-    font('900', 72); ctx.fillStyle = '#facc15'; const title='Refer & Earn'; const tw=mw(title); ctx.fillText(title, (W-tw)/2, y); y += 72 + 12;
-    font('700', 30); ctx.fillStyle = 'rgba(226,232,240,0.92)'; const sub='Invite friends. Earn coins.'; const sw=mw(sub); ctx.fillText(sub, (W-sw)/2, y); y += 30 + 24;
-    // Center box
-    const boxX=PAD, boxW=W-PAD*2, boxH=560; const boxY=y; roundRect(boxX, boxY, boxW, boxH, 28); ctx.fillStyle='rgba(12,10,36,0.9)'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='rgba(79,70,229,0.45)'; ctx.stroke();
-    // QR card right
-    const siteBase=(import.meta.env.VITE_PUBLIC_SITE_URL || 'https://www.quizdangal.com').replace(/\/$/,'');
-    const refCode = userProfile?.referral_code || '';
-    const link = `${siteBase}?ref=${encodeURIComponent(refCode)}`;
-    const qrSize=360; const cardW=qrSize+32; const cardH=qrSize+40; const cardX=boxX+boxW-cardW-36; const cardY=boxY+Math.round((boxH-cardH)/2);
-    roundRect(cardX, cardY, cardW, cardH, 20); ctx.fillStyle='#ffffff'; ctx.fill();
-    try { const qc=document.createElement('canvas'); await QRCode.toCanvas(qc, link, { width: qrSize, margin: 1, color: { dark:'#000000', light:'#ffffff' } }); ctx.drawImage(qc, cardX+16, cardY+16, qrSize, qrSize); } catch {}
-    // Left text
-    const leftX=boxX+36; const maxLeft=(cardX-24)-leftX;
-    font('900', 48); ctx.fillStyle='rgba(255,255,255,0.96)'; ctx.fillText('🧠 Play & Win', leftX, boxY+36);
-    font('800', 36); ctx.fillStyle='rgba(203,213,225,0.98)'; ctx.fillText('🌐 www.quizdangal.com', leftX, boxY+36+56);
-    font('900', 44); ctx.fillStyle='rgba(255,255,255,0.96)'; const lbl='🔗 Referral: '; const lw=mw(lbl); ctx.fillText(lbl, leftX, boxY+36+56+64); ctx.fillStyle='rgba(0,255,198,1)'; ctx.fillText(refCode, leftX+lw, boxY+36+56+64);
-    font('700', 28); ctx.fillStyle='rgba(226,232,240,0.92)'; ctx.fillText('Share this poster or scan the QR to join.', leftX, boxY+boxH-80);
-    // Footer
-    const fY = boxY+boxH+24; font('700', 24); ctx.fillStyle='rgba(226,232,240,0.9)'; const note='Tip: Sharing from your phone attaches this poster.'; const nw=mw(note); ctx.fillText(note, (W-nw)/2, fY);
-    const blob = await new Promise(res=>c.toBlob(res, 'image/jpeg', 0.92));
-    return blob;
-  };
+  // Removed dynamic canvas poster. We always use the static image in /public now.
 
   const shareReferralLink = async () => {
-    const shareText = 'Earn coins by playing quizzes! Use my referral to get started.';
+    // Original caption text to go below the static poster
+    const textPayload = `${shareCaption} ${referralLink}`;
+
+    // Try Web Share API v2 with the static poster file
     try {
-      const blob = posterBlob || await generateReferralPoster();
+      const blob = posterBlob;
       if (blob && navigator.canShare && window.File) {
-        const file = new File([blob], 'quizdangal-referral.jpg', { type: 'image/jpeg' });
-        if (navigator.canShare({ files: [file], text: `${shareText} ${referralLink}` })) {
-          await navigator.share({ files: [file], text: `${shareText} ${referralLink}` });
+        const file = new File([blob], 'refer-earn-poster.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file], text: textPayload })) {
+          await navigator.share({ files: [file], text: textPayload });
           return;
         }
       }
     } catch {}
 
-    // Fallbacks: try WhatsApp then Telegram, then copy
+    // Fallbacks: open WhatsApp/Telegram with text-only; user can attach poster manually if needed
     try {
-      // Try to download poster so user can attach manually
-      if (posterBlob) {
-        const url = URL.createObjectURL(posterBlob);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'quizdangal-referral.jpg'; a.rel = 'noopener';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
-      }
-      const encoded = encodeURIComponent(`${shareText}\n${referralLink}`);
+      const encoded = encodeURIComponent(`${shareCaption}\n${referralLink}`);
       const ua = navigator.userAgent || '';
       const isIOS = /iPhone|iPad|iPod/i.test(ua);
       const wa = isIOS ? `https://wa.me/?text=${encoded}` : `whatsapp://send?text=${encoded}`;
       const openedWa = window.open(wa, '_blank'); if (openedWa) return;
-      const tg = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareText)}`;
+      const tg = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareCaption)}`;
       const openedTg = window.open(tg, '_blank'); if (openedTg) return;
     } catch {}
     copyToClipboard(referralLink, 'link');
@@ -174,13 +139,47 @@ const ReferEarn = () => {
 
   const downloadPoster = async () => {
     try {
-      const blob = posterBlob || await generateReferralPoster();
+      const blob = posterBlob;
       if (!blob) return;
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = 'quizdangal-referral.jpg'; a.rel = 'noopener';
+      a.href = url; a.download = 'refer-earn-poster.png'; a.rel = 'noopener';
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch {}
+  };
+
+  // Dedicated WhatsApp button (deep link + fallback) for Refer & Earn
+  const shareToWhatsApp = async () => {
+    try {
+      const encoded = encodeURIComponent(`${shareCaption} ${referralLink}`);
+      const ua = navigator.userAgent || '';
+      const isAndroid = /Android/i.test(ua);
+      const isIOS = /iPhone|iPad|iPod/i.test(ua);
+
+      const waDeep = `whatsapp://send?text=${encoded}`;
+      const intentUrl = `intent://send?text=${encoded}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
+      const waWeb = `https://wa.me/?text=${encoded}`;
+
+      const openNew = (url) => {
+        const w = window.open(url, '_blank');
+        return !!w;
+      };
+
+      if (isAndroid) {
+        if (openNew(waDeep)) return;
+        window.location.href = intentUrl;
+        setTimeout(() => { if (!document.hidden) window.location.href = waWeb; }, 700);
+        return;
+      }
+
+      if (isIOS) {
+        window.location.href = waDeep;
+        setTimeout(() => { if (!document.hidden) window.location.href = waWeb; }, 700);
+        return;
+      }
+
+      openNew(waWeb);
     } catch {}
   };
 
@@ -250,16 +249,15 @@ const ReferEarn = () => {
           </div>
         </div>
 
-        {/* Share + Copy */}
-        <div className="flex flex-wrap gap-2">
-          <Button onClick={shareReferralLink} className="flex-1 bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 hover:opacity-90 border border-indigo-400/40">
-            <Share2 className="w-4 h-4 mr-2" /> Share
+        {/* Share actions */}
+        <div className="grid grid-cols-2 gap-2 items-center">
+          <Button onClick={shareReferralLink} className="col-span-1 inline-flex items-center justify-center gap-2 h-12 px-3 rounded-lg text-sm font-extrabold bg-gradient-to-r from-indigo-500 via-violet-500 to-fuchsia-500 hover:opacity-90 border border-indigo-400/40 w-full">
+            <Share2 className="w-4 h-4" />
+            <span className="truncate">Share</span>
           </Button>
-          <Button onClick={() => copyToClipboard(referralLink, 'link')} variant="outline" className="flex-1 border-cyan-500/50 text-cyan-200 hover:bg-cyan-900/30">
-            {copied === 'link' ? <Check className="w-4 h-4 mr-2 text-emerald-300" /> : <Copy className="w-4 h-4 mr-2 text-cyan-300" />} {copied === 'link' ? 'Copied!' : 'Copy Link'}
-          </Button>
-          <Button onClick={downloadPoster} variant="outline" size="sm" className="border-emerald-500/50 text-emerald-200 hover:bg-emerald-900/30">
-            Save Poster
+          <Button onClick={shareToWhatsApp} className="col-span-1 inline-flex items-center justify-center gap-2 h-12 px-2.5 rounded-lg text-[13px] sm:text-sm font-extrabold border text-white shadow-[0_8px_18px_rgba(34,197,94,0.35)] hover:shadow-[0_12px_24px_rgba(34,197,94,0.5)] border-emerald-500/50 bg-[linear-gradient(90deg,#16a34a,#22c55e,#10b981)] w-full">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.272-.099-.471-.148-.67.149-.198.297-.768.966-.941 1.164-.173.198-.347.223-.644.074-.297-.149-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.149-.173.198-.297.297-.495.099-.198.05-.372-.025-.521-.074-.149-.669-1.611-.916-2.205-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.521.074-.793.372s-1.042 1.016-1.042 2.479 1.067 2.876 1.219 3.074c.149.198 2.1 3.2 5.077 4.487.709.306 1.262.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.718 2.007-1.41.248-.694.248-1.289.173-1.41-.074-.123-.272-.198-.57-.347m-5.49 7.485h-.004a9.867 9.867 0 01-5.031-1.378l-.361-.214-3.741.982.999-3.648-.235-.374a9.861 9.861 0 01-1.51-5.241c.001-5.45 4.434-9.884 9.885-9.884 2.641 0 5.122 1.03 6.988 2.897a9.825 9.825 0 012.897 6.994c-.003 5.45-4.436 9.884-9.887 9.884m8.413-18.297A11.815 11.815 0 0012.004 0C5.375 0 .16 5.215.157 11.844a11.82 11.82 0 001.624 5.99L0 24l6.305-1.654a11.86 11.86 0 005.68 1.448h.005c6.628 0 11.843-5.215 11.846-11.844a11.787 11.787 0 00-3.473-8.372z"/></svg>
+            <span className="whitespace-nowrap">WhatsApp</span>
           </Button>
         </div>
 
