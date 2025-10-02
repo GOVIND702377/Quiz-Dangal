@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -6,7 +7,7 @@ import { getSignedAvatarUrls } from '@/lib/avatar';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Trophy, Users, ArrowLeft, Share2 } from 'lucide-react';
+import { Trophy, Users, ArrowLeft, Share2, Sparkles } from 'lucide-react';
 
 const Results = () => {
   const { id: quizId } = useParams();
@@ -23,6 +24,12 @@ const Results = () => {
   const [didRefetchAfterCountdown, setDidRefetchAfterCountdown] = useState(false);
   const [posterBlob, setPosterBlob] = useState(null); // cache composed poster for quick share
   // no ShareSheet dialog anymore; direct share only
+
+  // Simple motion variants for smoother entrance
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    show: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+  };
 
   useEffect(() => {
     fetchResults();
@@ -195,7 +202,7 @@ const Results = () => {
 
   // Removed static background poster; we render a clean gradient background only.
 
-  // Compose a dynamic Results poster with a clean gradient background (no static poster behind).
+  // Compose a dynamic Results poster styled similar to the provided design (header, neon box, CTA, footer with QR).
   const generateComposedResultsPoster = async () => {
     try {
       // Canvas setup — square fits WhatsApp grid well
@@ -205,10 +212,19 @@ const Results = () => {
       const ctx = canvas.getContext('2d');
   ctx.textBaseline = 'top';
 
-      // Background: clean brand gradient (no external image)
+      // Background: deep purple gradient with subtle stars
       const g = ctx.createLinearGradient(0, 0, W, H);
-      g.addColorStop(0, '#130531'); g.addColorStop(1, '#1e0b4b');
+      g.addColorStop(0, '#150a36'); g.addColorStop(1, '#0f0926');
       ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+      // Sprinkle some soft dots (bokeh) to mimic the poster ambience
+      ctx.save();
+      for (let i = 0; i < 50; i++) {
+        const x = Math.random() * W, y = Math.random() * H, r = Math.random() * 2 + 0.5;
+        ctx.fillStyle = `rgba(173,216,230,${Math.random()*0.5})`;
+        ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+      }
+      ctx.restore();
 
       // Soft vignette overlay for contrast
       const vignette = ctx.createRadialGradient(W/2, H/2, H*0.2, W/2, H/2, H*0.7);
@@ -217,7 +233,37 @@ const Results = () => {
       ctx.fillStyle = vignette; ctx.fillRect(0, 0, W, H);
 
       // Content paddings
-      const PAD = 64;
+  const PAD = 64;
+
+  // Header badge + title and subtitle
+  const badgeX = PAD, badgeY = PAD - 6;
+  // Circle badge
+  ctx.save();
+  ctx.beginPath(); ctx.arc(badgeX + 52, badgeY + 52, 52, 0, Math.PI * 2); ctx.closePath();
+  const bg1 = ctx.createLinearGradient(badgeX, badgeY, badgeX+104, badgeY+104);
+  bg1.addColorStop(0, '#19b1ff'); bg1.addColorStop(1, '#ef47ff');
+  ctx.fillStyle = bg1; ctx.fill();
+  // Inner trophy glyph (simple)
+  ctx.fillStyle = '#ffd54a';
+  ctx.beginPath();
+  ctx.moveTo(badgeX + 52 - 18, badgeY + 52 - 10);
+  ctx.lineTo(badgeX + 52 + 18, badgeY + 52 - 10);
+  ctx.lineTo(badgeX + 52 + 12, badgeY + 52 + 18);
+  ctx.lineTo(badgeX + 52 - 12, badgeY + 52 + 18);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  const name = (userProfile?.full_name || userProfile?.username || 'Your');
+  ctx.fillStyle = '#ffd54a'; ctx.font = '900 46px Inter, system-ui';
+  ctx.fillText(`${name.toString().toUpperCase()}\u2019S LEGENDARY RUN`, PAD + 120, PAD);
+  ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = '700 30px Inter, system-ui';
+  ctx.fillText('Brains = Fame', PAD + 120, PAD + 44);
+  // Small capsule "Result Box"
+  const cap = 'Result Box';
+  const capW = ctx.measureText(cap).width + 28; const capH = 36; const capX = PAD + 120; const capY = PAD + 80;
+  const roundRect = (x,y,w,h,r) => { ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); };
+  ctx.save(); ctx.strokeStyle = '#f0f'; ctx.fillStyle = 'rgba(255,20,147,0.1)'; ctx.lineWidth = 2; roundRect(capX,capY,capW,capH,14); ctx.fill(); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = '#e9d5ff'; ctx.font = '800 22px Inter, system-ui'; ctx.fillText(cap, capX + 14, capY + 8);
 
   // Header: quiz title
   ctx.fillStyle = 'rgba(255,255,255,0.92)';
@@ -240,18 +286,18 @@ const Results = () => {
       }
 
       // Neon result box
-      const boxX = PAD, boxY = PAD + 80, boxW = W - PAD*2, boxH = 380;
+      const boxX = PAD, boxY = PAD + 140, boxW = W - PAD*2, boxH = 380;
       const radius = 36;
       const pathRound = (x,y,w,h,r) => { ctx.beginPath(); ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r); ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h); ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r); ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y); ctx.closePath(); };
       // glow
       ctx.save();
-      ctx.shadowColor = 'rgba(236,72,153,0.6)';
+      ctx.shadowColor = 'rgba(255,0,128,0.6)';
       ctx.shadowBlur = 28;
       pathRound(boxX, boxY, boxW, boxH, radius);
       ctx.fillStyle = 'rgba(15,23,42,0.72)';
       ctx.fill();
       ctx.restore();
-      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(236,72,153,0.6)';
+      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,0,128,0.6)';
       pathRound(boxX, boxY, boxW, boxH, radius); ctx.stroke();
 
       // Inside box: Rank, Prize, Score (top-based incremental layout)
@@ -261,20 +307,32 @@ const Results = () => {
         let s = content;
         if (maxW) { while (s.length > 0 && ctx.measureText(s).width > maxW) s = s.slice(0, -1); if (s !== content) s += '…'; }
         ctx.fillText(s, x, yval);
-        const m = ctx.measureText('M');
         // approximate line height from font size
         const fs = parseInt(font.match(/\s(\d+)px/)[1] || '32', 10);
         return fs;
       };
       const maxInner = boxW - 100;
       const rankText = userRank?.rank ? `#${userRank.rank} Rank!` : 'Results Live!';
-      y += text('#ffffff', '900 110px Inter, system-ui, -apple-system, Segoe UI, Roboto', rankText, boxX + 48, y, maxInner) + 10;
+      y += text('#ffffff', '900 120px Inter, system-ui, -apple-system, Segoe UI, Roboto', rankText, boxX + 48, y, maxInner) + 18;
 
       const prize = (userRank?.rank && Array.isArray(quiz?.prizes) && quiz.prizes[userRank.rank - 1]) ? quiz.prizes[userRank.rank - 1] : 0;
-      y += text('rgba(255,255,255,0.92)', '700 38px Inter, system-ui, -apple-system, Segoe UI, Roboto', `Prize: ₹${prize}`, boxX + 50, y, maxInner) + 8;
+      // Prize line with crown icon shape
+      // tiny crown path
+      ctx.save(); ctx.fillStyle = '#ffd54a';
+      ctx.beginPath();
+      const cx = boxX + 50, cy = y + 8;
+      ctx.moveTo(cx, cy + 28);
+      ctx.lineTo(cx + 6, cy + 12);
+      ctx.lineTo(cx + 14, cy + 24);
+      ctx.lineTo(cx + 22, cy + 8);
+      ctx.lineTo(cx + 30, cy + 24);
+      ctx.lineTo(cx + 38, cy + 12);
+      ctx.lineTo(cx + 44, cy + 28);
+      ctx.closePath(); ctx.fill(); ctx.restore();
+      y += text('rgba(255,255,255,0.92)', '800 44px Inter, system-ui, -apple-system, Segoe UI, Roboto', `Prize: ₹${prize}`, boxX + 100, y, maxInner - 50) + 6;
 
       if (typeof userRank?.score === 'number') {
-        y += text('rgba(168, 255, 230, 0.95)', '800 58px Inter, system-ui, -apple-system, Segoe UI, Roboto', `Score: ${userRank.score}`, boxX + 50, y, maxInner) + 8;
+        y += text('rgba(168, 255, 230, 0.95)', '900 54px Inter, system-ui, -apple-system, Segoe UI, Roboto', `Score: ${userRank.score}`, boxX + 50, y, maxInner) + 10;
       }
 
       const displayName = (userProfile?.username || userProfile?.full_name || 'You').toString();
@@ -282,32 +340,51 @@ const Results = () => {
 
       // Tagline near box bottom
       ctx.fillStyle = 'rgba(226,232,240,0.92)';
-      ctx.font = '600 28px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText('Only legends make it this far ✨', boxX + 50, boxY + boxH - 56);
+      ctx.font = '700 30px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText('Only legends make it this far ✨', boxX + 50, boxY + boxH - 60);
 
       // CTA bar
-      const ctaY = boxY + boxH + 24; const ctaH = 90;
-      ctx.save(); ctx.shadowColor = 'rgba(59,130,246,0.5)'; ctx.shadowBlur = 15;
-      pathRound(boxX, ctaY, boxW, ctaH, 22); ctx.fillStyle = 'rgba(2,6,23,0.75)'; ctx.fill(); ctx.restore();
-      ctx.strokeStyle = 'rgba(59,130,246,0.5)'; ctx.lineWidth = 2; pathRound(boxX, ctaY, boxW, ctaH, 22); ctx.stroke();
-      ctx.fillStyle = 'rgba(250,204,21,0.95)'; ctx.font = '900 40px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText('⚡ My Result is Live!', boxX + 36, ctaY + 58);
+  const ctaY = boxY + boxH + 24; const ctaH = 96;
+  ctx.save(); ctx.shadowColor = 'rgba(147,51,234,0.5)'; ctx.shadowBlur = 18;
+  pathRound(boxX, ctaY, boxW, ctaH, 28); ctx.fillStyle = 'rgba(16,12,40,0.85)'; ctx.fill(); ctx.restore();
+  ctx.strokeStyle = 'rgba(147,51,234,0.5)'; ctx.lineWidth = 2; pathRound(boxX, ctaY, boxW, ctaH, 28); ctx.stroke();
+  ctx.fillStyle = '#facc15'; ctx.font = '900 44px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  ctx.fillText('⚡ My Result is Live!', boxX + 36, ctaY + 58);
 
       // Footer info block
       const footerY = ctaY + ctaH + 24; const footerH = H - footerY - PAD;
-      pathRound(boxX, footerY, boxW, footerH, 24); ctx.fillStyle = 'rgba(2,6,23,0.7)'; ctx.fill();
-      ctx.strokeStyle = 'rgba(147,51,234,0.45)'; ctx.lineWidth = 2; pathRound(boxX, footerY, boxW, footerH, 24); ctx.stroke();
+      pathRound(boxX, footerY, boxW, footerH, 24); ctx.fillStyle = 'rgba(12,10,36,0.9)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(79,70,229,0.45)'; ctx.lineWidth = 2; pathRound(boxX, footerY, boxW, footerH, 24); ctx.stroke();
 
       const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g, '').slice(0, 8)).toUpperCase();
       const siteBase = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://quizdangal.com').replace(/\/$/, '');
-  ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.font = '800 42px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-  ctx.fillText('Play & Win on Quiz Dangal', boxX + 36, footerY + 48);
-  ctx.fillStyle = 'rgba(203,213,225,0.98)'; ctx.font = '700 34px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-  ctx.fillText(siteBase.replace(/^https?:\/\//, ''), boxX + 36, footerY + 48 + 42);
-  ctx.fillStyle = 'rgba(190,242,100,1)'; ctx.font = '900 40px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-  ctx.fillText(`Referral: ${refCode}`, boxX + 36, footerY + 48 + 42 + 48);
-  ctx.fillStyle = 'rgba(203,213,225,0.9)'; ctx.font = '600 24px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-  ctx.fillText('#QuizDangal  #ChallengeAccepted  #PlayToWin', boxX + 36, footerY + footerH - 40);
+      const referralUrl = `${siteBase}/?ref=${encodeURIComponent(refCode)}`;
+      ctx.fillStyle = 'rgba(255,255,255,0.96)'; ctx.font = '900 46px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText('Play & Win on Quiz Dangal', boxX + 36, footerY + 44);
+      ctx.fillStyle = 'rgba(203,213,225,0.98)'; ctx.font = '800 36px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText(siteBase.replace(/^https?:\/\//, ''), boxX + 36, footerY + 44 + 44);
+      ctx.fillStyle = 'rgba(190,242,100,1)'; ctx.font = '900 44px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText(`Referral: ${refCode}`, boxX + 36, footerY + 44 + 44 + 50);
+      ctx.fillStyle = 'rgba(203,213,225,0.92)'; ctx.font = '700 26px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+      ctx.fillText('#QuizDangal   #ChallengeAccepted   #PlayToWin', boxX + 36, footerY + footerH - 40);
+
+      // QR code block on the right
+      try {
+        const qrSize = 220;
+        const qrCanvas = document.createElement('canvas');
+        await QRCode.toCanvas(qrCanvas, referralUrl, { width: qrSize, margin: 1, color: { dark: '#000000', light: '#ffffff' } });
+        // White card
+        const cardW = qrSize + 32; const cardH = qrSize + 40; const cardX = boxX + boxW - cardW - 36; const cardY = footerY + 36;
+        roundRect(cardX, cardY, cardW, cardH, 18);
+        ctx.fillStyle = '#ffffff'; ctx.fill();
+        // Draw QR centered
+        ctx.drawImage(qrCanvas, cardX + 16, cardY + 16, qrSize, qrSize);
+        // label
+        ctx.fillStyle = '#0f172a'; ctx.font = '800 24px Inter, system-ui';
+        ctx.fillText('Scan to Play', cardX + 24, cardY + qrSize + 20);
+      } catch {
+        // if QR generation fails, skip silently.
+      }
 
       // Export as JPEG
       const out = await new Promise((res) => canvas.toBlob(res, 'image/jpeg', 0.92));
@@ -505,16 +582,36 @@ const Results = () => {
   }
 
   return (
-    <div className="min-h-screen p-4">
+    <div className="min-h-screen p-4 pb-24 relative overflow-hidden" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' }}>
+      {/* Decorative background gradients */}
+      <div className="pointer-events-none absolute inset-0 -z-10">
+        <div className="absolute -top-32 -right-16 w-80 h-80 rounded-full blur-3xl opacity-30 bg-gradient-to-br from-fuchsia-600 to-indigo-600"></div>
+        <div className="absolute -bottom-24 -left-16 w-96 h-96 rounded-full blur-3xl opacity-20 bg-gradient-to-br from-emerald-500 to-cyan-500"></div>
+      </div>
       <div className="max-w-4xl mx-auto">
-        {/* Compact header */}
-        <div className="mb-3">
-          <div className="flex items-center gap-2 text-slate-300 text-xs mb-1">
-            <Users className="w-3.5 h-3.5" />
-            <span>{results?.length || 0} participants</span>
+        {/* Modern hero header */}
+        <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur p-4 sm:p-5 relative overflow-hidden">
+          <div className="absolute inset-0 pointer-events-none" aria-hidden>
+            <div className="absolute -inset-1 bg-[conic-gradient(var(--tw-gradient-stops))] from-fuchsia-500/10 via-indigo-500/5 to-cyan-500/10 blur-2xl"></div>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white truncate">Results</h1>
-          <p className="text-xs text-slate-400 truncate">{quiz?.title}</p>
+          <div className="flex items-center justify-between gap-3 relative">
+            <div>
+              <div className="flex items-center gap-2 text-slate-300 text-xs">
+                <Users className="w-3.5 h-3.5" />
+                <span>{results?.length || 0} participants</span>
+              </div>
+              <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-amber-300" /> Results
+              </h1>
+              <p className="text-xs text-slate-400 truncate max-w-[90vw]">{quiz?.title}</p>
+            </div>
+            {userRank?.rank && (
+              <div className="shrink-0 text-center">
+                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-200 border border-indigo-600/30 text-xs font-semibold"><Sparkles className="w-3.5 h-3.5"/> You ranked</div>
+                <div className="mt-1 text-2xl font-extrabold text-white">#{userRank.rank}</div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Slim user summary */}
@@ -560,9 +657,11 @@ const Results = () => {
               const prize = (participant.rank && Array.isArray(quiz?.prizes) && quiz.prizes[participant.rank - 1]) ? quiz.prizes[participant.rank - 1] : 0;
               const isMe = participant.user_id === user?.id;
               return (
-                <div key={participant.id} className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${isMe ? 'bg-indigo-950/40 border-indigo-700/40' : 'bg-slate-950/30 border-slate-800 hover:bg-slate-900/60'}`}>
+                <motion.div key={participant.id} variants={itemVariants} initial="hidden" animate="show" className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${isMe ? 'bg-indigo-950/40 border-indigo-700/40 ring-1 ring-indigo-500/20' : index<3 ? 'bg-slate-900/70 border-slate-700/60' : 'bg-slate-950/30 border-slate-800 hover:bg-slate-900/60'}`}>
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className={`w-8 h-8 rounded-md flex items-center justify-center text-xs font-bold ${index<3 ? 'bg-gradient-to-br from-amber-300 to-yellow-500 text-amber-900 ring-1 ring-amber-200/60' : 'bg-slate-800 text-slate-100 ring-1 ring-white/10'}`}>{index+1}</div>
+                    <div className="w-8 h-8 rounded-md grid place-items-center text-xs font-bold bg-slate-800 text-slate-100 ring-1 ring-white/10">
+                      <span>{participant.rank || index + 1}</span>
+                    </div>
                     <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold">
                       {participant.profiles?.avatar_url ? (
                         <img src={participant.profiles.avatar_url} alt="avatar" className="w-full h-full object-cover" />
@@ -587,24 +686,27 @@ const Results = () => {
                       <p className="text-[10px] text-slate-400 leading-none">Prize</p>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
         </div>
 
-        {/* Bottom actions */}
-        <div className="mt-4 flex items-center justify-between">
-          <button onClick={() => navigate('/my-quizzes')} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/70 text-white border border-slate-700 hover:bg-slate-800">
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
-          <div className="flex items-center gap-2">
-            <button onClick={shareResultDirect} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-extrabold border text-white shadow-[0_8px_18px_rgba(139,92,246,0.4)] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)] border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)]">
-              <Share2 className="w-4 h-4" /> Share
-            </button>
+        {/* Spacer at bottom is handled by pb-24 on wrapper */}
+      </div>
+      {/* Sticky bottom action bar */}
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-900/90 backdrop-blur supports-[backdrop-filter]:bg-slate-900/70 shadow-[0_-6px_24px_rgba(0,0,0,0.35)]">
+          <div className="max-w-4xl mx-auto px-3 sm:px-4" style={{ paddingTop: 10, paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center sm:justify-between">
+              <button onClick={() => navigate('/my-quizzes')} className="col-span-1 inline-flex items-center justify-center gap-2 h-12 sm:h-auto px-3 py-3 rounded-lg text-base sm:text-sm font-semibold bg-slate-800/85 text-white border border-slate-700 hover:bg-slate-800 active:translate-y-px transition w-full sm:w-auto">
+                <ArrowLeft className="w-5 h-5 sm:w-4 sm:h-4" /> <span>Back</span>
+              </button>
+              <button onClick={shareResultDirect} className="col-span-1 inline-flex items-center justify-center gap-2 h-12 sm:h-auto px-4 py-3 rounded-lg text-base sm:text-sm font-extrabold border text-white shadow-[0_8px_18px_rgba(139,92,246,0.4)] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)] border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)] w-full sm:w-auto">
+                <Share2 className="w-5 h-5 sm:w-4 sm:h-4" /> Share
+              </button>
+            </div>
           </div>
         </div>
-      </div>
       {/* No ShareSheet dialog — direct device share used */}
     </div>
   );
