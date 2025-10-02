@@ -1,13 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Download } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
 
 const PWAInstallButton = () => {
-  const DOWNLOAD_URL = (import.meta.env.VITE_DOWNLOAD_URL || '/quiz-dangal.apk').trim();
-  const DISABLE_PROBE = String(import.meta.env.VITE_DISABLE_APK_PROBE || '').toLowerCase() === 'true';
-  const usingFallback = !import.meta.env.VITE_DOWNLOAD_URL && DOWNLOAD_URL.endsWith('/quiz-dangal.apk');
-  const isDev = import.meta.env.DEV;
-  // Start hidden when using fallback path to avoid initial flash before probe
-  const [hasApk, setHasApk] = useState(!usingFallback);
+  // Website-only mode: no APK download. We only support PWA install when the browser provides a prompt.
   const [isStandalone, setIsStandalone] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [canInstall, setCanInstall] = useState(false);
@@ -23,18 +19,6 @@ const PWAInstallButton = () => {
       // Safari iOS older versions use addListener/removeListener
       if (mm.addListener) mm.addListener(onModeChange);
     }
-
-    // Probe only when a valid custom URL is provided; skip fallback path to avoid console 404s
-    const probe = async () => {
-      if (!usingFallback) {
-        setHasApk(true);
-        return;
-      }
-      // Always skip probing the fallback path. Provide VITE_DOWNLOAD_URL to enable download.
-      setHasApk(false);
-      return;
-    };
-    probe();
 
     const onBeforeInstall = (e) => {
       // Use custom prompt
@@ -57,26 +41,9 @@ const PWAInstallButton = () => {
         if (mm.removeListener) mm.removeListener(onModeChange);
       }
     };
-  }, [DOWNLOAD_URL, usingFallback, isDev, DISABLE_PROBE]);
+  }, []);
 
-  const forceDownload = async () => {
-    try {
-      const resp = await fetch(DOWNLOAD_URL, { mode: 'cors', credentials: 'omit' });
-      if (!resp.ok) throw new Error('Network response was not ok');
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = DOWNLOAD_URL.split('/').pop() || 'quiz-dangal-download';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    } catch {
-      // Fallback: open in a new tab (most browsers will present a download sheet)
-      window.open(DOWNLOAD_URL, '_blank', 'noopener,noreferrer');
-    }
-  };
+  // Website-only: remove any download capability.
 
   const handleInstall = async () => {
     try {
@@ -92,23 +59,27 @@ const PWAInstallButton = () => {
     }
   };
 
-  // Hide only when running as an installed PWA. Always show on the web regardless of APK/install availability.
-  if (isStandalone) return null;
+  // Always show the button (website-only). Attempt install when prompt is available.
 
   const handleClick = async () => {
-    if (hasApk) {
-      await forceDownload();
-      return;
-    }
     if (canInstall && deferredPrompt) {
       await handleInstall();
       return;
     }
-    // Graceful fallback: guide the user to install via browser menu when prompt isn't available
+    // If prompt isn't available, provide iOS-specific two-step guidance via a subtle toast
     try {
-      alert('To install the app, use your browser menu and choose "Add to Home screen".');
+      const ua = navigator.userAgent || navigator.vendor || window.opera || '';
+      const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+      if (isIOS && isSafari) {
+        toast({
+          title: 'iPhone par Install kaise karein',
+          description: 'Share button par tap karein → "Add to Home Screen" chunein.'
+        });
+        return;
+      }
     } catch {
-      // no-op
+      // ignore
     }
   };
 
@@ -117,8 +88,8 @@ const PWAInstallButton = () => {
       onClick={handleClick}
       className="w-14 h-14 rounded-full btn-fire transition-all duration-300 transform hover:scale-105 flex items-center justify-center group relative overflow-hidden"
       style={{ position: 'fixed', bottom: '100px', right: '20px', zIndex: 9999 }}
-      aria-label={hasApk ? 'Download App' : (canInstall ? 'Install App' : 'Get App')}
-      title={hasApk ? 'Download App' : (canInstall ? 'Install App' : 'Get App')}
+      aria-label={'Install App'}
+      title={'Install App'}
     >
       {/* decorative small flame at top for vibe */}
       <svg className="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 w-6 h-6 opacity-70" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>
@@ -133,7 +104,7 @@ const PWAInstallButton = () => {
       <div className="absolute inset-0" />
       <Download className="w-5 h-5 relative z-10 drop-shadow" />
       <span className="hidden group-hover:block absolute right-16 bg-gray-900/90 backdrop-blur text-white px-2 py-1 rounded text-xs whitespace-nowrap border border-white/10 shadow">
-        {hasApk ? 'Download App' : (canInstall ? 'Install App' : 'Get App')}
+        Install App
       </span>
     </button>
   );
