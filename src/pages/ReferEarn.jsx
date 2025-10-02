@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getSignedAvatarUrls } from '@/lib/avatar';
+import { useToast } from '@/components/ui/use-toast';
 
 const ReferEarn = () => {
   const { user, userProfile } = useAuth();
+  const { toast } = useToast();
   const [referralStats, setReferralStats] = useState({ total: 0, earnings: 0 });
   const [referralHistory, setReferralHistory] = useState([]);
   const [copied, setCopied] = useState(''); // 'code' | 'link' | ''
@@ -109,16 +111,19 @@ const ReferEarn = () => {
   // Removed dynamic canvas poster. We always use the static image in /public now.
 
   const shareReferralLink = async () => {
-    // Original caption text to go below the static poster
+    // Try to share static poster + caption together; copy caption as safety
     const textPayload = `${shareCaption} ${referralLink}`;
 
     // Try Web Share API v2 with the static poster file
     try {
       const blob = posterBlob;
+      // Copy caption to clipboard first as a safety net in case the target app drops text
+      try { await navigator.clipboard.writeText(textPayload); } catch {}
       if (blob && navigator.canShare && window.File) {
         const file = new File([blob], 'refer-earn-poster.png', { type: 'image/png' });
         if (navigator.canShare({ files: [file], text: textPayload })) {
-          await navigator.share({ files: [file], text: textPayload });
+          await navigator.share({ files: [file], text: textPayload, title: 'Quiz Dangal' });
+          toast({ title: 'Shared', description: 'If the caption is missing in the app, it\'s copied. Just paste.' });
           return;
         }
       }
@@ -130,7 +135,19 @@ const ReferEarn = () => {
       const ua = navigator.userAgent || '';
       const isIOS = /iPhone|iPad|iPod/i.test(ua);
       const wa = isIOS ? `https://wa.me/?text=${encoded}` : `whatsapp://send?text=${encoded}`;
-      const openedWa = window.open(wa, '_blank'); if (openedWa) return;
+      const openedWa = window.open(wa, '_blank'); if (openedWa) {
+        // Offer poster download so user can attach
+        try {
+          if (posterBlob) {
+            const url = URL.createObjectURL(posterBlob);
+            const a = document.createElement('a'); a.href = url; a.download = 'refer-earn-poster.png'; a.rel = 'noopener';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+          }
+        } catch {}
+        toast({ title: 'Caption ready', description: 'Caption copied. Poster saved — attach it in WhatsApp.' });
+        return;
+      }
       const tg = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(shareCaption)}`;
       const openedTg = window.open(tg, '_blank'); if (openedTg) return;
     } catch {}
@@ -152,33 +169,46 @@ const ReferEarn = () => {
   // Dedicated WhatsApp button (deep link + fallback) for Refer & Earn
   const shareToWhatsApp = async () => {
     try {
-      const encoded = encodeURIComponent(`${shareCaption} ${referralLink}`);
+      const textPayload = `${shareCaption} ${referralLink}`;
+      // Prefer sharing with file + caption if supported (lets user pick WhatsApp and sends both)
+      try { await navigator.clipboard.writeText(textPayload); } catch {}
+      if (posterBlob && navigator.canShare && window.File) {
+        const file = new File([posterBlob], 'refer-earn-poster.png', { type: 'image/png' });
+        if (navigator.canShare({ files: [file], text: textPayload })) {
+          await navigator.share({ files: [file], text: textPayload, title: 'Quiz Dangal' });
+          toast({ title: 'Shared', description: 'Choose WhatsApp. If caption is missing, paste (copied).' });
+          return;
+        }
+      }
+
+      // Deep link to WhatsApp with text, and save poster for manual attach
+      const encoded = encodeURIComponent(textPayload);
       const ua = navigator.userAgent || '';
       const isAndroid = /Android/i.test(ua);
       const isIOS = /iPhone|iPad|iPod/i.test(ua);
-
       const waDeep = `whatsapp://send?text=${encoded}`;
       const intentUrl = `intent://send?text=${encoded}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
       const waWeb = `https://wa.me/?text=${encoded}`;
+      const openNew = (url) => { const w = window.open(url, '_blank'); return !!w; };
 
-      const openNew = (url) => {
-        const w = window.open(url, '_blank');
-        return !!w;
-      };
+      // Save poster in background so user can attach
+      try {
+        if (posterBlob) {
+          const url = URL.createObjectURL(posterBlob);
+          const a = document.createElement('a'); a.href = url; a.download = 'refer-earn-poster.png'; a.rel = 'noopener';
+          document.body.appendChild(a); a.click(); document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(url), 1500);
+        }
+      } catch {}
+      toast({ title: 'Caption copied', description: 'Poster saved. Attach it in WhatsApp chat.' });
 
       if (isAndroid) {
         if (openNew(waDeep)) return;
-        window.location.href = intentUrl;
-        setTimeout(() => { if (!document.hidden) window.location.href = waWeb; }, 700);
-        return;
+        window.location.href = intentUrl; setTimeout(() => { if (!document.hidden) window.location.href = waWeb; }, 700); return;
       }
-
       if (isIOS) {
-        window.location.href = waDeep;
-        setTimeout(() => { if (!document.hidden) window.location.href = waWeb; }, 700);
-        return;
+        window.location.href = waDeep; setTimeout(() => { if (!document.hidden) window.location.href = waWeb; }, 700); return;
       }
-
       openNew(waWeb);
     } catch {}
   };
