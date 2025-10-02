@@ -235,73 +235,72 @@ const Results = () => {
       // Content paddings
   const PAD = 64;
 
-  // Header badge + title and subtitle
-  const badgeX = PAD, badgeY = PAD - 6;
-  // Circle badge
+  // Centered header badge + title and subtitle (to match sample)
+  const cxMid = W / 2;
+  const roundRect = (x,y,w,h,r) => { ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); };
+
+  // Circle badge centered
+  const badgeRadius = 56; const badgeCY = PAD + 36;
   ctx.save();
-  ctx.beginPath(); ctx.arc(badgeX + 52, badgeY + 52, 52, 0, Math.PI * 2); ctx.closePath();
-  const bg1 = ctx.createLinearGradient(badgeX, badgeY, badgeX+104, badgeY+104);
-  bg1.addColorStop(0, '#19b1ff'); bg1.addColorStop(1, '#ef47ff');
+  ctx.beginPath(); ctx.arc(cxMid, badgeCY, badgeRadius, 0, Math.PI * 2); ctx.closePath();
+  const bg1 = ctx.createLinearGradient(cxMid - badgeRadius, badgeCY - badgeRadius, cxMid + badgeRadius, badgeCY + badgeRadius);
+  bg1.addColorStop(0, '#1cc5ff'); bg1.addColorStop(1, '#ef47ff');
   ctx.fillStyle = bg1; ctx.fill();
-  // Inner trophy glyph (simple)
+  // trophy glyph as simple cup
   ctx.fillStyle = '#ffd54a';
   ctx.beginPath();
-  ctx.moveTo(badgeX + 52 - 18, badgeY + 52 - 10);
-  ctx.lineTo(badgeX + 52 + 18, badgeY + 52 - 10);
-  ctx.lineTo(badgeX + 52 + 12, badgeY + 52 + 18);
-  ctx.lineTo(badgeX + 52 - 12, badgeY + 52 + 18);
+  ctx.moveTo(cxMid - 20, badgeCY - 8);
+  ctx.lineTo(cxMid + 20, badgeCY - 8);
+  ctx.lineTo(cxMid + 14, badgeCY + 20);
+  ctx.lineTo(cxMid - 14, badgeCY + 20);
   ctx.closePath(); ctx.fill();
   ctx.restore();
 
   const name = (userProfile?.full_name || userProfile?.username || 'Your');
-  ctx.fillStyle = '#ffd54a'; ctx.font = '900 46px Inter, system-ui';
-  ctx.fillText(`${name.toString().toUpperCase()}\u2019S LEGENDARY RUN`, PAD + 120, PAD);
+  const headerText = `🏅 ${name.toString().toUpperCase()}\u2019S LEGENDARY RUN 🏅`;
+  ctx.fillStyle = '#ffd54a'; ctx.font = '900 44px Inter, system-ui';
+  const htW = ctx.measureText(headerText).width; ctx.fillText(headerText, cxMid - htW/2, PAD + 110);
+  const sub = '✨ Brains = Fame ✨';
   ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = '700 30px Inter, system-ui';
-  ctx.fillText('Brains = Fame', PAD + 120, PAD + 44);
-  // Small capsule "Result Box"
+  const subW = ctx.measureText(sub).width; ctx.fillText(sub, cxMid - subW/2, PAD + 146);
+
+  // Centered capsule "Result Box" with glow + dual stroke
   const cap = 'Result Box';
-  const capW = ctx.measureText(cap).width + 28; const capH = 36; const capX = PAD + 120; const capY = PAD + 80;
-  const roundRect = (x,y,w,h,r) => { ctx.beginPath(); ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r); ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h); ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r); ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y); ctx.closePath(); };
-  ctx.save(); ctx.strokeStyle = '#f0f'; ctx.fillStyle = 'rgba(255,20,147,0.1)'; ctx.lineWidth = 2; roundRect(capX,capY,capW,capH,14); ctx.fill(); ctx.stroke(); ctx.restore();
-  ctx.fillStyle = '#e9d5ff'; ctx.font = '800 22px Inter, system-ui'; ctx.fillText(cap, capX + 14, capY + 8);
+  ctx.font = '800 22px Inter, system-ui';
+  const capW = ctx.measureText(cap).width + 36; const capH = 40; const capX = cxMid - capW/2; const capY = PAD + 182;
+  ctx.save();
+  ctx.shadowColor = 'rgba(236,72,153,0.6)';
+  ctx.shadowBlur = 12;
+  roundRect(capX,capY,capW,capH,18); ctx.fillStyle = 'rgba(236,72,153,0.10)'; ctx.fill();
+  ctx.restore();
+  ctx.save(); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(236,72,153,0.9)'; roundRect(capX,capY,capW,capH,18); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(14,165,233,0.9)'; roundRect(capX+1,capY+1,capW-2,capH-2,16); ctx.stroke(); ctx.restore();
+  ctx.fillStyle = '#e9d5ff'; ctx.font = '800 22px Inter, system-ui';
+  ctx.fillText(cap, cxMid - ctx.measureText(cap).width/2, capY + 10);
 
-  // Header: quiz title
-  ctx.fillStyle = 'rgba(255,255,255,0.92)';
-  ctx.font = '800 54px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-  const title = quiz?.title ? String(quiz.title).toUpperCase() : 'QUIZ DANGAL RESULTS';
-  const maxTitleWidth = W - PAD * 2;
-  const measure = (t) => ctx.measureText(t).width;
-  let titleText = title;
-  while (titleText.length > 0 && measure(titleText) > maxTitleWidth) titleText = titleText.slice(0, -1);
-  if (titleText !== title) titleText += '…';
-  ctx.fillText(titleText, PAD, PAD);
-
-      // Participants count (top-right subtle)
-      if (Array.isArray(results)) {
-        const partText = `${results.length} participants`;
-        ctx.fillStyle = 'rgba(203,213,225,0.85)';
-        ctx.font = '600 26px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-        const tw = ctx.measureText(partText).width;
-        ctx.fillText(partText, W - PAD - tw, PAD);
-      }
+  // (Removed explicit quiz title and participants count to match the sample layout)
 
       // Neon result box
-      const boxX = PAD, boxY = PAD + 140, boxW = W - PAD*2, boxH = 380;
+  const boxX = PAD, boxY = PAD + 240, boxW = W - PAD*2, boxH = 380;
       const radius = 36;
       const pathRound = (x,y,w,h,r) => { ctx.beginPath(); ctx.moveTo(x+r, y); ctx.lineTo(x+w-r, y); ctx.quadraticCurveTo(x+w, y, x+w, y+r); ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h); ctx.lineTo(x+r, y+h); ctx.quadraticCurveTo(x, y+h, x, y+h-r); ctx.lineTo(x, y+r); ctx.quadraticCurveTo(x, y, x+r, y); ctx.closePath(); };
       // glow
+      // Neon frame with dual-color gradient (cyan -> magenta) + inner glow
       ctx.save();
-      ctx.shadowColor = 'rgba(255,0,128,0.6)';
-      ctx.shadowBlur = 28;
+      ctx.shadowColor = 'rgba(236,72,153,0.55)';
+      ctx.shadowBlur = 26;
       pathRound(boxX, boxY, boxW, boxH, radius);
       ctx.fillStyle = 'rgba(15,23,42,0.72)';
       ctx.fill();
       ctx.restore();
-      ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,0,128,0.6)';
+      const gradStroke = ctx.createLinearGradient(boxX, boxY, boxX + boxW, boxY);
+      gradStroke.addColorStop(0, 'rgba(34,211,238,0.9)'); // cyan-400
+      gradStroke.addColorStop(1, 'rgba(236,72,153,0.9)'); // pink-500
+      ctx.lineWidth = 4; ctx.strokeStyle = gradStroke;
       pathRound(boxX, boxY, boxW, boxH, radius); ctx.stroke();
 
       // Inside box: Rank, Prize, Score (top-based incremental layout)
-      let y = boxY + 36;
+      let y = boxY + 42;
       const text = (fill, font, content, x, yval, maxW) => {
         ctx.fillStyle = fill; ctx.font = font;
         let s = content;
@@ -312,44 +311,41 @@ const Results = () => {
         return fs;
       };
       const maxInner = boxW - 100;
-      const rankText = userRank?.rank ? `#${userRank.rank} Rank!` : 'Results Live!';
-      y += text('#ffffff', '900 120px Inter, system-ui, -apple-system, Segoe UI, Roboto', rankText, boxX + 48, y, maxInner) + 18;
+  const rankText = userRank?.rank ? `#${userRank.rank} Rank!` : 'Results Live!';
+  ctx.save(); ctx.shadowColor = 'rgba(255,255,255,0.25)'; ctx.shadowBlur = 10;
+  y += text('#ffffff', '900 128px Inter, system-ui, -apple-system, Segoe UI, Roboto', rankText, boxX + 56, y, maxInner) + 22; ctx.restore();
 
       const prize = (userRank?.rank && Array.isArray(quiz?.prizes) && quiz.prizes[userRank.rank - 1]) ? quiz.prizes[userRank.rank - 1] : 0;
-      // Prize line with crown icon shape
-      // tiny crown path
-      ctx.save(); ctx.fillStyle = '#ffd54a';
-      ctx.beginPath();
-      const cx = boxX + 50, cy = y + 8;
-      ctx.moveTo(cx, cy + 28);
-      ctx.lineTo(cx + 6, cy + 12);
-      ctx.lineTo(cx + 14, cy + 24);
-      ctx.lineTo(cx + 22, cy + 8);
-      ctx.lineTo(cx + 30, cy + 24);
-      ctx.lineTo(cx + 38, cy + 12);
-      ctx.lineTo(cx + 44, cy + 28);
-      ctx.closePath(); ctx.fill(); ctx.restore();
-      y += text('rgba(255,255,255,0.92)', '800 44px Inter, system-ui, -apple-system, Segoe UI, Roboto', `Prize: ₹${prize}`, boxX + 100, y, maxInner - 50) + 6;
+      // Prize line with emoji icon 👑 and rupee symbol
+      y += text('#ffd54a', '900 44px Inter, system-ui, -apple-system, Segoe UI, Roboto', `👑  Prize: ₹${prize}`, boxX + 56, y, maxInner) + 8;
 
       if (typeof userRank?.score === 'number') {
-        y += text('rgba(168, 255, 230, 0.95)', '900 54px Inter, system-ui, -apple-system, Segoe UI, Roboto', `Score: ${userRank.score}`, boxX + 50, y, maxInner) + 10;
+        y += text('rgba(168, 255, 230, 0.95)', '900 52px Inter, system-ui, -apple-system, Segoe UI, Roboto', `☑️  Score: ${userRank.score}`, boxX + 56, y, maxInner) + 12;
       }
 
-      const displayName = (userProfile?.username || userProfile?.full_name || 'You').toString();
-      y += text('rgba(226,232,240,0.92)', '700 32px Inter, system-ui, -apple-system, Segoe UI, Roboto', `Player: ${displayName}`, boxX + 50, y, maxInner);
+  // (Removed explicit player line to match the sample)
 
       // Tagline near box bottom
       ctx.fillStyle = 'rgba(226,232,240,0.92)';
       ctx.font = '700 30px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText('Only legends make it this far ✨', boxX + 50, boxY + boxH - 60);
+      ctx.fillText('Only legends make it this far 💡', boxX + 56, boxY + boxH - 64);
 
       // CTA bar
-  const ctaY = boxY + boxH + 24; const ctaH = 96;
-  ctx.save(); ctx.shadowColor = 'rgba(147,51,234,0.5)'; ctx.shadowBlur = 18;
-  pathRound(boxX, ctaY, boxW, ctaH, 28); ctx.fillStyle = 'rgba(16,12,40,0.85)'; ctx.fill(); ctx.restore();
-  ctx.strokeStyle = 'rgba(147,51,234,0.5)'; ctx.lineWidth = 2; pathRound(boxX, ctaY, boxW, ctaH, 28); ctx.stroke();
-  ctx.fillStyle = '#facc15'; ctx.font = '900 44px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-  ctx.fillText('⚡ My Result is Live!', boxX + 36, ctaY + 58);
+  const ctaY = boxY + boxH + 24; const ctaH = 120;
+  ctx.save(); ctx.shadowColor = 'rgba(56,189,248,0.5)'; ctx.shadowBlur = 18;
+  pathRound(boxX, ctaY, boxW, ctaH, 28); ctx.fillStyle = 'rgba(8,11,30,0.9)'; ctx.fill(); ctx.restore();
+  ctx.strokeStyle = 'rgba(56,189,248,0.5)'; ctx.lineWidth = 2; pathRound(boxX, ctaY, boxW, ctaH, 28); ctx.stroke();
+  ctx.save(); ctx.shadowColor = 'rgba(255,255,0,0.35)'; ctx.shadowBlur = 12; ctx.fillStyle = '#facc15'; ctx.font = '900 44px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  const ctaMain = '⚡ My Result is Live!';
+  const ctaMainW = ctx.measureText(ctaMain).width; ctx.fillText(ctaMain, cxMid - ctaMainW/2, ctaY + 24); ctx.restore();
+  ctx.fillStyle = 'rgba(226,232,240,0.92)'; ctx.font = '700 26px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  const quote = '“Think you can beat me? Join Quiz Dangal & prove it 👀”';
+  const quoteW = ctx.measureText(quote).width; ctx.fillText(quote, cxMid - quoteW/2, ctaY + 70);
+
+  // Subtext below CTA
+  ctx.fillStyle = 'rgba(226,232,240,0.92)'; ctx.font = '700 28px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  const subCta = 'Use my referral & start faster.';
+  const subCtaW = ctx.measureText(subCta).width; ctx.fillText(subCta, cxMid - subCtaW/2, ctaY + ctaH + 16);
 
       // Footer info block
       const footerY = ctaY + ctaH + 24; const footerH = H - footerY - PAD;
@@ -359,14 +355,23 @@ const Results = () => {
       const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g, '').slice(0, 8)).toUpperCase();
       const siteBase = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://quizdangal.com').replace(/\/$/, '');
       const referralUrl = `${siteBase}/?ref=${encodeURIComponent(refCode)}`;
-      ctx.fillStyle = 'rgba(255,255,255,0.96)'; ctx.font = '900 46px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText('Play & Win on Quiz Dangal', boxX + 36, footerY + 44);
-      ctx.fillStyle = 'rgba(203,213,225,0.98)'; ctx.font = '800 36px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText(siteBase.replace(/^https?:\/\//, ''), boxX + 36, footerY + 44 + 44);
-      ctx.fillStyle = 'rgba(190,242,100,1)'; ctx.font = '900 44px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText(`Referral: ${refCode}`, boxX + 36, footerY + 44 + 44 + 50);
-      ctx.fillStyle = 'rgba(203,213,225,0.92)'; ctx.font = '700 26px Inter, system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText('#QuizDangal   #ChallengeAccepted   #PlayToWin', boxX + 36, footerY + footerH - 40);
+  ctx.fillStyle = 'rgba(255,255,255,0.96)'; ctx.font = '900 46px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  ctx.fillText('🧠 Play & Win on Quiz Dangal', boxX + 36, footerY + 44);
+    ctx.fillStyle = 'rgba(203,213,225,0.98)'; ctx.font = '800 36px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+    ctx.fillText(`🌐 ${siteBase.replace(/^https?:\/\//, '')}`, boxX + 36, footerY + 44 + 44);
+  // Referral label in white + code in cyan-green highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.96)'; ctx.font = '900 44px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  const refLabel = '🔗 Referral: ';
+  const refLabelW = ctx.measureText(refLabel).width;
+  ctx.fillText(refLabel, boxX + 36, footerY + 44 + 44 + 50);
+  ctx.fillStyle = 'rgba(0,255,198,1)'; // cyan-green highlight
+  ctx.fillText(refCode, boxX + 36 + refLabelW, footerY + 44 + 44 + 50);
+
+  // Bottom tagline and hashtags
+  ctx.fillStyle = 'rgba(226,232,240,0.92)'; ctx.font = '700 26px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  ctx.fillText('Your turn to flex your brain 💯', boxX + 36, footerY + footerH - 72);
+  ctx.fillStyle = 'rgba(203,213,225,0.92)'; ctx.font = '700 24px Inter, system-ui, -apple-system, Segoe UI, Roboto';
+  ctx.fillText('#QuizDangal  #ChallengeAccepted  #PlayToWin', boxX + 36, footerY + footerH - 40);
 
       // QR code block on the right
       try {
