@@ -14,11 +14,11 @@ const ReferEarn = () => {
   const [loading, setLoading] = useState(true);
 
   const referralCode = userProfile?.referral_code || '';
-  const referralLink = `${window.location.origin}?ref=${referralCode}`;
+  const referralLink = `https://quizdangal.com/?ref=${referralCode}`;
   const shareCaption = `Yo! 🤩 Ab dimaag se paisa banao 💸
 Join Quiz Dangal – jaha brains = fame ✨
 
-👉 बस https://www.quizdangal.com पर जाओ
+👉 बस नीचे दिए लिंक पर जाओ
 Referral Code: ${referralCode} डालो
 और turant coins kamao 🚀
 
