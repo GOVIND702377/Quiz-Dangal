@@ -350,21 +350,43 @@ const Results = () => {
     }
   };
 
-  // WhatsApp share: try native share (Android shows WhatsApp), else wa.me
+  // WhatsApp share: open the app directly with deep link; fallback to wa.me
   const shareToWhatsApp = async () => {
     try {
       const { shareText } = buildSharePayload();
-      let blob = posterBlob;
-      if (!blob) blob = await generateComposedResultsPoster();
-      if (blob && navigator.canShare && window.File) {
-        const file = new File([blob], 'quiz-dangal-result.jpg', { type: 'image/jpeg' });
-        if (navigator.canShare({ files: [file], text: shareText })) {
-          await navigator.share({ files: [file], text: shareText });
-          return;
-        }
+      const encoded = encodeURIComponent(shareText);
+      const ua = navigator.userAgent || '';
+      const isAndroid = /Android/i.test(ua);
+      const isIOS = /iPhone|iPad|iPod/i.test(ua);
+
+      const intentUrl = `intent://send?text=${encoded}#Intent;scheme=whatsapp;package=com.whatsapp;end`;
+      const waDeep = `whatsapp://send?text=${encoded}`;
+      const waWeb = `https://wa.me/?text=${encoded}`;
+
+      if (isAndroid) {
+        // Try intent first (best on Android), then deep link, then web
+        window.location.href = intentUrl;
+        setTimeout(() => {
+          if (!document.hidden) {
+            window.location.href = waDeep;
+            setTimeout(() => {
+              if (!document.hidden) window.location.href = waWeb;
+            }, 700);
+          }
+        }, 700);
+        return;
       }
-      const waUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
-      window.open(waUrl, '_blank', 'noopener');
+
+      if (isIOS) {
+        window.location.href = waDeep;
+        setTimeout(() => {
+          if (!document.hidden) window.location.href = waWeb;
+        }, 700);
+        return;
+      }
+
+      // Desktop fallback
+      window.open(waWeb, '_blank', 'noopener');
     } catch (e) {
       toast({ title: 'WhatsApp share failed', description: e?.message || 'Try again', variant: 'destructive' });
     }
