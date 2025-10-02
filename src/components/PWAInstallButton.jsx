@@ -78,10 +78,23 @@ const PWAInstallButton = () => {
         });
         return;
       }
+      // Desktop Chrome/Edge fallback: guide to use built-in install UI
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+      const isChromeEdge = /Chrome|Chromium|Edg\//.test(ua) && !/Mobile/i.test(ua);
+      if (!isMobile && isChromeEdge) {
+        toast({
+          title: 'Install on Desktop',
+          description: 'Address bar ke paas "Install app" icon par click karein, ya Chrome menu → Install Quiz Dangal.'
+        });
+        return;
+      }
     } catch {
       // ignore
     }
   };
+
+  // Hide in installed PWA (standalone). Keep permanently visible on the website.
+  if (isStandalone) return null;
 
   return (
     <button
