@@ -74,9 +74,8 @@ const NotificationPermissionPrompt = () => {
         <div className="text-sm text-slate-300">
           Turn on notifications to get alerts before a quiz starts and when results are announced.
         </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="outline" onClick={handleDismiss} className="border-slate-700 text-slate-200">Not now</Button>
-          <Button onClick={handleAllow} className="font-semibold">Allow</Button>
+        <div className="mt-4 flex justify-center">
+          <Button onClick={handleAllow} className="font-semibold px-6">Allow</Button>
         </div>
       </DialogContent>
     </Dialog>

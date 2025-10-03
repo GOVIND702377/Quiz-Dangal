@@ -49,9 +49,15 @@ const Fallback = () => (
   </div>
 );
 
+function InitNotifications() {
+  // Initialize Push Notifications only when this component is rendered
+  const { user, userProfile, loading, isRecoveryFlow } = useAuth();
+  usePushNotifications();
+  return null;
+}
+
 function App() {
   const { user, userProfile, loading, isRecoveryFlow } = useAuth();
-  usePushNotifications(); // Initialize Push Notifications
   const isBot = (function(){
     try {
       if (typeof navigator === 'undefined' || !navigator.userAgent) return false;
@@ -93,6 +99,10 @@ function App() {
             <meta name="description" content="Play opinion-based quizzes, climb leaderboards, win rewards, and refer friends to earn coins on Quiz Dangal." />
             <meta name="keywords" content="Quiz Dangal, quizdangal, quiz app, opinion quiz, daily quiz, play and win, refer and earn, rewards, leaderboards" />
           </Helmet>
+          {/* Initialize notifications for authenticated, confirmed users outside of <Routes> */}
+          {user && !isRecoveryFlow && !(user.app_metadata?.provider === 'email' && !user.email_confirmed_at) && (
+            <InitNotifications />
+          )}
           <Suspense fallback={<Fallback />}>
           <Routes>
             {/* If recovery flow is active, always route to reset-password */}

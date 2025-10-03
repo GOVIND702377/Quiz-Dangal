@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+// Removed framer-motion for lighter public page
 import { Helmet } from 'react-helmet-async';
 import { Mail, Phone, Instagram, Facebook, Twitter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -53,34 +53,20 @@ const ContactUs = () => {
         <meta name="description" content="Get in touch with Quiz Dangal team for support, inquiries, and assistance." />
       </Helmet>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-  className="text-center mb-8"
-      >
+      <div className="text-center mb-8">
   <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-4">Contact Us</h1>
   <p className="text-lg text-slate-300 leading-relaxed max-w-2xl mx-auto">
           We value your feedback and are here to assist you. If you have any questions, concerns, or suggestions, please don't hesitate to reach out.
         </p>
-      </motion.div>
+      </div>
       
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-        className="space-y-6"
-      >
+      <div className="space-y-6">
         <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent text-center mb-6">Get in Touch Directly</h2>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {contactMethods.map((method, index) => (
-            <motion.div
+            <div
               key={index}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 + index * 0.1 }}
               className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/60 rounded-2xl p-6 shadow-lg"
             >
               <div className="text-center space-y-4">
@@ -105,37 +91,29 @@ const ContactUs = () => {
                   </Button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.4 }}
-  className="space-y-6"
-      >
+      <div className="space-y-6">
   <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent text-center mb-6">Connect with Us on Social Media</h2>
         
         <div className="flex justify-center items-center space-x-4 sm:space-x-6">
           {socialMedia.map((platform, index) => (
-            <motion.a
+            <a
               key={index}
               href={platform.href}
               target="_blank"
               rel="noopener noreferrer"
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.5 + index * 0.1 }}
         className={`p-4 rounded-full cursor-pointer bg-gradient-to-r ${platform.color} hover:scale-110 transition-transform duration-300 ring-4 ring-white/10 shadow-lg`}
               aria-label={`Visit our ${platform.name} page`}
             >
               <platform.icon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
-            </motion.a>
+            </a>
           ))}
         </div>
-      </motion.div>
+      </div>
       </div>
     </div>
   );

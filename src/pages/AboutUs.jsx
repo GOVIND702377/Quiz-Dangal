@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+// Removed framer-motion for lighter public page
 import { Helmet } from 'react-helmet-async';
 import { Target, Users, Trophy, Shield, CheckCircle, Star } from 'lucide-react';
 import { getBrandGradient, getBrandText } from '@/lib/brand';
@@ -43,24 +43,14 @@ const AboutUs = () => {
   <meta name="description" content="Quiz Dangal – India’s most exciting quiz and rewards platform where knowledge meets entertainment." />
       </Helmet>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="text-center mb-8"
-      >
+      <div className="text-center mb-8">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-4">About Us – Quiz Dangal</h1>
         <p className="text-lg text-slate-300 leading-relaxed">
           Welcome to Quiz Dangal – India’s most exciting quiz and rewards platform where knowledge meets entertainment!
         </p>
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.1 }}
-  className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-6 space-y-4 shadow-xl"
-      >
+      <div className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-6 space-y-4 shadow-xl">
   <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-4">Our Vision & Mission</h2>
   <p className="text-slate-300 leading-relaxed">
           We built Quiz Dangal with the mission to give everyone a fair chance to showcase their talent, challenge their mind, and win exciting rewards. Here, it’s not just about playing quizzes – it’s about learning, competing, and enjoying at the same time.
@@ -68,24 +58,16 @@ const AboutUs = () => {
   <p className="text-slate-300 leading-relaxed">
           Our mission is simple: <strong>“To make quizzing fun, fair, and rewarding for everyone.”</strong>
         </p>
-      </motion.div>
+      </div>
 
       {/* Removed duplicate intro card for "Why Choose" to keep content concise */}
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3 }}
-        className="space-y-6"
-      >
+      <div className="space-y-6">
   <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent text-center">Why Choose Quiz Dangal?</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {features.map((feature, index) => (
-            <motion.div
+            <div
               key={index}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.4 + index * 0.1 }}
               className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/60 rounded-2xl p-6 shadow-lg"
             >
               <div className="flex items-start space-x-4">
@@ -97,52 +79,34 @@ const AboutUs = () => {
                   <p className="text-slate-300 text-sm leading-relaxed">{feature.description}</p>
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.7 }}
-    className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-6 space-y-4 shadow-xl"
-      >
+      <div className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-6 space-y-4 shadow-xl">
   <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-4">Trust, Safety & Fair Play</h2>
         <div className="space-y-3">
           {principles.map((principle, index) => (
-            <motion.div
+            <div
               key={index}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.5, delay: 0.8 + index * 0.1 }}
               className="flex items-start space-x-3"
             >
               <CheckCircle className={`w-5 h-5 ${getBrandText(index)} mt-0.5 flex-shrink-0`} />
       <p className="text-slate-300 text-sm leading-relaxed">{principle}</p>
-            </motion.div>
+            </div>
           ))}
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 1.1 }}
-  className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-6 space-y-4 shadow-xl"
-      >
+      <div className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-6 space-y-4 shadow-xl">
         <h2 className="text-2xl font-bold gradient-text mb-4">Our Vision</h2>
   <p className="text-slate-300 leading-relaxed">
           Quiz Dangal is not just an app – it’s a community of quiz lovers where players learn, enjoy, and turn their knowledge into real rewards. We believe that knowledge is power, and competing with knowledge makes the experience even more exciting.
         </p>
-      </motion.div>
+      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 1.2 }}
-        className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/60 rounded-2xl p-6 text-center shadow-lg"
-      >
+      <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-700/60 rounded-2xl p-6 text-center shadow-lg">
         <div className="flex items-center justify-center space-x-2 mb-4">
           <Star className="w-6 h-6 text-amber-300" />
           <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent">Join Us Today!</h2>
@@ -152,7 +116,7 @@ const AboutUs = () => {
           The Quiz Dangal Promise: Stay engaged daily, learn something new, compete with others, and win rewards along the way.
         </p>
         <p className="text-slate-200 leading-relaxed font-semibold">Quiz Dangal – Play. Compete. Win.</p>
-      </motion.div>
+      </div>
       </div>
     </div>
   );
