@@ -97,6 +97,7 @@ function App() {
             ) : !user ? (
               <>
                 {/* Public pages accessible without login and without Header/Footer */}
+                <Route path="/" element={<Navigate to="/login" replace />} />
                 <Route path="/terms-conditions" element={<TermsConditions />} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
@@ -107,7 +108,7 @@ function App() {
                 <Route path="/refer-earn-quiz-app" element={<ReferEarnInfo />} />
                 <Route path="/leaderboards" element={<Leaderboards />} />
                 <Route path="/login" element={<Login />} />
-                <Route path="*" element={<Landing />} />
+                <Route path="*" element={<Navigate to="/login" replace />} />
               </>
             ) : user.app_metadata?.provider === 'email' && !user.email_confirmed_at ? (
               <>
@@ -150,8 +151,8 @@ function AdminRoute({ children }) {
 }
 
 const MainLayout = () => {
-  // Detect if current path is home to tailor layout spacing/overflow
-  const isHome = typeof window !== 'undefined' && window.location && (window.location.hash === '' || window.location.hash === '#/' || window.location.hash === '#');
+  // Detect if current path is home to tailor layout spacing/overflow (BrowserRouter)
+  const isHome = typeof window !== 'undefined' && window.location && window.location.pathname === '/';
   useEffect(() => {
     // Skip warming on slow networks, data saver, low-memory devices, or when tab is hidden
     const shouldWarm = () => {
