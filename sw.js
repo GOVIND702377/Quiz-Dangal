@@ -88,23 +88,37 @@ self.addEventListener('push', function(event) {
   }
 
   const title = pushData.title || 'New Notification';
+  const type = pushData.type; // 'start_soon' | 'result' | custom
+  const quizId = pushData.quizId;
+  const url = typeof pushData.url === 'string' ? pushData.url : undefined;
+
+  // Per-quiz tag so we can replace/close start-soon when result arrives
+  const baseTag = 'quiz-dangal';
+  // Use distinct tags per type so start-soon and result can coexist
+  const tag = quizId ? `${baseTag}-${quizId}-${type || 'general'}` : `${baseTag}-general`;
+
+  // Keep important notifications visible until user interacts
+  const requireInteraction = type === 'start_soon' || type === 'result';
+
   const options = {
     body: pushData.body || 'You have a new message.',
-  icon: './android-chrome-192x192.png',
-  badge: './favicon-32x32.png',
-    tag: 'quiz-dangal-general',
+    icon: './android-chrome-192x192.png',
+    badge: './favicon-32x32.png',
+    tag,
     renotify: true,
+    requireInteraction,
     actions: [
       { action: 'open', title: 'Open App' },
     ],
-    data: {
-      url: typeof pushData.url === 'string' ? pushData.url : undefined,
-    },
+    data: { url, type, quizId },
   };
 
-  event.waitUntil(
-    self.registration.showNotification(title, options)
-  );
+  // Show notification (no auto-closing other notices)
+  const showPromise = (async () => {
+    return self.registration.showNotification(title, options);
+  })();
+
+  event.waitUntil(showPromise);
 });
 
 // Focus app on notification click (and open if not already open)
