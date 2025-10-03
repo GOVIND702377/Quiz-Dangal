@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Clock, Play, Loader2, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { supabase } from '@/lib/customSupabaseClient';
+import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 import { formatDateOnly, formatTimeOnly } from '@/lib/utils';
 // Match Category status badge visuals
 function statusBadge(s) {
@@ -213,18 +213,44 @@ const MyQuizzes = () => {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {});
     }
-
-  const resultsChannel = supabase.channel('quiz-results-channel', { config: { broadcast: { ack: true } } })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'quiz_results' }, (payload) => {
-        fetchMyQuizzes();
-        // Notify user when results are out
-        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-          try {
-            new Notification('Quiz Result Ready', { body: 'Your quiz results are available. Tap to view.' });
-          } catch {}
-        }
-      })
-  .subscribe((status) => { /* no-op; acks reduce retries */ });
+    // Create realtime channel only when Supabase is configured and user is present (reduces WS churn)
+    let resultsChannel = null;
+    if (hasSupabaseConfig && supabase && user) {
+      try {
+        resultsChannel = supabase
+          .channel('quiz-results-channel', { config: { broadcast: { ack: true } } })
+          .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'quiz_results' },
+            () => {
+              fetchMyQuizzes();
+              // Notify user when results are out
+              if (
+                typeof window !== 'undefined' &&
+                'Notification' in window &&
+                Notification.permission === 'granted'
+              ) {
+                try {
+                  new Notification('Quiz Result Ready', {
+                    body: 'Your quiz results are available. Tap to view.',
+                  });
+                } catch {}
+              }
+            }
+          )
+          .subscribe((status) => {
+            // Helpful debug: observe WS lifecycle instead of a cryptic browser error
+            if (status === 'SUBSCRIBED') {
+              // connected
+            } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+              // We still have polling fallback every 2 minutes; no hard failure for UI
+              // console.debug('Realtime status:', status); // keep silent in prod
+            }
+          });
+      } catch {
+        // ignore realtime setup errors; polling below will still refresh data
+      }
+    }
     
     // **FIX**: Loading state को सही ढंग से मैनेज करने के लिए एक async IIFE का उपयोग करें।
     const initialFetch = async () => {
@@ -234,15 +260,17 @@ const MyQuizzes = () => {
     }
     initialFetch();
 
-  const interval = setInterval(fetchMyQuizzes, 120000); // Poll every 2 minutes (realtime will push sooner)
+    const interval = setInterval(fetchMyQuizzes, 120000); // Poll every 2 minutes (realtime will push sooner)
 
     // live ticking every second when there are upcoming/active items
     const tickId = setInterval(() => setTick(t => (t + 1) % 1_000_000), 1000);
 
     return () => {
-        supabase.removeChannel(resultsChannel);
-        clearInterval(interval);
-        clearInterval(tickId);
+      try {
+        if (resultsChannel) supabase.removeChannel(resultsChannel);
+      } catch {}
+      clearInterval(interval);
+      clearInterval(tickId);
     };
   }, [user, fetchMyQuizzes]);
 
