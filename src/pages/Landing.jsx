@@ -55,11 +55,26 @@ export default function Landing() {
             Opinion, GK, Sports, Movies – har roz naye quizzes. Khelo, sikho, aur rewards jeeto. Refer & Earn se extra coins pao!
           </p>
           <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-            <a href="/#/login" className="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow">
+            <a href="/login" className="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow">
               Start Playing
             </a>
-            <a href="/#/leaderboards" className="px-5 py-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-100 font-semibold hover:bg-slate-700">
+            <a href="/leaderboards" className="px-5 py-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-100 font-semibold hover:bg-slate-700">
               View Leaderboards
+            </a>
+          </div>
+          {/* Internal links section to improve crawlability */}
+          <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 text-left">
+            <a href="/play-win-quiz-app" className="block rounded-xl bg-slate-900/60 border border-slate-700/60 p-4 hover:bg-slate-800/60">
+              <div className="text-sm font-semibold text-indigo-200">Play & Win</div>
+              <div className="text-slate-300 text-sm">How to play contests and win rewards daily</div>
+            </a>
+            <a href="/opinion-quiz-app" className="block rounded-xl bg-slate-900/60 border border-slate-700/60 p-4 hover:bg-slate-800/60">
+              <div className="text-sm font-semibold text-indigo-200">Opinion Quiz</div>
+              <div className="text-slate-300 text-sm">What is an opinion quiz and how scoring works</div>
+            </a>
+            <a href="/refer-earn-quiz-app" className="block rounded-xl bg-slate-900/60 border border-slate-700/60 p-4 hover:bg-slate-800/60">
+              <div className="text-sm font-semibold text-indigo-200">Refer & Earn</div>
+              <div className="text-slate-300 text-sm">Invite friends and get bonus coins</div>
             </a>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-10">

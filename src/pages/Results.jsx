@@ -544,7 +544,7 @@ const Results = () => {
                     </div>
                     <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold">
                       {participant.profiles?.avatar_url ? (
-                        <img src={participant.profiles.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                        <img src={participant.profiles.avatar_url} alt="avatar" className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       ) : (
                         <span>{(participant.profiles?.full_name || participant.profiles?.username || 'U').charAt(0).toUpperCase()}</span>
                       )}

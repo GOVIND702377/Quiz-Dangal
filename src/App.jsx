@@ -52,6 +52,13 @@ const Fallback = () => (
 function App() {
   const { user, userProfile, loading, isRecoveryFlow } = useAuth();
   usePushNotifications(); // Initialize Push Notifications
+  const isBot = (function(){
+    try {
+      if (typeof navigator === 'undefined' || !navigator.userAgent) return false;
+      const ua = navigator.userAgent.toLowerCase();
+      return /bot|crawl|slurp|spider|mediapartners|google|bing|duckduckgo|baiduspider|yandex|facebookexternalhit|linkedinbot|twitterbot/.test(ua);
+    } catch { return false; }
+  })();
 
   // Track route changes for Google Analytics
   function RouteChangeTracker() {
@@ -97,7 +104,7 @@ function App() {
             ) : !user ? (
               <>
                 {/* Public pages accessible without login and without Header/Footer */}
-                <Route path="/" element={<Navigate to="/login" replace />} />
+                <Route path="/" element={isBot ? <Landing /> : <Navigate to="/login" replace />} />
                 <Route path="/terms-conditions" element={<TermsConditions />} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="/reset-password" element={<ResetPassword />} />

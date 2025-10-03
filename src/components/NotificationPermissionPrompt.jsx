@@ -67,15 +67,15 @@ const NotificationPermissionPrompt = () => {
   // Render minimal dialog only when open
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleDismiss(); }}>
-      <DialogContent className="bg-slate-900/95 border border-slate-800 text-slate-100">
+      <DialogContent className="bg-slate-900/95 border border-slate-800 text-slate-100 sm:rounded-2xl p-4 sm:p-6 max-w-sm w-[92vw]" style={{paddingBottom: 'max(1rem, env(safe-area-inset-bottom))'}}>
         <DialogHeader>
-          <DialogTitle className="text-base sm:text-lg">Stay updated with quiz reminders</DialogTitle>
+          <DialogTitle className="text-base sm:text-lg">Get quiz reminders</DialogTitle>
         </DialogHeader>
         <div className="text-sm text-slate-300">
-          Allow notifications to get reminders before quizzes start and when results are out.
+          Turn on notifications to get alerts before a quiz starts and when results are announced.
         </div>
         <div className="mt-4 flex justify-end gap-2">
-          {/* No secondary action per requirement; close via overlay/X counts as ignore */}
+          <Button variant="outline" onClick={handleDismiss} className="border-slate-700 text-slate-200">Not now</Button>
           <Button onClick={handleAllow} className="font-semibold">Allow</Button>
         </div>
       </DialogContent>

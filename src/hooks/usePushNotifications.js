@@ -43,27 +43,27 @@ export function usePushNotifications() {
     }
     if (!('serviceWorker' in navigator && 'PushManager' in window)) {
       setError('Push notifications are not supported by this browser.');
-      return;
-    }
-
-    if (!VAPID_PUBLIC_KEY) {
-      setError('Push key not configured. Set VITE_VAPID_PUBLIC_KEY in your .env');
-      return false;
-    }
-
-    if (!hasSupabaseConfig || !supabase) {
-      setError('Server is not configured for push. Supabase credentials missing.');
       return false;
     }
 
     try {
-      // Ask for notification permission if not already granted
+      // Always ask for permission first so the native browser prompt can appear
       if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
         const perm = await Notification.requestPermission();
         if (perm !== 'granted') {
           setError('Notifications permission was denied.');
           return false;
         }
+      }
+
+      // After permission granted, validate server/client config for push subscription
+      if (!VAPID_PUBLIC_KEY) {
+        setError('Push key not configured. Set VITE_VAPID_PUBLIC_KEY in your .env');
+        return false;
+      }
+      if (!hasSupabaseConfig || !supabase) {
+        setError('Server is not configured for push. Supabase credentials missing.');
+        return false;
       }
 
       const registration = await navigator.serviceWorker.ready;

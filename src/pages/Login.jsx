@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -105,14 +104,10 @@ const Login = () => {
     return (
   <div className="min-h-[100dvh] flex items-center justify-center px-4 py-6 sm:py-8" style={{paddingTop:'max(1rem, env(safe-area-inset-top))', paddingBottom:'max(1rem, env(safe-area-inset-bottom))'}}>
         <LoginHead />
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="qd-card rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-xl text-center text-slate-100"
-        >
+        <div className="qd-card rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-xl text-center text-slate-100">
           <h2 className="text-2xl font-bold text-white text-shadow-sm mb-4">Check your email</h2>
           <p className="text-slate-300">We've sent a confirmation link to <strong>{email}</strong>. Please click the link to complete your registration.</p>
-        </motion.div>
+  </div>
       </div>
     );
   }
@@ -121,11 +116,7 @@ const Login = () => {
     return (
   <div className="min-h-[100dvh] flex items-center justify-center px-4 py-6 sm:py-8" style={{paddingTop:'max(1rem, env(safe-area-inset-top))', paddingBottom:'max(1rem, env(safe-area-inset-bottom))'}}>
         <LoginHead />
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="qd-card rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-xl text-center text-slate-100"
-        >
+        <div className="qd-card rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-xl text-center text-slate-100">
           <h2 className="text-2xl font-bold text-white text-shadow-sm mb-4">Forgot Password</h2>
           <p className="text-slate-300 mb-4">Enter your email to receive a password reset link.</p>
           <form
@@ -135,7 +126,7 @@ const Login = () => {
               try {
                 const { error } = await supabase.auth.resetPasswordForEmail(
                   forgotEmail,
-                  { redirectTo: `${window.location.origin}/#/reset-password` }
+                  { redirectTo: `${window.location.origin}/reset-password` }
                 );
                 if (error) throw error;
                 toast({
@@ -170,37 +161,28 @@ const Login = () => {
               Back to Login
             </Button>
           </form>
-        </motion.div>
+  </div>
       </div>
     );
   }
 
   return (
   <div className="min-h-[100dvh] flex items-center justify-center px-4 py-6 sm:py-8" style={{paddingTop:'max(1rem, env(safe-area-inset-top))', paddingBottom:'max(1rem, env(safe-area-inset-bottom))'}}>
-    <LoginHead />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
-  className="qd-card rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-xl text-slate-100 flex flex-col"
-      >
-        <motion.div
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="text-center mb-6 sm:mb-8"
-        >
+      <LoginHead />
+      <div className="qd-card rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-xl text-slate-100 flex flex-col">
+        <div className="text-center mb-6 sm:mb-8">
           <img 
             src="/logo.svg"
             alt="Quiz Dangal Logo"
             onError={(e) => { e.currentTarget.src='/android-chrome-512x512.png'; }}
             className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 rounded-full shadow-lg"
+            loading="eager" decoding="async" fetchpriority="high" width="80" height="80"
           />
           <h1 className="text-3xl font-bold text-white text-shadow mb-2">
             Quiz Dangal
           </h1>
           <p className="text-slate-300">Where Minds Clash</p>
-        </motion.div>
+        </div>
 
         {/* Mode label (no box) */}
         <div className="mb-2 text-left">
@@ -209,10 +191,7 @@ const Login = () => {
           </span>
         </div>
 
-        <motion.form
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.4 }}
+        <form
           onSubmit={handleSubmit}
           className="space-y-3 sm:space-y-4"
         >
@@ -261,7 +240,7 @@ const Login = () => {
           <Button type="submit" disabled={isLoading || isGoogleLoading} variant="brand" className="w-full font-semibold py-3 rounded-lg shadow-lg">
             {isLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </Button>
-        </motion.form>
+  </form>
 
 
         <div className="relative my-4 sm:my-6">
@@ -309,7 +288,7 @@ const Login = () => {
           {' '}and{' '}
           <Link to="/privacy-policy" className="underline decoration-dotted underline-offset-2 text-accent-b hover:opacity-90">Privacy Policy</Link>.
         </p>
-      </motion.div>
+      </div>
     </div>
   );
 };

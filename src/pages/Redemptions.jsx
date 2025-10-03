@@ -467,7 +467,7 @@ export default function Redemptions() {
                     <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
                       <div className="h-28 bg-black/30 grid place-items-center">
                         {selectedReward.image_url ? (
-                          <img src={selectedReward.image_url} alt={selectedReward.title || 'Reward'} className="h-full w-full object-cover" onError={(e)=>{ e.currentTarget.style.display='none'; }} />
+                          <img src={selectedReward.image_url} alt={selectedReward.title || 'Reward'} className="h-full w-full object-cover" onError={(e)=>{ e.currentTarget.style.display='none'; }} loading="lazy" decoding="async" />
                         ) : (
                           <Gift className="w-7 h-7 text-white/80" />
                         )}
