@@ -9,6 +9,11 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link rel="dns-prefetch" href="//fonts.googleapis.com">
 	<link rel="dns-prefetch" href="//fonts.gstatic.com">
+	<!-- Speed up critical third-parties (Supabase auth + GA) -->
+	<link rel="preconnect" href="https://www.googletagmanager.com" crossorigin>
+	<link rel="dns-prefetch" href="//www.googletagmanager.com">
+	<link rel="preconnect" href="https://api.supabase.com" crossorigin>
+	<link rel="dns-prefetch" href="//api.supabase.com">
 	<script>document.documentElement.classList.add('js')</script>
 	<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
 	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
@@ -24,7 +29,7 @@
 	<meta name="mobile-web-app-capable" content="yes" />
 	<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 	<meta name="apple-mobile-web-app-title" content="Quiz Dangal" />
-	<meta name="description" content="Where Minds Clash" />
+	<meta name="description" content="Play quizzes and win rewards on Quiz Dangal. Opinion & GK quizzes, daily challenges, leaderboards, and Refer & Earn coins. Free to start—join now!" />
 	<meta name="keywords" content="Quiz Dangal, quizdangal, quiz, india quiz, indiaquiz, money quiz, moneyquiz, play and win, play & win, refer and earn, opinion based quiz, daily quiz India, online quiz contest, win rewards, leaderboards" />
 	<title>Quiz Dangal – Play Quiz & Win | Refer & Earn</title>
 	<!-- Open Graph / Social share defaults -->
@@ -46,7 +51,8 @@
 	<meta name="twitter:title" content="Quiz Dangal – Play Quizzes, Refer & Earn" />
 	<meta name="twitter:description" content="India Quiz app – Play & Win daily on Quiz Dangal. Opinion & GK quizzes, leaderboards, Refer & Earn coins." />
 	<meta name="twitter:image" content="https://quizdangal.com/refer-earn-poster.png?v=1" />
-	<title>Quiz Dangal</title>
+	<!-- Preload small brand logo used on first paint -->
+	<link rel="preload" as="image" href="/logo.svg" imagesizes="(max-width: 640px) 64px, 80px" />
 	<style>
 		/* Ensure system UI fonts render fast; any web fonts should use swap */
 		@font-face { font-display: swap; }
@@ -99,17 +105,38 @@
 	    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" }
 	  }
 	</script>
-  <script type="module" crossorigin src="/assets/index-85fe0d5e.js"></script>
+  <script type="module" crossorigin src="/assets/index-69bd476a.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/react-8a702e3e.js">
   <link rel="modulepreload" crossorigin href="/assets/supabase-4c1332f7.js">
   <link rel="modulepreload" crossorigin href="/assets/router-f2cf3f51.js">
   <link rel="modulepreload" crossorigin href="/assets/icons-5fed0bfb.js">
   <link rel="modulepreload" crossorigin href="/assets/motion-511bde03.js">
-  <link rel="stylesheet" href="/assets/index-6f858e63.css">
+  <link rel="stylesheet" href="/assets/index-e002c697.css">
 </head>
 
 <body>
 	<div id="root"></div>
+	<script>
+	  // If 404.html redirected here with ?p=<encoded>, restore the original path before app mounts
+	  (function(){
+	    try {
+	      var u = new URL(window.location.href);
+	      var p = u.searchParams.get('p');
+	      if (p) {
+	        var target = decodeURIComponent(p);
+	        // Use history.replaceState to avoid another reload
+	        window.history.replaceState({}, '', target);
+	      }
+	      // Migrate old hash-based URLs (#/about-us) to clean paths (/about-us)
+	      if (window.location.hash && window.location.hash.indexOf('#/') === 0) {
+	        var clean = window.location.hash.slice(1); // remove '#'
+	        var cleanUrl = clean;
+	        if (!cleanUrl.startsWith('/')) cleanUrl = '/' + cleanUrl;
+	        window.history.replaceState({}, '', cleanUrl);
+	      }
+	    } catch (e) {}
+	  })();
+	</script>
 	
 	<script>
 	  // Lightweight modulepreload polyfill for older browsers

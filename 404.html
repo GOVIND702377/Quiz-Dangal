@@ -4,7 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Redirecting...</title>
-  <meta http-equiv="refresh" content="0; url=/" />
+  <!-- SPA fallback for GitHub Pages: send unknown paths to root with encoded original URL -->
+  <meta http-equiv="refresh" content="0; url=/?p=%2F" />
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 2rem; color: #1f2937; }
     .box { max-width: 640px; margin: 10vh auto; padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
@@ -15,26 +16,19 @@
   <div class="box">
     <h1>Redirecting…</h1>
     <p>Taking you to the correct page.</p>
-    <p>If you are not redirected automatically, <a id="link" href="/">click here</a>.</p>
+  <p>If you are not redirected automatically, <a id="link" href="/">click here</a>.</p>
   </div>
   <script>
-    (function() {
+    (function(l){
       try {
-        var loc = window.location;
-        // Preserve path + query + existing hash
-        var path = loc.pathname.replace(/^\//, '');
-        var query = loc.search || '';
-        var hash = loc.hash || '';
-  // Send to SPA root and let BrowserRouter handle it (GitHub Pages fallback)
-  var newUrl = '/' + path + query + (hash || '');
-        document.getElementById('link').setAttribute('href', newUrl);
-        // Hard navigate to ensure SPA handles it
-        loc.replace(newUrl);
+        var full = l.pathname + (l.search || '') + (l.hash || '');
+        var encoded = '/?p=' + encodeURIComponent(full);
+        document.getElementById('link').setAttribute('href', encoded);
+        l.replace(encoded);
       } catch (e) {
-        // Fallback to root
-  window.location.replace('/');
+        l.replace('/');
       }
-    })();
+    })(window.location);
   </script>
 </body>
 </html>

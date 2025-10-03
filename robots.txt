@@ -4,4 +4,7 @@ Disallow: /login
 Disallow: /admin
 Disallow: /reset-password
 Disallow: /profile
+Disallow: /wallet
+Disallow: /rewards
+Disallow: /refer
 Sitemap: https://quizdangal.com/sitemap.xml
