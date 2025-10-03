@@ -1,5 +1,6 @@
 // Clean rebuilt Home.jsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import SEO from '@/components/SEO';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
@@ -53,7 +54,7 @@ const Tile = ({ tile, quizzes, onJoin, index, joiningId, onOpenList, navigateTo 
   // Always show PLAY instead of SOON/other states (as requested)
   const label = 'PLAY';
   return (
-    <motion.button
+      <motion.button
       type="button"
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -64,20 +65,7 @@ const Tile = ({ tile, quizzes, onJoin, index, joiningId, onOpenList, navigateTo 
       style={{ borderRadius: '0.75rem' }}
       aria-label={`${tile.title} - Play`}
     >
-      {/* Count badge top-right (distinct gradient mini-card) */}
-      <div className="absolute top-1.5 right-1.5 z-10">
-        <div className={`relative rounded-lg p-[1px] bg-gradient-to-r ${pal.from} ${pal.to} shadow-[0_4px_10px_rgba(0,0,0,0.35)]`}>
-          <div className="rounded-[9px] bg-slate-950/70 backdrop-blur-md px-2 py-1 flex items-center gap-1 border border-white/10">
-            <div className="relative w-5 h-5">
-              <div className={`absolute -inset-0.5 rounded-full blur-[6px] opacity-80 bg-gradient-to-r ${pal.from} ${pal.to}`} aria-hidden></div>
-              <div className="relative w-5 h-5 rounded-full grid place-items-center bg-black/40 border border-white/20 text-white text-[10px] font-extrabold">
-                {totalCount}
-              </div>
-            </div>
-            <span className="text-[9px] font-semibold uppercase tracking-wider text-white/90">{totalCount === 1 ? 'Quiz' : 'Quizzes'}</span>
-          </div>
-        </div>
-      </div>
+      {/* Removed count badge per request */}
       <div className="neon-card-content select-none flex items-center justify-center">
         <div className="w-full flex flex-col items-center justify-center gap-2">
           <Icon className="w-8 h-8 text-white drop-shadow" />
@@ -87,7 +75,7 @@ const Tile = ({ tile, quizzes, onJoin, index, joiningId, onOpenList, navigateTo 
           <span className="play-pill group-hover:shadow-lg group-hover:brightness-110">{label}</span>
         </div>
       </div>
-    </motion.button>
+      </motion.button>
   );
 };
 
@@ -161,8 +149,31 @@ const Home = () => {
 
   return (
     <div className="h-full relative overflow-hidden">
+      <SEO
+        title="Quiz Dangal – Play Quiz & Win Rewards | Opinion, GK, Sports, Movies"
+        description="Play daily opinion-based quizzes on Quiz Dangal. Win coins, climb leaderboards, and refer & earn with friends. India’s top play & win quiz app."
+        canonical="https://quizdangal.com/"
+        keywords={[
+          'Quiz Dangal','quizdangal','quiz app','play quiz and win','opinion quiz','daily quiz India','refer and earn quiz','win rewards','leaderboards','online quiz contest'
+        ]}
+      />
       <div className="relative z-10 h-full flex items-center justify-center px-4 mt-1 sm:mt-2 mb-6">
         <div className="w-full max-w-[420px]">
+          {/* Intro header above categories */}
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+            className="text-center mb-4"
+          >
+            <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-200 via-fuchsia-200 to-pink-200 bg-clip-text text-transparent">
+              Brain games, real gains. Ready to shine?
+            </h1>
+            <p className="text-[13px] text-slate-300/90 mt-1">
+              Compete, earn, repeat — where winners never chill out.
+            </p>
+            <div className="mx-auto mt-2 h-[2px] w-24 rounded-full bg-gradient-to-r from-indigo-400/60 via-fuchsia-400/60 to-pink-400/60" />
+          </motion.div>
           <div className="grid grid-cols-2 gap-3">
             {loading
               ? Array.from({ length: 4 }).map((_, i) => (

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import SEO from '@/components/SEO';
 import { Gift, Users, Coins, Share2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -159,6 +160,16 @@ ${referralLink}`;
   };
 
   return (
+    <>
+      <SEO
+        title="Refer & Earn – Quiz Dangal | Invite Friends, Get Coins"
+        description="Share your unique referral link on Quiz Dangal and earn bonus coins when friends join and play opinion-based quizzes."
+  canonical="https://quizdangal.com/refer"
+        keywords={[
+          'refer and earn','quizdangal refer','invite friends quiz app','earn coins by referral','quiz app referral India'
+        ]}
+      />
+      {/* existing page content */}
     <div className="min-h-screen">
       <div className="container mx-auto px-4 py-6 max-w-2xl text-slate-100">
         <div className="flex items-center gap-2 mb-3">
@@ -271,7 +282,8 @@ ${referralLink}`;
         )}
       </div>
     </div>
+    </>
   );
-};
+  };
 
 export default ReferEarn;

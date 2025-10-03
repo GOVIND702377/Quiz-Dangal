@@ -58,7 +58,13 @@ serve(async (req) => {
   }
 
   // Utility: check & mark sent in quiz_notification_log
-  const markAndSend = async (quizId: string, type: 'start_soon' | 'result', title: string, body: string) => {
+  const markAndSend = async (
+    quizId: string,
+    type: 'start_soon' | 'result',
+    title: string,
+    body: string,
+    personalized?: boolean
+  ) => {
     const { data: already, error: chkErr } = await admin
       .from('quiz_notification_log')
       .select('id')
@@ -83,20 +89,105 @@ serve(async (req) => {
       return;
     }
 
-    const payload = JSON.stringify({ title, body, icon: '/android-chrome-192x192.png' });
+    // Include type, quizId, and deep-link url so SW can handle replacement/closing
+    const url = type === 'result' ? `/#/results/${quizId}` : `/#/quiz/${quizId}`;
 
-    await Promise.all((subs || []).map(async (s) => {
-      try {
-        await webpush.sendNotification(s.subscription_object, payload);
-      } catch (err: any) {
-        const status = err?.statusCode;
-        if (status === 404 || status === 410) {
-          await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint);
-        } else {
-          console.error('push send error', err);
+    if (personalized && type === 'result') {
+      // Build leaderboard map and prize mapping for per-user messages
+      const [{ data: qrow }, { data: resRow }] = await Promise.all([
+        admin.from('quizzes').select('id, title, prize_type, prizes').eq('id', quizId).single(),
+        admin.from('quiz_results').select('leaderboard').eq('quiz_id', quizId).single()
+      ]);
+
+      const leaderboard: Array<{ user_id: string; rank?: number; rk?: number }> = Array.isArray(resRow?.leaderboard) ? resRow!.leaderboard as any : [];
+      const rankByUser = new Map<string, number>();
+      for (const e of leaderboard) {
+        const u = (e as any).user_id as string | undefined;
+        const rk = (e as any).rank ?? (e as any).rk;
+        if (u && typeof rk === 'number') rankByUser.set(u, rk);
+      }
+
+      // Fetch normalized prizes; fallback to quizzes.prizes
+      const { data: prizeRows } = await admin
+        .from('quiz_prizes')
+        .select('rank_from, rank_to, prize_coins')
+        .eq('quiz_id', quizId);
+
+      const prizeRanges: Array<{ from: number; to: number; amt: number }> = [];
+      if (Array.isArray(prizeRows) && prizeRows.length > 0) {
+        for (const pr of prizeRows) {
+          const from = Number(pr.rank_from);
+          const to = Number(pr.rank_to);
+          const amt = Number(pr.prize_coins || 0);
+          if (from >= 1 && to >= from && amt >= 0) prizeRanges.push({ from, to, amt });
+        }
+      } else if (Array.isArray(qrow?.prizes)) {
+        const arr: any[] = qrow!.prizes as any;
+        for (let i = 0; i < arr.length; i++) {
+          const n = Number(arr[i]);
+          if (!Number.isNaN(n)) prizeRanges.push({ from: i + 1, to: i + 1, amt: n });
         }
       }
-    }));
+
+      const unit = qrow?.prize_type === 'coins' ? 'coins' : '';
+      const safeTitle = 'Quiz Result';
+
+      await Promise.all((subs || []).map(async (s) => {
+        try {
+          const uid = s.user_id as string | undefined;
+          const rk = uid ? rankByUser.get(uid) : undefined;
+          let prizeText = '';
+          if (typeof rk === 'number') {
+            let amt: number | undefined = undefined;
+            for (const r of prizeRanges) {
+              if (rk >= r.from && rk <= r.to) { amt = r.amt; break; }
+            }
+            if (typeof amt === 'number' && amt > 0) {
+              prizeText = unit ? ` • Prize: ${amt} ${unit}` : ` • Prize: ${amt}`;
+            }
+          }
+          const bodyPerUser = `${qrow?.title || 'Quiz'} ka result aa chuka hai. Aapka rank${typeof rk === 'number' ? ` #${rk}` : ''}${prizeText}. Leaderboard dekhiye!`;
+          const payload = JSON.stringify({
+            title: safeTitle,
+            body: bodyPerUser,
+            icon: '/android-chrome-192x192.png',
+            type,
+            quizId: quizId,
+            url,
+          });
+          await webpush.sendNotification(s.subscription_object, payload);
+        } catch (err: any) {
+          const status = err?.statusCode;
+          if (status === 404 || status === 410) {
+            await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint);
+          } else {
+            console.error('push send error', err);
+          }
+        }
+      }));
+    } else {
+      const payload = JSON.stringify({
+        title,
+        body,
+        icon: '/android-chrome-192x192.png',
+        type,
+        quizId,
+        url,
+      });
+
+      await Promise.all((subs || []).map(async (s) => {
+        try {
+          await webpush.sendNotification(s.subscription_object, payload);
+        } catch (err: any) {
+          const status = err?.statusCode;
+          if (status === 404 || status === 410) {
+            await admin.from('push_subscriptions').delete().eq('endpoint', s.endpoint);
+          } else {
+            console.error('push send error', err);
+          }
+        }
+      }));
+    }
 
     // Mark sent
     await admin.from('quiz_notification_log').insert({ quiz_id: quizId, type, sent_at: new Date().toISOString() });
@@ -104,8 +195,9 @@ serve(async (req) => {
 
   // Process start soon
   for (const q of startingQuizzes || []) {
-    const body = `${q.title} 1 minute mein start hone wala hai. Tayyar ho jao!`;
-    await markAndSend(q.id, 'start_soon', 'Quiz Reminder', body);
+    // Requested Hindi copy to create urgency; sent ~1 minute before start
+    const body = `🔥 Time’s up! Quiz arena खुलने वाला है 🎯 अबकी बार जीतकर दिखाओ — चलो, अभी join करो!\n⏳ 1 मिनट में शुरू हो रहा है`;
+    await markAndSend(q.id, 'start_soon', q.title || 'Quiz Reminder', body);
   }
 
   // Process result published: only if quiz_results exist for the quiz
@@ -121,8 +213,8 @@ serve(async (req) => {
       continue;
     }
     if (anyRes && anyRes.length > 0) {
-      const body = `${q.title} ka result aa chuka hai. Leaderboard dekhien!`;
-      await markAndSend(q.id, 'result', 'Quiz Result', body);
+      // Personalized result notifications: include rank/prize per user
+      await markAndSend(q.id, 'result', 'Quiz Result', '', true);
       resultCount++;
     }
   }

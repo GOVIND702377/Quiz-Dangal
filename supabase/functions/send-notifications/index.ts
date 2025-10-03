@@ -51,7 +51,7 @@ serve(async (req) => {
     return new Response("", { status: 204, headers: { ...makeCorsHeaders(req) } });
   }
   try {
-    const { message, title } = await req.json();
+  const { message, title, type, url } = await req.json();
 
     // Authenticate caller and ensure they are admin
     const authHeader = req.headers.get('Authorization');
@@ -85,7 +85,7 @@ serve(async (req) => {
       .eq('id', user.id)
       .single();
     if (profErr || !profile || profile.role !== 'admin') {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json', ...makeCorsHeaders(req) } });
     }
 
     const { data: subscriptions, error } = await supabaseAdmin
@@ -101,6 +101,8 @@ serve(async (req) => {
       title: title,
       body: message,
       icon: "/android-chrome-192x192.png",
+      type: typeof type === 'string' ? type : undefined,
+      url: typeof url === 'string' ? url : undefined,
     });
 
     const sendPromises = subscriptions.map(async (sub) => {
@@ -124,9 +126,37 @@ serve(async (req) => {
           }
         }
       }
+
+          // Log into notifications table for admin activity feed
+          try {
+            await supabaseAdmin
+              .from('notifications')
+              .insert({
+                title,
+                message,
+                type: 'broadcast_push',
+                created_by: user.id,
+              });
+          } catch (logErr) {
+            console.error('Failed to log broadcast push:', logErr?.message || String(logErr));
+          }
     });
 
     await Promise.all(sendPromises);
+
+    // Log this broadcast for admin activity view
+    try {
+      await supabaseAdmin
+        .from('notifications')
+        .insert({
+          title: title,
+          message: message,
+          type: 'broadcast_push',
+          created_by: user.id,
+        });
+    } catch (logErr) {
+      console.error('Failed to log broadcast push:', logErr);
+    }
 
     return new Response(JSON.stringify({ message: "Notifications sent successfully." }), { status: 200, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } });
   } catch (e: any) {

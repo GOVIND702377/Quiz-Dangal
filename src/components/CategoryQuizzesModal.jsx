@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Clock, Trophy, Users } from 'lucide-react';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 function statusBadge(s) {
   const base = 'px-2 py-0.5 rounded-full text-xs font-semibold';
@@ -11,12 +12,23 @@ function statusBadge(s) {
 }
 
 const CategoryQuizzesModal = ({ open, onClose, category, quizzes, onJoin, joiningId }) => {
+  const { isSubscribed, subscribeToPush } = usePushNotifications();
+
   const list = useMemo(() => {
     const slug = (category || '').toLowerCase();
     return (quizzes || [])
       .filter(q => (q.category || '').toLowerCase() === slug)
       .sort((a,b) => new Date(a.start_time || 0) - new Date(b.start_time || 0));
   }, [quizzes, category]);
+
+  const handleJoinClick = async (q) => {
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission !== 'granted' && !isSubscribed) {
+        await subscribeToPush();
+      }
+    } catch { /* ignore */ }
+    onJoin?.(q);
+  };
 
   return (
     <AnimatePresence>
@@ -60,7 +72,7 @@ const CategoryQuizzesModal = ({ open, onClose, category, quizzes, onJoin, joinin
                         <div className="shrink-0">
                           <button
                             disabled={!canJoin || joiningId === q.id}
-                            onClick={() => canJoin && onJoin(q)}
+                            onClick={() => canJoin && handleJoinClick(q)}
                             className={`px-3 py-2 rounded-lg text-sm font-semibold border ${(!canJoin || joiningId === q.id) ? 'bg-slate-700 text-slate-400 border-slate-700' : (isActive ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600' : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600')}`}
                           >
                             {label}

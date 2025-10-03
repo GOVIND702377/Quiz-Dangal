@@ -92,5 +92,39 @@ export function usePushNotifications() {
     }
   };
 
-  return { isSubscribed, subscribeToPush, error };
+  const unsubscribeFromPush = async () => {
+    try {
+      if (!('serviceWorker' in navigator && 'PushManager' in window)) {
+        setError('Push not supported in this browser');
+        return false;
+      }
+      const registration = await navigator.serviceWorker.ready;
+      const sub = await registration.pushManager.getSubscription();
+      if (!sub) {
+        setIsSubscribed(false);
+        setSubscription(null);
+        return true;
+      }
+      // Delete from server first (best-effort)
+      const json = sub.toJSON?.();
+      const endpoint = json?.endpoint || subscription?.endpoint;
+      if (endpoint && hasSupabaseConfig && supabase) {
+        try {
+          await supabase.rpc('delete_push_subscription', { p_endpoint: endpoint });
+        } catch { /* ignore */ }
+      }
+      // Unsubscribe in browser
+      try { await sub.unsubscribe(); } catch {}
+      setIsSubscribed(false);
+      setSubscription(null);
+      setError(null);
+      return true;
+    } catch (err) {
+      console.error('Failed to unsubscribe: ', err);
+      setError(err?.message || 'Unsubscribe failed');
+      return false;
+    }
+  };
+
+  return { isSubscribed, subscribeToPush, unsubscribeFromPush, error };
 }

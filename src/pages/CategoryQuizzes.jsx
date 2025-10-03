@@ -6,6 +6,7 @@ import { formatDateOnly, formatTimeOnly } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { Users, Flame, MessageSquare, Brain, Clapperboard, Play, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 function statusBadge(s) {
   const base = 'px-2 py-0.5 rounded-full text-xs font-semibold';
@@ -29,6 +30,7 @@ const CategoryQuizzes = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
+  const { isSubscribed, subscribeToPush } = usePushNotifications();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [joiningId, setJoiningId] = useState(null);
@@ -117,6 +119,12 @@ const CategoryQuizzes = () => {
       navigate('/login');
       return;
     }
+    // Try to enable push notifications on first join/pre-join (non-blocking)
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission !== 'granted' && !isSubscribed) {
+        await subscribeToPush();
+      }
+    } catch { /* ignore push errors */ }
     setJoiningId(q.id);
     try {
       // Determine by time window, not stored status

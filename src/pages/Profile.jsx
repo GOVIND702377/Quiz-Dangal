@@ -56,7 +56,7 @@ export default function Profile() {
   // Refer & Earn now opens as full page (/refer)
   // Language modal removed
   const fileInputRef = useRef(null);
-  const { isSubscribed, subscribeToPush, error: pushError } = usePushNotifications();
+  const { isSubscribed, subscribeToPush, unsubscribeFromPush, error: pushError } = usePushNotifications();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -282,31 +282,7 @@ export default function Profile() {
         </div>
         
 
-        {/* Push Notifications Section */}
-  <div className="qd-card rounded-3xl p-4 shadow-xl text-slate-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-               <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-700/50 to-emerald-700/50 text-emerald-200 flex items-center justify-center shadow-sm border border-emerald-500/30">
-                <BellRing className="w-4 h-4" />
-              </span>
-              <div>
-                <h3 className="text-sm font-semibold text-white">Push Notifications</h3>
-                <p className="text-xs text-slate-400">
-                  {isSubscribed ? "You are subscribed to notifications." : "Enable to get alerts for new quizzes."}
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={subscribeToPush}
-              disabled={isSubscribed}
-              size="sm"
-              variant="brand"
-            >
-              {isSubscribed ? "Subscribed" : "Enable"}
-            </Button>
-          </div>
-          {pushError && <p className="text-xs text-rose-300 mt-2">Error: {pushError}</p>}
-        </div>
+        {/* Push Notifications controls removed per requirement. Notifications will be prompted during Join Quiz flow. */}
 
   <div className="qd-card rounded-3xl p-3 shadow-xl">
           <div className="flex flex-col gap-3">

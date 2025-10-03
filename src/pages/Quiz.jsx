@@ -5,6 +5,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { formatDateTime, formatDateOnly, formatTimeOnly } from '@/lib/utils';
 import { Loader2, CheckCircle, Clock, Users, Trophy, X } from 'lucide-react';
 
@@ -13,6 +14,7 @@ const Quiz = () => {
   const navigate = useNavigate();
   const { user, userProfile } = useAuth();
   const { toast } = useToast();
+  const { isSubscribed, subscribeToPush } = usePushNotifications();
 
   const [quiz, setQuiz] = useState(null);
   const [questions, setQuestions] = useState([]);
@@ -244,6 +246,12 @@ const Quiz = () => {
       toast({ title: 'Already submitted', description: 'You have already completed this quiz and cannot join again.', variant: 'destructive' });
       return;
     }
+    // Try to enable push notifications on first join/pre-join intent (non-blocking)
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission !== 'granted' && !isSubscribed) {
+        await subscribeToPush();
+      }
+    } catch { /* ignore push errors */ }
     const now = new Date();
     const st = quiz.start_time ? new Date(quiz.start_time) : null;
     const et = quiz.end_time ? new Date(quiz.end_time) : null;

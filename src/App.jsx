@@ -1,5 +1,5 @@
 import React from 'react';
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Toaster } from '@/components/ui/toaster';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -10,6 +10,7 @@ import OnboardingFlow from '@/components/OnboardingFlow';
 import { lazy, Suspense, useEffect } from 'react';
 import PWAInstallButton from '@/components/PWAInstallButton';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import NotificationPermissionPrompt from '@/components/NotificationPermissionPrompt';
 const Home = lazy(() => import('@/pages/Home'));
 const MyQuizzes = lazy(() => import('@/pages/MyQuizzes'));
 const Wallet = lazy(() => import('@/pages/Wallet'));
@@ -27,6 +28,10 @@ const Results = lazy(() => import('@/pages/Results'));
 const Leaderboards = lazy(() => import('@/pages/Leaderboards'));
 const Redemptions = lazy(() => import('@/pages/Redemptions'));
 const ReferEarn = lazy(() => import('@/pages/ReferEarn'));
+const Landing = lazy(() => import('@/pages/Landing'));
+const PlayWinQuiz = lazy(() => import('@/pages/PlayWinQuiz'));
+const OpinionQuiz = lazy(() => import('@/pages/OpinionQuiz'));
+const ReferEarnInfo = lazy(() => import('@/pages/ReferEarnInfo'));
 
 const UnconfirmedEmail = () => (
   <div className="min-h-screen flex items-center justify-center p-4">
@@ -48,6 +53,18 @@ function App() {
   const { user, userProfile, loading, isRecoveryFlow } = useAuth();
   usePushNotifications(); // Initialize Push Notifications
 
+  // Track route changes for Google Analytics
+  function RouteChangeTracker() {
+    const location = useLocation();
+    useEffect(() => {
+      try {
+        const page_path = location.pathname + location.search + location.hash;
+        if (window.gtag) window.gtag('event', 'page_view', { page_path });
+      } catch {}
+    }, [location]);
+    return null;
+  }
+
   if (loading) {
     return (
   <div className="min-h-screen flex items-center justify-center">
@@ -62,10 +79,12 @@ function App() {
   return (
     <ErrorBoundary>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <RouteChangeTracker />
         <div className="min-h-screen flex flex-col relative text-gray-50 transition-all duration-300 ease-in-out">
           <Helmet>
-            <title>Quiz Dangal - Opinion Based Quiz App</title>
-            <meta name="description" content="Join Quiz Dangal for exciting opinion-based quizzes with real prizes!" />
+            <title>Quiz Dangal – Play Quizzes & Win | Refer & Earn</title>
+            <meta name="description" content="Play opinion-based quizzes, climb leaderboards, win rewards, and refer friends to earn coins on Quiz Dangal." />
+            <meta name="keywords" content="Quiz Dangal, quizdangal, quiz app, opinion quiz, daily quiz, play and win, refer and earn, rewards, leaderboards" />
           </Helmet>
           <Suspense fallback={<Fallback />}>
           <Routes>
@@ -77,11 +96,18 @@ function App() {
               </>
             ) : !user ? (
               <>
-                {/* Public policy pages accessible without login and without Header/Footer */}
+                {/* Public pages accessible without login and without Header/Footer */}
                 <Route path="/terms-conditions" element={<TermsConditions />} />
                 <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="*" element={<Login />} />
+                <Route path="/about-us" element={<AboutUs />} />
+                <Route path="/contact-us" element={<ContactUs />} />
+                <Route path="/play-win-quiz-app" element={<PlayWinQuiz />} />
+                <Route path="/opinion-quiz-app" element={<OpinionQuiz />} />
+                <Route path="/refer-earn-quiz-app" element={<ReferEarnInfo />} />
+                <Route path="/leaderboards" element={<Leaderboards />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="*" element={<Landing />} />
               </>
             ) : user.app_metadata?.provider === 'email' && !user.email_confirmed_at ? (
               <>
@@ -174,6 +200,9 @@ const MainLayout = () => {
             <Route path="/redemptions" element={<Page><Redemptions /></Page>} />
             <Route path="/about-us" element={<Page><AboutUs /></Page>} />
             <Route path="/contact-us" element={<Page><ContactUs /></Page>} />
+            <Route path="/play-win-quiz-app" element={<Page><PlayWinQuiz /></Page>} />
+            <Route path="/opinion-quiz-app" element={<Page><OpinionQuiz /></Page>} />
+            <Route path="/refer-earn-quiz-app" element={<Page><ReferEarnInfo /></Page>} />
             <Route path="/terms-conditions" element={<Page><TermsConditions /></Page>} />
             <Route path="/privacy-policy" element={<Page><PrivacyPolicy /></Page>} />
             <Route path="/admin" element={<AdminRoute><Page><Admin /></Page></AdminRoute>} />
@@ -187,6 +216,7 @@ const MainLayout = () => {
       </main>
       <Footer />
       <PWAInstallButton />
+      <NotificationPermissionPrompt />
       <OnboardingFlow />
     </>
   );

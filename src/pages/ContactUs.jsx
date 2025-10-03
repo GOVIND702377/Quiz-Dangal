@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { getBrandGradient } from '@/lib/brand';
 
 const ContactUs = () => {
+
   const contactMethods = [
     {
       icon: Mail,
@@ -63,6 +64,7 @@ const ContactUs = () => {
           We value your feedback and are here to assist you. If you have any questions, concerns, or suggestions, please don't hesitate to reach out.
         </p>
       </motion.div>
+      
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}

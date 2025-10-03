@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Eye, EyeOff } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 
 const Login = () => {
   const { toast } = useToast();
@@ -92,9 +93,18 @@ const Login = () => {
     setIsLoading(false);
   };
 
+  const LoginHead = () => (
+    <Helmet>
+      <title>Login / Sign Up – Quiz Dangal</title>
+      <meta name="robots" content="noindex, nofollow" />
+      <link rel="canonical" href="https://quizdangal.com/login" />
+    </Helmet>
+  );
+
   if (emailSent) {
     return (
   <div className="min-h-[100dvh] flex items-center justify-center px-4 py-6 sm:py-8" style={{paddingTop:'max(1rem, env(safe-area-inset-top))', paddingBottom:'max(1rem, env(safe-area-inset-bottom))'}}>
+        <LoginHead />
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -110,6 +120,7 @@ const Login = () => {
   if (showForgot) {
     return (
   <div className="min-h-[100dvh] flex items-center justify-center px-4 py-6 sm:py-8" style={{paddingTop:'max(1rem, env(safe-area-inset-top))', paddingBottom:'max(1rem, env(safe-area-inset-bottom))'}}>
+        <LoginHead />
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -166,6 +177,7 @@ const Login = () => {
 
   return (
   <div className="min-h-[100dvh] flex items-center justify-center px-4 py-6 sm:py-8" style={{paddingTop:'max(1rem, env(safe-area-inset-top))', paddingBottom:'max(1rem, env(safe-area-inset-bottom))'}}>
+    <LoginHead />
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}

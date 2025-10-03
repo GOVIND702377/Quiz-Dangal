@@ -14,35 +14,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 
 function AdminNotificationsSection() {
   const { toast } = useToast();
-  const [title, setTitle] = useState('');
-  const [message, setMessage] = useState('');
-  const [type, setType] = useState('announcement');
-  const [quizId, setQuizId] = useState('');
-  const [scheduledAt, setScheduledAt] = useState('');
-  const [sending, setSending] = useState(false);
-  const [recent, setRecent] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Removed manual notifications (DB-backed) UI/state
   // Push notifications state
   const [pushTitle, setPushTitle] = useState('');
   const [pushMessage, setPushMessage] = useState('');
   const [sendingPush, setSendingPush] = useState(false);
 
-  const loadRecent = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('notifications')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(20);
-    if (error) {
-      toast({ title: 'Load failed', description: error.message, variant: 'destructive' });
-    } else {
-      setRecent(data || []);
-    }
-    setLoading(false);
-  };
-
-  useEffect(() => { loadRecent(); }, []);
+  // Manual notifications removed; only broadcast push remains
 
   const handleSendPushNotification = async (e) => {
     e.preventDefault();
@@ -66,33 +44,9 @@ function AdminNotificationsSection() {
     }
   };
 
-  const submit = async (e) => {
-    e.preventDefault();
-    if (!title.trim() || !message.trim()) {
-      toast({ title: 'Title/Message required', variant: 'destructive' });
-      return;
-    }
-    setSending(true);
-    try {
-      const payload = {
-        p_title: title.trim(),
-        p_message: message.trim(),
-        p_type: type,
-        p_quiz_id: quizId ? quizId : null,
-        p_scheduled_at: scheduledAt ? new Date(scheduledAt).toISOString() : null,
-      };
-      const { error } = await supabase.rpc('create_notification', payload);
-      if (error) throw error;
-      toast({ title: 'Notification queued', description: 'It will be delivered per schedule.' });
-      setTitle(''); setMessage(''); setQuizId(''); setScheduledAt(''); setType('announcement');
-      await loadRecent();
-    } catch (e) {
-      toast({ title: 'Send failed', description: e.message, variant: 'destructive' });
-    } finally {
-      setSending(false);
-    }
-  };
+  // Removed manual notification submit handler
 
+  const [tab, setTab] = useState('broadcast'); // 'broadcast' | 'auto'
   return (
     <div className="space-y-4 text-foreground">
       <div className="flex items-center justify-between">
@@ -104,8 +58,8 @@ function AdminNotificationsSection() {
         </div>
       </div>
 
-      {/* New section for sending Push Notifications */}
-      <div className="bg-card border border-border rounded-2xl p-4 shadow-lg mb-6">
+      {/* Send Push Notifications (Broadcast to all subscribers) */}
+      <div className="bg-card border border-border rounded-2xl p-4 shadow-lg">
         <h3 className="text-xl font-bold text-foreground mb-4 flex items-center"><BellRing className="w-5 h-5 mr-2"/>Send Push Notification</h3>
         <form onSubmit={handleSendPushNotification} className="space-y-3">
           <div>
@@ -122,66 +76,170 @@ function AdminNotificationsSection() {
         </form>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-4 shadow-lg">
-        <form onSubmit={submit} className="space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="ntitle">Title *</Label>
-              <Input id="ntitle" value={title} onChange={(e)=>setTitle(e.target.value)} placeholder="e.g., Quiz Starting Soon" required />
-            </div>
-            <div>
-              <Label htmlFor="ntype">Type *</Label>
-              <select id="ntype" value={type} onChange={(e)=>setType(e.target.value)} className="w-full border border-border bg-background text-foreground rounded-md px-3 py-2">
-                <option value="announcement">Announcement</option>
-                <option value="quiz_start">Quiz Start</option>
-                <option value="quiz_end">Quiz End</option>
-                <option value="quiz_result">Quiz Result</option>
-              </select>
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="nmsg">Message *</Label>
-            <Textarea id="nmsg" value={message} onChange={(e)=>setMessage(e.target.value)} placeholder="Write your message..." required />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <Label htmlFor="nquiz">Quiz ID (optional)</Label>
-              <Input id="nquiz" value={quizId} onChange={(e)=>setQuizId(e.target.value)} placeholder="UUID of quiz" />
-            </div>
-            <div>
-              <Label htmlFor="nsched">Schedule (optional)</Label>
-              <Input id="nsched" type="datetime-local" value={scheduledAt} onChange={(e)=>setScheduledAt(e.target.value)} />
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button type="submit" disabled={sending} className="bg-indigo-600 hover:bg-indigo-700">
-              {sending ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Sending...</>) : 'Send Notification'}
-            </Button>
-            <Button type="button" variant="outline" onClick={loadRecent}>Refresh</Button>
-          </div>
-        </form>
+      {/* Toggle buttons under the form */}
+      <div className="flex gap-2">
+        <Button variant={tab==='broadcast' ? 'default' : 'outline'} onClick={() => setTab('broadcast')}>
+          Admin ki bheji hui
+        </Button>
+        <Button variant={tab==='auto' ? 'default' : 'outline'} onClick={() => setTab('auto')}>
+          Automatic wali
+        </Button>
       </div>
 
-      <div className="bg-card border border-border rounded-2xl p-4 shadow-lg">
-        <h3 className="font-semibold text-foreground mb-3 flex items-center"><ListChecks className="w-5 h-5 mr-2"/>Recent</h3>
-        {loading ? (
-          <div className="py-8 text-center text-muted-foreground"><Loader2 className="inline-block h-6 w-6 animate-spin text-indigo-500 mr-2"/> Loading...</div>
-        ) : recent.length === 0 ? (
-          <div className="py-8 text-center text-muted-foreground">No notifications</div>
-        ) : (
-          <div className="space-y-2">
-            {recent.map((n)=> (
-              <div key={n.id} className="p-3 rounded-xl bg-card/80 border border-border flex items-center justify-between text-sm">
-                <div>
-                  <div className="font-semibold text-foreground">{n.title} <span className="text-xs text-muted-foreground">({n.type})</span></div>
-                  <div className="text-foreground/80">{n.message}</div>
-                  <div className="text-muted-foreground text-xs">Quiz: {n.quiz_id || '—'} • Scheduled: {n.scheduled_at ? new Date(n.scheduled_at).toLocaleString() : 'now'} • Created: {new Date(n.created_at).toLocaleString()}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* Tab content */}
+      {tab === 'broadcast' ? (
+        <BroadcastActivity />
+      ) : (
+        <AutoNotificationsActivity />
+      )}
+    </div>
+  );
+}
+
+function AutoNotificationsActivity() {
+  const { toast } = useToast();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState('all'); // all | today | 7d | 30d
+  const fetchData = async () => {
+    try {
+      // Fetch logs first (no FK dependency)
+      const { data: logs, error: logErr } = await supabase
+        .from('quiz_notification_log')
+        .select('id, quiz_id, type, sent_at')
+        .order('sent_at', { ascending: false })
+        .limit(50);
+      if (logErr) throw logErr;
+      const list = logs || [];
+
+      // Fetch quiz titles for involved quiz_ids
+      const ids = Array.from(new Set(list.map(r => r.quiz_id).filter(Boolean)));
+      let titleById = {};
+      if (ids.length > 0) {
+        const { data: qrows, error: qErr } = await supabase
+          .from('quizzes')
+          .select('id, title')
+          .in('id', ids);
+        if (qErr) throw qErr;
+        titleById = Object.fromEntries((qrows || []).map(q => [q.id, q.title]));
+      }
+
+      // Attach title for display
+      const enriched = list.map(r => ({ ...r, quiz_title: titleById[r.quiz_id] || 'Quiz' }));
+      setRows(enriched);
+    } catch (e) {
+      toast({ title: 'Load failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { fetchData(); }, []);
+  const filtered = React.useMemo(() => {
+    if (!Array.isArray(rows)) return [];
+    const now = Date.now();
+    let from = 0;
+    if (range === 'today') {
+      const d = new Date(); d.setHours(0,0,0,0); from = d.getTime();
+    } else if (range === '7d') {
+      from = now - 7*24*60*60*1000;
+    } else if (range === '30d') {
+      from = now - 30*24*60*60*1000;
+    }
+    if (!from) return rows;
+    return rows.filter(r => new Date(r.sent_at).getTime() >= from);
+  }, [rows, range]);
+  return (
+    <div className="bg-card border border-border rounded-2xl p-4 shadow-lg mb-6">
+      <h3 className="text-lg font-semibold mb-3 flex items-center"><ListChecks className="w-5 h-5 mr-2"/>Activity: Automatic Quiz Notifications</h3>
+      <div className="flex items-center gap-2 mb-3 text-xs">
+        <span className="text-muted-foreground">Range:</span>
+        {['all','today','7d','30d'].map(k => (
+          <button key={k} onClick={() => setRange(k)} className={`px-2 py-1 rounded border ${range===k?'bg-primary text-primary-foreground':'border-border text-foreground'}`}>{k.toUpperCase()}</button>
+        ))}
       </div>
+      {loading ? (
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-sm text-muted-foreground">No automatic notifications yet.</div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((r) => (
+            <div key={r.id} className="flex items-center justify-between text-sm border border-border rounded-lg px-3 py-2">
+              <div>
+                <div className="font-medium">{r.quiz_title}</div>
+                <div className="text-muted-foreground">Type: {r.type} • {new Date(r.sent_at).toLocaleString()}</div>
+              </div>
+              <Link to={r.type === 'result' ? `/#/results/${r.quiz_id}` : `/#/quiz/${r.quiz_id}`} className="text-primary hover:underline">Open</Link>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BroadcastActivity() {
+  const { toast } = useToast();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [range, setRange] = useState('all'); // all | today | 7d | 30d
+  const fetchData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('id, title, message, created_at, created_by, type')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      setRows(data || []);
+    } catch (e) {
+      toast({ title: 'Load failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => { fetchData(); }, []);
+  const filtered = React.useMemo(() => {
+    if (!Array.isArray(rows)) return [];
+    const now = Date.now();
+    let from = 0;
+    if (range === 'today') {
+      const d = new Date(); d.setHours(0,0,0,0); from = d.getTime();
+    } else if (range === '7d') {
+      from = now - 7*24*60*60*1000;
+    } else if (range === '30d') {
+      from = now - 30*24*60*60*1000;
+    }
+    if (!from) return rows;
+    return rows.filter(r => new Date(r.created_at).getTime() >= from);
+  }, [rows, range]);
+  return (
+    <div className="bg-card border border-border rounded-2xl p-4 shadow-lg mb-6">
+      <h3 className="text-lg font-semibold mb-3 flex items-center"><BellRing className="w-5 h-5 mr-2"/>Activity: Admin Broadcast Pushes</h3>
+      <div className="flex items-center gap-2 mb-3 text-xs">
+        <span className="text-muted-foreground">Range:</span>
+        {['all','today','7d','30d'].map(k => (
+          <button key={k} onClick={() => setRange(k)} className={`px-2 py-1 rounded border ${range===k?'bg-primary text-primary-foreground':'border-border text-foreground'}`}>{k.toUpperCase()}</button>
+        ))}
+      </div>
+      {loading ? (
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-sm text-muted-foreground">No broadcast pushes yet.</div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map((r) => (
+            <div key={r.id} className="text-sm border border-border rounded-lg px-3 py-2">
+              <div className="font-medium">{r.title}</div>
+              <div className="text-muted-foreground whitespace-pre-wrap">{r.message}</div>
+              <div className="text-muted-foreground mt-1 flex items-center gap-2">
+                <span>{new Date(r.created_at).toLocaleString()}</span>
+                {r.type ? (<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted border border-border">{r.type}</span>) : null}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

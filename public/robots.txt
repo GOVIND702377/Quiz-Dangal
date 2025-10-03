@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /admin
+Disallow: /reset-password
+Disallow: /profile
+Sitemap: https://quizdangal.com/sitemap.xml

@@ -81,7 +81,7 @@ const LeaderboardDisplay = ({ leaderboard, currentUser, prizes = [] }) => {
   );
 };
 
-const GoldTrophy = ({ size = 72 }) => {
+const GoldTrophy = ({ size = 72, centered = false, fitParent = false }) => {
   const px = typeof size === 'number' ? `${size}px` : size;
   const [srcIdx, setSrcIdx] = useState(0);
   const sources = [
@@ -94,7 +94,10 @@ const GoldTrophy = ({ size = 72 }) => {
 
   // Directly use provided transparent image; no processing to ensure perfect blending
   return (
-    <div className="relative trophy-float mx-auto mb-4 pointer-events-none" style={{ width: px, height: px }}>
+    <div
+      className={`relative trophy-float pointer-events-none${centered ? '' : ' mx-auto mb-4'}`}
+      style={{ width: fitParent ? '100%' : px, height: fitParent ? '100%' : px }}
+    >
       <div className="trophy-sway w-full h-full">
         <div className="trophy-pulse w-full h-full">
       {srcIdx >= 0 ? (
@@ -206,7 +209,7 @@ const MyQuizzes = () => {
   }, [user]);
 
   useEffect(() => {
-    // Ask for notification permission once
+    // Auto-ask once on My Quizzes page (in addition to join-based prompt)
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {});
     }
@@ -279,24 +282,52 @@ const MyQuizzes = () => {
 
   if (quizzes.length === 0) {
     return (
-      <div className="min-h-screen">
-        <div className="container mx-auto px-4 py-4">
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="text-center text-slate-100">
-            <h1 className="text-2xl font-bold heading-gradient text-shadow mb-4">My Quizzes</h1>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: 0.15 }}
-              className="qd-card rounded-2xl p-8 max-w-md mx-auto shadow-2xl"
-            >
-              <GoldTrophy size={104} />
-              <h3 className="text-xl font-semibold text-white mb-2">No Quizzes Yet</h3>
-              <p className="text-slate-300 mb-6">You haven't joined any quizzes. Play one to see your history!</p>
-              <Button onClick={() => navigate('/')} variant="brand" className="w-full rounded-lg py-2.5 text-sm">
-                <Play className="w-5 h-5 mr-2" /> Play Now
-              </Button>
-            </motion.div>
-          </motion.div>
+      <div className="min-h-screen overflow-x-hidden">
+        <div className="fixed inset-0 overflow-hidden">
+          <div className="container mx-auto h-full px-4">
+            <div className="h-full flex items-start justify-center pt-20">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative text-center text-slate-100 p-2">
+                {/* Keep outside clean: lighter, smaller, clipped blobs */}
+                <div className="pointer-events-none absolute -top-16 -left-16 w-44 h-44 rounded-full bg-indigo-600/10 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-16 -right-16 w-44 h-44 rounded-full bg-fuchsia-600/10 blur-3xl" />
+
+                <h1 className="text-2xl font-bold heading-gradient text-shadow mb-4">My Quizzes</h1>
+
+                {/* Gradient bordered card (no slide animation) */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.06 }}
+                  className="relative max-w-md mx-auto rounded-3xl p-[2px] bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-rose-500 shadow-[0_30px_80px_-20px_rgba(99,102,241,0.25)]"
+                >
+                  <div className="rounded-3xl bg-slate-950/80 backdrop-blur border border-white/10 px-6 py-9">
+                    {/* Trophy emblem */}
+                    <div className="mx-auto mb-4 w-24 h-24 rounded-full p-[2px] bg-gradient-to-b from-amber-400 to-amber-600">
+                      <div className="w-full h-full rounded-full grid place-items-center bg-slate-950/90 p-2">
+                        <GoldTrophy centered fitParent />
+                      </div>
+                    </div>
+
+                    <h3 className="text-xl font-extrabold bg-gradient-to-r from-white to-slate-200 bg-clip-text text-transparent">No Quizzes Yet</h3>
+                    <p className="mt-2 text-sm text-slate-300">Kickstart your journey—join your first quiz and build your streak!</p>
+
+                    {/* Value chips */}
+                    <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-[11px]">
+                      <span className="px-2.5 py-1 rounded-full border border-indigo-500/40 bg-indigo-500/10 text-indigo-200">Daily quizzes</span>
+                      <span className="px-2.5 py-1 rounded-full border border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-200">Win coins</span>
+                      <span className="px-2.5 py-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-200">Leaderboards</span>
+                    </div>
+
+                    <div className="mt-7">
+                      <Button onClick={() => navigate('/')} variant="brand" className="w-full rounded-xl py-3 text-sm font-extrabold shadow-[0_14px_30px_rgba(139,92,246,0.35)] hover:shadow-[0_18px_42px_rgba(139,92,246,0.5)] hover:scale-[1.01] active:scale-[0.99] transition">
+                        <Play className="w-5 h-5 mr-2" /> Explore Quizzes
+                      </Button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -320,9 +351,9 @@ const MyQuizzes = () => {
   });
 
   return (
-  <div className="min-h-screen">
+  <div className="min-h-screen overflow-x-hidden">
       <div className="container mx-auto px-4 py-4">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden">
           <h1 className="text-2xl font-bold heading-gradient text-shadow mb-4 text-center">My Quizzes</h1>
 
           {liveUpcoming.length > 0 && (

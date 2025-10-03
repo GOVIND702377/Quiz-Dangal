@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import SEO from '@/components/SEO';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Loader2, ChevronRight, Search, Zap } from 'lucide-react';
@@ -36,7 +37,6 @@ export default function Leaderboards() {
 
       let data = [];
       if (p === 'all_time') {
-        // Canonical path: v2 first, then single v1 fallback
         const { data: allTime, error: v2Err } = await supabase.rpc('get_all_time_leaderboard_v2', { limit_rows: 100, offset_rows: 0, max_streak_limit: 30 });
         if (!v2Err) {
           data = allTime || [];
@@ -90,11 +90,17 @@ export default function Leaderboards() {
   const myRank = myIndex >= 0 ? myIndex + 1 : null;
 
   return (
-  <div className="relative">
-    {/* Dark colorful backdrop (no pure white) */}
-  {/* Background inherits from global home-bg */}
-    <div className="pointer-events-none absolute inset-0 -z-10 opacity-60 mix-blend-screen [background-image:radial-gradient(circle_at_18%_28%,rgba(99,102,241,0.35),rgba(0,0,0,0)60%),radial-gradient(circle_at_82%_72%,rgba(168,85,247,0.30),rgba(0,0,0,0)65%),radial-gradient(circle_at_50%_50%,rgba(236,72,153,0.18),rgba(0,0,0,0)55%)]" />
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-7">
+    <div className="relative">
+      <SEO
+        title="Leaderboards – Quiz Dangal | Top Quiz Players"
+        description="See the top players on Quiz Dangal leaderboards. Compete in daily opinion and knowledge quizzes, win coins, and climb ranks."
+  canonical="https://quizdangal.com/leaderboards"
+        keywords={[ 'quiz leaderboard','top quiz players','quizdangal leaderboard','daily quiz rankings' ]}
+      />
+      {/* Dark colorful backdrop (no pure white) */}
+      {/* Background inherits from global home-bg */}
+      <div className="pointer-events-none absolute inset-0 -z-10 opacity-60 mix-blend-screen [background-image:radial-gradient(circle_at_18%_28%,rgba(99,102,241,0.35),rgba(0,0,0,0)60%),radial-gradient(circle_at_82%_72%,rgba(168,85,247,0.30),rgba(0,0,0,0)65%),radial-gradient(circle_at_50%_50%,rgba(236,72,153,0.18),rgba(0,0,0,0)55%)]" />
+      <div className="max-w-4xl mx-auto px-4 py-8 space-y-7">
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
           <motion.div
