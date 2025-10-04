@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { supabase } from '@/lib/customSupabaseClient';
+import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Loader2, Receipt, Gift, CheckCircle2, Clock, XCircle, Coins, Wallet as WalletIcon, Search, Sparkles, PartyPopper, ArrowRight, RefreshCw, ArrowUpDown, Copy } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -27,7 +27,7 @@ export default function Redemptions() {
   
 
   const loadRedemptions = useCallback(async () => {
-    if (!user) return;
+    if (!user || !hasSupabaseConfig || !supabase) return;
     setLoading(true);
     const { data } = await supabase
       .from('redemptions')
@@ -39,7 +39,7 @@ export default function Redemptions() {
   }, [user]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !hasSupabaseConfig || !supabase) return;
     let mounted = true;
     const run = async () => {
       await loadRedemptions();
@@ -49,17 +49,24 @@ export default function Redemptions() {
     return () => { mounted = false; clearInterval(interval); };
   }, [user, loadRedemptions]);
 
-  // Load available rewards (shown only when admin has created rewards). No hardcoded items.
+  // Load available rewards from backend catalog (reward_catalog)
   useEffect(() => {
     let mounted = true;
     async function loadRewards() {
+      if (!hasSupabaseConfig || !supabase) {
+        setRewards([]);
+        setRewardsLoading(false);
+        return;
+      }
       setRewardsLoading(true);
       const { data, error } = await supabase
-        .from('rewards')
+        .from('reward_catalog')
         .select('*')
-        .eq('active', true)
-        .order('priority', { ascending: true })
-        .order('created_at', { ascending: false });
+        .eq('is_active', true)
+        // reward_catalog does not have priority/created_at columns in current schema
+        // Sort by lower price first to surface affordable items
+        .order('coins_required', { ascending: true })
+        .order('id', { ascending: false });
       if (!mounted) return;
       if (error) {
         setRewards([]);
@@ -133,18 +140,33 @@ export default function Redemptions() {
   };
 
   const handleConfirmRedeem = async () => {
-    if (!selectedReward) return;
-    // UI-only confirmation for now (no DB mutation to keep business logic unchanged here)
+    if (!selectedReward || !user) return;
+    if (!hasSupabaseConfig || !supabase) {
+      toast({ title: 'Configuration missing', description: 'Supabase env vars are not set. Please configure .env.local', variant: 'destructive' });
+      return;
+    }
+    const price = Number(selectedReward.coins_required || selectedReward.coins || 0);
+    if ((userProfile?.wallet_balance ?? 0) < price) {
+      toast({ title: 'Not enough coins', description: 'Earn more coins to redeem this reward.' });
+      return;
+    }
     try {
       setRedeemSubmitting(true);
-      await new Promise((r) => setTimeout(r, 800));
+      const { data, error } = await supabase.rpc('redeem_from_catalog', {
+        p_user_id: user.id,
+        p_catalog_id: selectedReward.id,
+      });
+      if (error) throw error;
       setRedeemStep('success');
       toast({
         title: 'Redemption requested',
         description: 'Your request has been recorded. You will be notified once it is processed.',
       });
+      // refresh history
+      await loadRedemptions();
     } catch (e) {
-      toast({ title: 'Something went wrong', description: 'Please try again later', variant: 'destructive' });
+      const message = e?.message || 'Please try again later';
+      toast({ title: 'Something went wrong', description: message, variant: 'destructive' });
     } finally {
       setRedeemSubmitting(false);
     }
@@ -181,6 +203,13 @@ export default function Redemptions() {
           {/* removed top-right wallet coins badge as requested */}
         </motion.div>
       </div>
+
+      {/* Dev guard: if Supabase is not configured, show a helpful message */}
+      {!hasSupabaseConfig && (
+        <div className="mb-4 rounded-xl border border-amber-300/30 bg-amber-500/10 p-3 text-amber-100 text-sm">
+          Supabase configuration missing. Create a .env.local file with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable redemptions and history.
+        </div>
+      )}
 
       {/* Top tabs: Rewards | History */}
       <div className="mb-4 flex items-center gap-2">

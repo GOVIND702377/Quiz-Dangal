@@ -3,32 +3,130 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Redirecting...</title>
-  <!-- SPA fallback for GitHub Pages: send unknown paths to root with encoded original URL -->
-  <meta http-equiv="refresh" content="0; url=/?p=%2F" />
+  <title>Redirecting…</title>
+  <!-- SPA fallback for static hosting: silently rewrite unknown paths to index.html -->
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; margin: 2rem; color: #1f2937; }
-    .box { max-width: 640px; margin: 10vh auto; padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 0.75rem; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.06); }
-    code { background: #f3f4f6; padding: 0.15rem 0.35rem; border-radius: 0.35rem; }
+    :root { color-scheme: light dark; }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #020617;
+      color: rgba(255,255,255,0.94);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease-in;
+    }
+    body.show-fallback {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .box {
+      max-width: 560px;
+      width: min(90vw, 560px);
+      padding: 2rem;
+      border-radius: 1.25rem;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(15,23,42,0.78);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 24px 55px rgba(15,23,42,0.45);
+      display: grid;
+      gap: 1rem;
+      text-align: center;
+      transform: translateY(12px);
+      opacity: 0;
+      transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+    }
+    body.show-fallback .box {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    a { color: #38bdf8; }
+    .spinner {
+      width: 44px;
+      height: 44px;
+      margin: 0 auto;
+      border-radius: 999px;
+      border: 3px solid rgba(148,163,184,0.25);
+      border-top-color: #38bdf8;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h1>Redirecting…</h1>
-    <p>Taking you to the correct page.</p>
-  <p>If you are not redirected automatically, <a id="link" href="/">click here</a>.</p>
+  <span class="sr-only" aria-live="polite">Redirecting…</span>
+  <div class="box" id="fallback" role="alert" aria-live="assertive">
+    <div class="spinner" aria-hidden="true"></div>
+    <div>
+      <h1 style="margin: 0; font-size: 1.35rem;">Hold on, taking you there…</h1>
+      <p style="margin: 0; color: rgba(226,232,240,0.82);">We’re opening the right page automatically.</p>
+    </div>
+    <p style="margin: 0; font-size: 0.95rem; color: rgba(226,232,240,0.78);">
+      If nothing happens, <a id="link" href="/">tap here</a>.
+    </p>
   </div>
+  <noscript>
+    <style>body { opacity: 1 !important; pointer-events: auto; background: #fff; color: #1f2937; }
+    .box { opacity: 1 !important; transform: none !important; background: #fff; border-color: #e5e7eb; box-shadow: none; }
+    </style>
+    <div class="box">
+      <h1>Redirecting requires JavaScript</h1>
+      <p><a href="/">Go back to the home page</a>.</p>
+    </div>
+  </noscript>
   <script>
-    (function(l){
+    (function (l, doc) {
+      var SHOW_FALLBACK_AFTER = 1200;
+      var fallbackTimer = setTimeout(function () {
+        doc.body.classList.add('show-fallback');
+      }, SHOW_FALLBACK_AFTER);
+
+      function clearFallback() {
+        clearTimeout(fallbackTimer);
+        fallbackTimer = null;
+      }
+
       try {
-        var full = l.pathname + (l.search || '') + (l.hash || '');
+        var path = l.pathname;
+        var search = l.search || '';
+        var hash = l.hash || '';
+
+        if (search.indexOf('?p=') === 0 || search.indexOf('&p=') > -1) {
+          clearFallback();
+          doc.body.classList.add('show-fallback');
+          return;
+        }
+
+        var full = path + search + hash;
         var encoded = '/?p=' + encodeURIComponent(full);
-        document.getElementById('link').setAttribute('href', encoded);
+        var link = doc.getElementById('link');
+        if (link) link.setAttribute('href', encoded);
+
+        window.addEventListener('beforeunload', clearFallback, { once: true });
         l.replace(encoded);
-      } catch (e) {
+      } catch (err) {
+        clearFallback();
+        doc.body.classList.add('show-fallback');
         l.replace('/');
       }
-    })(window.location);
+    })(window.location, document);
   </script>
 </body>
 </html>

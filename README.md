@@ -113,6 +113,7 @@ Deployment
 - Static site ke liye `npm run build` se `dist/` generate hota hai.
 - Custom domain (`public/CNAME`) ke saath base `'/'` configured hai (`vite.config.js`).
 - GitHub Pages ya kisi static host par `dist/` serve kar sakte hain.
+- GitHub Pages fallback ke liye `public/404.html` silently `/` par rewrite karta hai; normal redirect par page invisible hota hai (no flash) aur sirf 1.2s se zyada delay hone par hi smooth loader + help link show hota hai.
 - Supabase Edge Functions ko Supabase project me deploy aur secrets configure karna zaroori hai.
 
 ## Security & Backup (IMPORTANT)
