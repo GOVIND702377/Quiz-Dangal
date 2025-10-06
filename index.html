@@ -24,6 +24,12 @@
 	<link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png">
 	<meta name="generator" content="Quiz Dangal" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual" />
+	<!-- Security & privacy hardening (frontend-only, no backend dependency) -->
+	<meta name="referrer" content="strict-origin-when-cross-origin" />
+	<meta http-equiv="X-Content-Type-Options" content="nosniff" />
+	<meta name="color-scheme" content="light dark" />
+	<!-- Permissions-Policy: allow notifications (for push), geolocation optional; block unused powerful features -->
+	<meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), fullscreen=*, notifications=*" />
 	<meta name="theme-color" content="#6366f1" />
 	<meta name="apple-mobile-web-app-capable" content="yes" />
 	<meta name="mobile-web-app-capable" content="yes" />
@@ -51,8 +57,6 @@
 	<meta name="twitter:title" content="Quiz Dangal – Play Quizzes, Refer & Earn" />
 	<meta name="twitter:description" content="Play India’s favorite quiz app. Compete in opinion & GK quizzes, climb leaderboards, and Refer & Earn coins. Fast rounds, fair scoring, real rewards—start free today." />
 	<meta name="twitter:image" content="https://quizdangal.com/refer-earn-poster.png?v=1" />
-	<!-- Preload small brand logo used on first paint -->
-	<link rel="preload" as="image" href="/logo.svg" imagesizes="(max-width: 640px) 64px, 80px" />
 	<style>
 		/* Ensure system UI fonts render fast; any web fonts should use swap */
 		@font-face { font-display: swap; }
@@ -107,16 +111,17 @@
 	    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" }
 	  }
 	</script>
-  <script type="module" crossorigin src="/assets/index-b6b68c05.js"></script>
+  <script type="module" crossorigin src="/assets/index-4e80050d.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/react-8a702e3e.js">
   <link rel="modulepreload" crossorigin href="/assets/supabase-4c1332f7.js">
   <link rel="modulepreload" crossorigin href="/assets/router-f2cf3f51.js">
-  <link rel="modulepreload" crossorigin href="/assets/icons-5fed0bfb.js">
-  <link rel="modulepreload" crossorigin href="/assets/motion-511bde03.js">
-  <link rel="stylesheet" href="/assets/index-b8dd9c00.css">
+  <link rel="modulepreload" crossorigin href="/assets/icons-71504e08.js">
+  <link rel="modulepreload" crossorigin href="/assets/motion-f69b6c08.js">
+  <link rel="stylesheet" href="/assets/index-6f0c5b9b.css">
 </head>
 
-<body>
+	<body>
+		<a href="#app-main" class="skip-link" style="position:absolute;left:-999px;top:auto;width:1px;height:1px;overflow:hidden;">Skip to content</a>
 	<!-- Accessible primary heading for crawlers and assistive tech; visually hidden to avoid layout shifts -->
 	<h1 style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">Quiz Dangal – Play & Win Quizzes in India | Opinion &amp; GK | Refer &amp; Earn</h1>
 
