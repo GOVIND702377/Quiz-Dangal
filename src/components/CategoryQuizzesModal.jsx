@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Clock, Trophy, Users } from 'lucide-react';
+import { m, AnimatePresence } from 'framer-motion';
+import { X, Clock, Trophy } from 'lucide-react';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 function statusBadge(s) {
@@ -33,9 +33,9 @@ const CategoryQuizzesModal = ({ open, onClose, category, quizzes, onJoin, joinin
   return (
     <AnimatePresence>
       {open && (
-        <motion.div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+  <m.div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <div className="absolute inset-0 bg-black/60" onClick={onClose} />
-          <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 22 }} className="relative w-full sm:max-w-xl bg-slate-900/95 border border-slate-800 rounded-t-2xl sm:rounded-2xl shadow-2xl p-4 sm:p-5 text-slate-100">
+          <m.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }} transition={{ type: 'spring', stiffness: 260, damping: 22 }} className="relative w-full sm:max-w-xl bg-slate-900/95 border border-slate-800 rounded-t-2xl sm:rounded-2xl shadow-2xl p-4 sm:p-5 text-slate-100">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-lg font-bold capitalize">{category} Quizzes</h3>
               <button onClick={onClose} className="p-2 rounded-lg hover:bg-slate-800"><X className="w-5 h-5" /></button>
@@ -84,8 +84,8 @@ const CategoryQuizzesModal = ({ open, onClose, category, quizzes, onJoin, joinin
                 })}
               </div>
             )}
-          </motion.div>
-        </motion.div>
+          </m.div>
+        </m.div>
       )}
     </AnimatePresence>
   );

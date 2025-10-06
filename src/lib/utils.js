@@ -51,6 +51,30 @@ export function formatTimeOnly(value, opts = {}) {
 	}
 }
 
+// --- Route Prefetch Helper (dynamic import warming) ---
+// Map route paths to lazy page importers so we can prefetch on hover/focus.
+const routePrefetchMap = {
+	'/wallet': () => import('@/pages/Wallet'),
+	'/profile': () => import('@/pages/Profile'),
+	'/leaderboards': () => import('@/pages/Leaderboards'),
+	'/my-quizzes': () => import('@/pages/MyQuizzes'),
+};
+
+const warmed = new Set();
+export function prefetchRoute(path) {
+	try {
+		const loader = routePrefetchMap[path];
+		if (!loader || warmed.has(path)) return;
+		// Use requestIdleCallback if available to avoid jank
+		const run = () => loader().catch(() => {});
+		if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+			window.requestIdleCallback(() => { run(); warmed.add(path); });
+		} else {
+			setTimeout(() => { run(); warmed.add(path); }, 120);
+		}
+	} catch (e) { /* prefetch route failed – non critical */ }
+}
+
 // For HTML <input type="datetime-local"> value attribute (local time, YYYY-MM-DDTHH:mm)
 export function toDatetimeLocalValue(value) {
 	if (!value) return '';

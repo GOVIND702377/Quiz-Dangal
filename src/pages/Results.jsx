@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import QRCode from 'qrcode';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getSignedAvatarUrls } from '@/lib/avatar';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Trophy, Users, ArrowLeft, Share2, Sparkles, MessageCircle } from 'lucide-react';
+import { Trophy, Users, ArrowLeft, Share2, Sparkles } from 'lucide-react';
 
 const Results = () => {
   const { id: quizId } = useParams();
@@ -19,7 +18,7 @@ const Results = () => {
   const [userRank, setUserRank] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
-  const [isParticipant, setIsParticipant] = useState(true);
+  // Removed isParticipant (no longer needed for gating rendering)
   const [timeLeftMs, setTimeLeftMs] = useState(null);
   const [didRefetchAfterCountdown, setDidRefetchAfterCountdown] = useState(false);
   const [posterBlob, setPosterBlob] = useState(null); // cache composed poster for quick share
@@ -33,6 +32,8 @@ const Results = () => {
 
   useEffect(() => {
     fetchResults();
+  // fetchResults stable by identity across quizId change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizId]);
 
   const fetchResults = async () => {
@@ -56,13 +57,14 @@ const Results = () => {
             .eq('user_id', user?.id)
             .maybeSingle();
           const amIn = !!meRow;
-          setIsParticipant(amIn);
           if (!amIn) {
             setErrorMessage('You did not participate in this quiz. Results are visible only to participants.');
             setLoading(false);
             return;
           }
-        } catch {}
+        } catch {
+          // Ignore participant check failure (treat as not participant but don't block overall results attempt)
+        }
       }
 
       // Load leaderboard from quiz_results (RLS-safe, shows only to participants)
@@ -110,7 +112,9 @@ const Results = () => {
                 setLoading(false);
                 return;
               }
-            } catch {}
+            } catch {
+              // Ignore JIT compute failure; results may appear later
+            }
           }
         } else {
           setTimeLeftMs(null);
@@ -163,7 +167,9 @@ const Results = () => {
               }));
           }
         }
-      } catch {}
+      } catch {
+        // Non-critical: avatar enrichment failed; continue with base leaderboard
+      }
 
       // Find user's rank
       const me = normalized.find(p => p.user_id === user?.id);
@@ -224,7 +230,7 @@ const Results = () => {
       const PAD=64, cxMid=W/2; let y = PAD + 12;
       // Big top logo in gradient circle
       const badgeR=140, badgeCY=y+badgeR; ctx.save(); ctx.beginPath(); ctx.arc(cxMid,badgeCY,badgeR,0,Math.PI*2); ctx.closePath(); const bg1=ctx.createLinearGradient(cxMid-badgeR,badgeCY-badgeR,cxMid+badgeR,badgeCY+badgeR); bg1.addColorStop(0,'#1cc5ff'); bg1.addColorStop(1,'#ef47ff'); ctx.fillStyle=bg1; ctx.fill();
-      try { const posterLogo=(import.meta.env.VITE_POSTER_LOGO_URL || '/poster-logo.png'); let logo; try { logo=await loadImage(posterLogo); } catch { logo=await loadImage('/android-chrome-192x192.png'); } const inset=16; const d=(badgeR*2)-inset; ctx.save(); ctx.beginPath(); ctx.arc(cxMid,badgeCY,badgeR-inset/2,0,Math.PI*2); ctx.clip(); ctx.drawImage(logo, Math.round(cxMid-d/2), Math.round(badgeCY-d/2), Math.round(d), Math.round(d)); ctx.restore(); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(cxMid,badgeCY,badgeR-inset/2,0,Math.PI*2); ctx.stroke(); } catch {}
+  try { const posterLogo=(import.meta.env.VITE_POSTER_LOGO_URL || '/poster-logo.png'); let logo; try { logo=await loadImage(posterLogo); } catch (e) { logo=await loadImage('/android-chrome-192x192.png'); } const inset=16; const d=(badgeR*2)-inset; ctx.save(); ctx.beginPath(); ctx.arc(cxMid,badgeCY,badgeR-inset/2,0,Math.PI*2); ctx.clip(); ctx.drawImage(logo, Math.round(cxMid-d/2), Math.round(badgeCY-d/2), Math.round(d), Math.round(d)); ctx.restore(); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(cxMid,badgeCY,badgeR-inset/2,0,Math.PI*2); ctx.stroke(); } catch (e) { /* badge logo draw fail */ }
       ctx.restore(); y = badgeCY + badgeR + 18;
 
       // Header + subtitle
@@ -262,7 +268,7 @@ const Results = () => {
       // Footer with QR
   const footerY = y; const footerH = Math.max(footerMin, Math.min(280, H - PAD - footerY)); roundRect(boxX, footerY, boxW, footerH, 24); ctx.fillStyle='rgba(12,10,36,0.9)'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='rgba(79,70,229,0.45)'; ctx.stroke();
   const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g,'').slice(0,8)).toUpperCase(); const siteBase=(import.meta.env.VITE_PUBLIC_SITE_URL || 'https://www.quizdangal.com').replace(/\/$/,''); const referralUrl = `${siteBase}/?ref=${encodeURIComponent(refCode)}`;
-  const qrSize = Math.min(220, footerH - 72); const cardW = qrSize + 32; const cardH = qrSize + 40; const cardX = boxX + boxW - cardW - 36; const cardY = footerY + Math.max(24, Math.round((footerH - cardH)/2)); roundRect(cardX, cardY, cardW, cardH, 18); ctx.fillStyle='#ffffff'; ctx.fill(); try { const qrCanvas=document.createElement('canvas'); await QRCode.toCanvas(qrCanvas, referralUrl, { width: qrSize, margin: 1, color: { dark:'#000000', light:'#ffffff' } }); ctx.drawImage(qrCanvas, cardX+16, cardY+16, qrSize, qrSize); } catch {}
+  const qrSize = Math.min(220, footerH - 72); const cardW = qrSize + 32; const cardH = qrSize + 40; const cardX = boxX + boxW - cardW - 36; const cardY = footerY + Math.max(24, Math.round((footerH - cardH)/2)); roundRect(cardX, cardY, cardW, cardH, 18); ctx.fillStyle='#ffffff'; ctx.fill(); try { const { default: QRCode } = await import('qrcode'); const qrCanvas=document.createElement('canvas'); await QRCode.toCanvas(qrCanvas, referralUrl, { width: qrSize, margin: 1, color: { dark:'#000000', light:'#ffffff' } }); ctx.drawImage(qrCanvas, cardX+16, cardY+16, qrSize, qrSize); } catch { /* QR generation failed: leave blank */ }
   const leftX = boxX + 36; const maxLeft = (cardX - 24) - leftX; ctx.fillStyle='rgba(255,255,255,0.96)'; setFont('900',48); ctx.fillText(trimToWidth('🧠 Play & Win', maxLeft), leftX, footerY + 36);
   ctx.fillStyle='rgba(203,213,225,0.98)'; setFont('800',36); ctx.fillText(trimToWidth('🌐 www.quizdangal.com', maxLeft), leftX, footerY + 36 + 54);
   setFont('900',44); ctx.fillStyle='rgba(255,255,255,0.96)'; const lbl='🔗 Referral: '; const lblW=measureW(lbl); ctx.fillText(trimToWidth(lbl, maxLeft), leftX, footerY + 36 + 54 + 62); ctx.fillStyle='rgba(0,255,198,1)'; ctx.fillText(trimToWidth(refCode, Math.max(0, maxLeft - lblW - 8)), leftX + lblW, footerY + 36 + 54 + 62);
@@ -313,16 +319,7 @@ const Results = () => {
   };
 
   // Build share text and URL (with referral)
-  const buildSharePayload = () => {
-    const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g, '').slice(0, 8));
-  const site = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://www.quizdangal.com');
-    const base = site.replace(/\/$/, '');
-    const resultUrl = `${base}/results/${quizId}?ref=${encodeURIComponent(refCode)}`;
-    const shareText = userRank
-      ? `I scored ${userRank.score} and rank #${userRank.rank} in ${quiz?.title || 'Quiz'} on Quiz Dangal! Play now: ${resultUrl}`
-      : `Check out the results of ${quiz?.title || 'Quiz'} on Quiz Dangal! ${resultUrl}`;
-    return { refCode, site: base, resultUrl, shareText };
-  };
+  // buildSharePayload removed (poster-only sharing flow now)
 
   // Direct device share with poster only (no text)
   const shareResultDirect = async () => {
@@ -373,7 +370,9 @@ const Results = () => {
           const a = document.createElement('a'); a.href = url; a.download = 'quiz-dangal-result.jpg'; a.rel = 'noopener';
           document.body.appendChild(a); a.click(); document.body.removeChild(a);
           setTimeout(() => URL.revokeObjectURL(url), 1500);
-        } catch {}
+        } catch {
+          // Silent fallback: if download fails we still proceed to open WhatsApp
+        }
       }
       const ua = navigator.userAgent || '';
       const isAndroid = /Android/i.test(ua);
@@ -404,7 +403,7 @@ const Results = () => {
     return (
       <div className="min-h-screen p-4 flex items-center justify-center">
         <div className="qd-card rounded-2xl p-6 shadow-lg text-center max-w-md w-full text-slate-100">
-          <h2 className="text-2xl font-bold mb-2 text-white">Couldn\'t load results</h2>
+          <h2 className="text-2xl font-bold mb-2 text-white">Couldn&apos;t load results</h2>
           <p className="text-slate-300 mb-4">{errorMessage}</p>
           <div className="flex justify-center gap-3">
             <Button variant="brand" onClick={handleRetry}>Retry</Button>
@@ -537,14 +536,14 @@ const Results = () => {
               const prize = (participant.rank && Array.isArray(quiz?.prizes) && quiz.prizes[participant.rank - 1]) ? quiz.prizes[participant.rank - 1] : 0;
               const isMe = participant.user_id === user?.id;
               return (
-                <motion.div key={participant.id} variants={itemVariants} initial="hidden" animate="show" className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${isMe ? 'bg-indigo-950/40 border-indigo-700/40 ring-1 ring-indigo-500/20' : index<3 ? 'bg-slate-900/70 border-slate-700/60' : 'bg-slate-950/30 border-slate-800 hover:bg-slate-900/60'}`}>
+                <m.div key={participant.id} variants={itemVariants} initial="hidden" animate="show" className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${isMe ? 'bg-indigo-950/40 border-indigo-700/40 ring-1 ring-indigo-500/20' : index<3 ? 'bg-slate-900/70 border-slate-700/60' : 'bg-slate-950/30 border-slate-800 hover:bg-slate-900/60'}`}>
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-md grid place-items-center text-xs font-bold bg-slate-800 text-slate-100 ring-1 ring-white/10">
                       <span>{participant.rank || index + 1}</span>
                     </div>
                     <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-bold">
                       {participant.profiles?.avatar_url ? (
-                        <img src={participant.profiles.avatar_url} alt="avatar" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                        <img src={participant.profiles.avatar_url} alt={participant.profiles.full_name ? `${participant.profiles.full_name} avatar` : 'User avatar'} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                       ) : (
                         <span>{(participant.profiles?.full_name || participant.profiles?.username || 'U').charAt(0).toUpperCase()}</span>
                       )}
@@ -566,7 +565,7 @@ const Results = () => {
                       <p className="text-[10px] text-slate-400 leading-none">Prize</p>
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
               );
             })}
           </div>

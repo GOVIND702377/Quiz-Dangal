@@ -1,26 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 // removed Button import; using Link for consistency across actions
-import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
-import { Coins, Share2, Gift, Trophy, ArrowDownRight, ArrowUpRight, UserPlus, RefreshCcw, ShoppingBag, LogOut, Wallet as WalletIcon, Sparkles, Gamepad2 } from 'lucide-react';
+import { Coins, Share2, Gift, Trophy, ArrowDownRight, ArrowUpRight, UserPlus, RefreshCcw, ShoppingBag, LogOut, Wallet as WalletIcon, Gamepad2 } from 'lucide-react';
 // useNavigate not needed; using Link for navigation
 
 const Wallet = () => {
-  const { toast } = useToast();
+  // removed toast (unused)
   const { user, userProfile } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [bouncing, setBouncing] = useState(false);
-  const [burstKey, setBurstKey] = useState(0);
+  // burstKey animation removed (unused)
   const [rippleKey, setRippleKey] = useState(0);
   // Refer & Earn now opens as a full page (/refer). Modal toggle removed.
 
   // Align with DB check constraint on transactions.type
-  const allowedTypes = ['credit','reward','bonus','referral','daily_login','quiz_reward','purchase','debit','refund','join_fee','prize'];
-  const positiveTypes = ['reward','bonus','credit','referral','refund','daily_login','quiz_reward','prize'];
+  const allowedTypes = useMemo(() => ['credit','reward','bonus','referral','daily_login','quiz_reward','purchase','debit','refund','join_fee','prize'], []);
+  const positiveTypes = useMemo(() => ['reward','bonus','credit','referral','refund','daily_login','quiz_reward','prize'], []);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -45,7 +44,7 @@ const Wallet = () => {
       }
     };
     fetchTransactions();
-  }, [user]);
+  }, [user, allowedTypes]);
 
   const walletBalance = Number(userProfile?.wallet_balance || 0);
   const [prevBalance, setPrevBalance] = useState(walletBalance);
@@ -61,12 +60,7 @@ const Wallet = () => {
   const formatCoins = (n) => Number(n || 0).toLocaleString();
 
   // Quick stats from the last 10 transactions (visible list)
-  const earnedLast10 = transactions
-    .filter((t) => positiveTypes.includes(String(t?.type || '').toLowerCase()))
-    .reduce((sum, t) => sum + Math.abs(Number(t?.amount) || 0), 0);
-  const spentLast10 = transactions
-    .filter((t) => !positiveTypes.includes(String(t?.type || '').toLowerCase()))
-    .reduce((sum, t) => sum + Math.abs(Number(t?.amount) || 0), 0);
+  // removed unused earnedLast10 / spentLast10 aggregates
 
   const txMeta = (type) => {
     const t = String(type || '').toLowerCase();
@@ -83,18 +77,18 @@ const Wallet = () => {
     <div className="relative mx-auto max-w-5xl px-4 py-6">
       {/* Soft gradient mesh backdrop */}
       <div className="absolute inset-0 -z-10 opacity-70 mix-blend-screen [background-image:radial-gradient(circle_at_18%_28%,rgba(56,189,248,0.25),rgba(0,0,0,0)60%),radial-gradient(circle_at_82%_72%,rgba(192,132,252,0.22),rgba(0,0,0,0)65%),radial-gradient(circle_at_50%_50%,rgba(244,114,182,0.15),rgba(0,0,0,0)55%)]" />
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+  <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
         <h1 className="text-3xl md:text-4xl font-extrabold text-center mb-5 bg-gradient-to-r from-cyan-300 via-emerald-300 to-amber-300 bg-clip-text text-transparent tracking-tight">Wallet</h1>
 
         {/* Balance + quick actions */}
-        <motion.div
+  <m.div
           initial={{ opacity: 0, scale: 0.96 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.05 }}
           className="relative overflow-hidden rounded-3xl p-6 md:p-7 mb-6 bg-white/[0.03] backdrop-blur-xl border border-white/10 shadow-2xl"
         >
           {/* sheen */}
-          <motion.div
+          <m.div
             aria-hidden
             className="pointer-events-none absolute -inset-10 bg-[conic-gradient(from_210deg_at_50%_50%,rgba(99,102,241,0.15),rgba(139,92,246,0.1),rgba(56,189,248,0.12),transparent_60%)]"
             initial={{ rotate: 0 }}
@@ -105,15 +99,15 @@ const Wallet = () => {
           <div className="relative flex flex-col md:flex-row md:items-center gap-6">
             {/* balance */}
             <div className="flex-1 flex items-start gap-4">
-              <motion.div
+              <m.div
                 animate={bouncing ? { scale: [1, 1.12, 1] } : {}}
                 transition={{ duration: 0.6, ease: 'easeOut' }}
                 className="relative w-14 h-14 md:w-16 md:h-16 shrink-0 aspect-square rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(245,158,11,0.35)] ring-2 ring-amber-300/50 bg-[linear-gradient(140deg,#ffe9b0,#f9cf55,#f6b530,#f9cf55,#ffe9b0)]"
                 aria-hidden
               >
                 <Coins size={28} className="text-white drop-shadow" />
-                <motion.span className="pointer-events-none absolute inset-0 rounded-full" initial={{ opacity: 0.25 }} animate={{ opacity: [0.2, 0.45, 0.2] }} transition={{ duration: 2.2, repeat: Infinity }} />
-              </motion.div>
+                <m.span className="pointer-events-none absolute inset-0 rounded-full" initial={{ opacity: 0.25 }} animate={{ opacity: [0.2, 0.45, 0.2] }} transition={{ duration: 2.2, repeat: Infinity }} />
+              </m.div>
               <div className="min-w-0">
                 <div className="text-xs uppercase tracking-widest text-slate-300/70 font-semibold">Coins Balance</div>
                 <div className="text-[2.2rem] md:text-[2.6rem] font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-amber-200 via-yellow-200 to-orange-300 leading-tight drop-shadow-sm">
@@ -137,13 +131,9 @@ const Wallet = () => {
               <Link
                 to="/redemptions"
                 className="relative inline-flex w-full items-center justify-center gap-2 px-4 py-3 rounded-2xl text-sm font-bold bg-gradient-to-r from-violet-500 via-fuchsia-500 to-pink-500 text-white shadow-[0_8px_22px_rgba(139,92,246,0.45)] hover:shadow-[0_12px_28px_rgba(139,92,246,0.55)] hover:scale-[1.02] active:scale-[0.98] transition border border-fuchsia-300/40"
-                onMouseEnter={() => setBurstKey((k) => k + 1)}
-                onClick={() => {
-                  setBurstKey((k) => k + 1);
-                  setRippleKey((k) => k + 1);
-                }}
+                onClick={() => setRippleKey((k) => k + 1)}
               >
-                <motion.span
+                <m.span
                   key={rippleKey}
                   className="pointer-events-none absolute inset-0 m-auto rounded-full"
                   initial={{ width: 0, height: 0, opacity: 0.35, background: 'radial-gradient(circle, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 70%)' }}
@@ -157,9 +147,9 @@ const Wallet = () => {
             </div>
           </div>
           {/* How to earn chips moved to their own section below */}
-        </motion.div>
+  </m.div>
         {/* Separated actions: Play Quizzes & Refer Friends */}
-        <motion.div
+  <m.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, delay: 0.08 }}
@@ -186,11 +176,11 @@ const Wallet = () => {
             {/* spacer to balance grid on sm+ */}
             <div className="hidden sm:block" />
           </div>
-        </motion.div>
+  </m.div>
         {/* Featured rewards banner removed as requested */}
 
         {/* Recent Activity */}
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.12 }} className="qd-card rounded-3xl p-6 shadow-xl relative overflow-hidden">
+  <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.12 }} className="qd-card rounded-3xl p-6 shadow-xl relative overflow-hidden">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-semibold bg-gradient-to-r from-indigo-200 via-fuchsia-200 to-violet-200 bg-clip-text text-transparent drop-shadow">Recent Activity</h3>
           </div>
@@ -230,7 +220,7 @@ const Wallet = () => {
                 const meta = txMeta(type);
                 const Icon = meta.icon;
                 return (
-                  <motion.div
+                  <m.div
                     key={t.id}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0, scale: [0.99, 1] }}
@@ -253,13 +243,13 @@ const Wallet = () => {
                       {isPositive ? '+' : '-'}{formatCoins(Math.abs(Number(t.amount) || 0))}
                       <span className="text-[10px] uppercase tracking-wider text-slate-400/70 font-semibold">coins</span>
                     </div>
-                  </motion.div>
+                  </m.div>
                 );
               })}
             </div>
           )}
-        </motion.div>
-      </motion.div>
+        </m.div>
+      </m.div>
     </div>
   );
 };

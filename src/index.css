@@ -518,6 +518,23 @@ input:focus, textarea:focus, select:focus {
 /* Circular FAB helper when combined with size classes */
 .btn-fire.rounded-full { box-shadow: 0 12px 26px rgba(249,115,22,0.45); }
 .pill-glass:active { transform:translateY(1px) scale(.97); box-shadow:0 3px 10px -4px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.22) inset; }
+
+/* Skip link (accessible keyboard jump) */
+.skip-link:focus {
+  position: fixed !important;
+  left: 50% !important;
+  top: 10px !important;
+  transform: translateX(-50%);
+  width: auto !important;
+  height: auto !important;
+  padding: 0.75rem 1.25rem;
+  background: #111827;
+  color: #ffffff;
+  z-index: 10000;
+  border-radius: 0.75rem;
+  outline: 2px solid #6366f1;
+  box-shadow: 0 6px 18px -6px rgba(0,0,0,0.6);
+}
 @keyframes pillSheen { 0%{ left:-55px; opacity:0;} 15%{opacity:1;} 55%{ left:120%; opacity:0.85;} 100%{ left:140%; opacity:0;} }
 .pill-sm-tight { padding:4px 14px; gap:8px; }
 

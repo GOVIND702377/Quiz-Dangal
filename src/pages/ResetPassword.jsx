@@ -41,13 +41,13 @@ export default function ResetPassword() {
       const code = extractCode();
       if (!code) return;
       try {
-        const { data, error } = await supabase.auth.exchangeCodeForSession({ code });
-        if (error) throw error;
+  const { error } = await supabase.auth.exchangeCodeForSession({ code });
+  if (error) throw error;
         // Clean code from URL to avoid re-exchange on refresh
         try {
           const cleanUrl = window.location.origin + window.location.pathname + (window.location.hash.split('?')[0] || '');
           window.history.replaceState({}, document.title, cleanUrl);
-        } catch {}
+  } catch (e) { /* token check fail */ }
         setInRecovery(true);
       } catch (e) {
         // Show a friendly message but keep the form visible in case hash tokens exist
@@ -58,11 +58,11 @@ export default function ResetPassword() {
     // 2) If the user arrives already signed-in on /reset-password (Supabase magic link), allow reset
     (async () => {
       try {
-        const { data } = await supabase.auth.getSession();
-        if (data?.session && window.location.pathname.includes('/reset-password')) {
+  const { data: sessData } = await supabase.auth.getSession();
+  if (sessData?.session && window.location.pathname.includes('/reset-password')) {
           setInRecovery(true);
         }
-      } catch {}
+  } catch (e) { /* password update fail */ }
     })();
 
     // 3) React to auth events
@@ -87,7 +87,7 @@ export default function ResetPassword() {
       if (error) throw error;
   setMessage('Password updated! Redirecting to sign in…');
   // For security: end any existing session that came from the recovery link
-  try { await supabase.auth.signOut(); } catch {}
+  try { await supabase.auth.signOut(); } catch (e) { /* signOut after reset fail */ }
   // Redirect with success flag; replace to prevent navigating back to reset page
   navigate('/login?reset=1', { replace: true });
     } catch (err) {

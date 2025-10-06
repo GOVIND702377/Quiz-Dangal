@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { NOTIFICATION_PROMPT_DELAY_MS } from '@/constants';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -23,7 +24,7 @@ const NotificationPermissionPrompt = () => {
       if (typeof Notification !== 'undefined' && Notification.permission !== 'default') {
         localStorage.setItem(storageKey, 'true');
       }
-    } catch {}
+  } catch (e) { /* storage set failed */ }
   }, [storageKey]);
 
   useEffect(() => {
@@ -36,7 +37,7 @@ const NotificationPermissionPrompt = () => {
       if (alreadyDecided) return;
 
       // Show after 10 seconds from login/mount
-      timerRef.current = setTimeout(() => setOpen(true), 10000);
+  timerRef.current = setTimeout(() => setOpen(true), NOTIFICATION_PROMPT_DELAY_MS);
       return () => {
         if (timerRef.current) clearTimeout(timerRef.current);
       };
@@ -55,7 +56,7 @@ const NotificationPermissionPrompt = () => {
       if (typeof Notification !== 'undefined' && Notification.permission !== 'default') {
         localStorage.setItem(storageKey, 'true');
       }
-    } catch {}
+  } catch (e) { /* ignore permission check error */ }
     setOpen(false);
   };
 

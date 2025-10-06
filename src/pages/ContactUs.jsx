@@ -56,7 +56,7 @@ const ContactUs = () => {
       <div className="text-center mb-8">
   <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-4">Contact Us</h1>
   <p className="text-lg text-slate-300 leading-relaxed max-w-2xl mx-auto">
-          We value your feedback and are here to assist you. If you have any questions, concerns, or suggestions, please don't hesitate to reach out.
+          We value your feedback and are here to assist you. If you have any questions, concerns, or suggestions, please don&apos;t hesitate to reach out.
         </p>
       </div>
       

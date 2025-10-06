@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { FileText, Calendar, Shield, Users, Info, Database, EyeOff, Repeat, CheckCircle } from 'lucide-react';
 import { getBrandGradient } from '@/lib/brand';
@@ -72,7 +72,7 @@ const PrivacyPolicy = () => {
         <meta name="description" content="How Quiz Dangal collects, uses, and protects your personal data." />
       </Helmet>
 
-      <motion.div
+  <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -86,11 +86,11 @@ const PrivacyPolicy = () => {
         <p className="text-lg text-slate-300 leading-relaxed max-w-3xl mx-auto">
           At Quiz Dangal, we value your privacy and are committed to protecting your personal data. By using the app, you agree to this Privacy Policy.
         </p>
-      </motion.div>
+  </m.div>
 
       <div className="space-y-6">
         {sections.map((section, index) => (
-          <motion.div
+          <m.div
             key={index}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -105,7 +105,7 @@ const PrivacyPolicy = () => {
             </div>
             <div className="space-y-3 ml-0 md:ml-16">
               {section.content.map((item, i) => (
-                <motion.div
+                <m.div
                   key={i}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -114,14 +114,14 @@ const PrivacyPolicy = () => {
                 >
                   <div className="w-2 h-2 bg-gradient-to-r from-indigo-600 to-fuchsia-600 rounded-full mt-2 flex-shrink-0"></div>
                   <p className="text-slate-300 text-sm leading-relaxed">{item}</p>
-                </motion.div>
+                </m.div>
               ))}
             </div>
-          </motion.div>
+          </m.div>
         ))}
       </div>
 
-      <motion.div
+  <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 1.2 }}
@@ -131,7 +131,7 @@ const PrivacyPolicy = () => {
         <h3 className="text-xl font-bold bg-gradient-to-r from-violet-300 via-indigo-200 to-fuchsia-300 bg-clip-text text-transparent mb-3">Questions About This Policy?</h3>
         <p className="text-slate-300 leading-relaxed mb-2">We’re here to help.</p>
   <p className="text-slate-400 text-sm">Contact: support@quizdangal.com</p>
-      </motion.div>
+  </m.div>
       </div>
     </div>
   );

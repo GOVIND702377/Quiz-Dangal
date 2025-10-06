@@ -110,7 +110,7 @@ ${referralLink}`;
         await navigator.share({ title: 'Quiz Dangal', text: textPayload });
         return;
       }
-    } catch {}
+  } catch (e) { /* referral copy fail */ }
 
     try {
       const encoded = encodeURIComponent(textPayload);
@@ -132,7 +132,7 @@ ${referralLink}`;
   if (openNew(waWeb)) return;
   const tg = `https://t.me/share/url?text=${encodeURIComponent(textPayload)}`;
   openNew(tg);
-    } catch {}
+  } catch (e) { /* share api fail */ }
   };
 
   // Dedicated WhatsApp button (deep link + fallback) for Refer & Earn
@@ -156,7 +156,7 @@ ${referralLink}`;
         window.location.href = waDeep; setTimeout(() => { if (!document.hidden) window.location.href = waWeb; }, 700); return;
       }
       openNew(waWeb);
-    } catch {}
+  } catch (e) { /* poster generation fail */ }
   };
 
   return (

@@ -2,9 +2,8 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/customSupabaseClient";
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { usePushNotifications } from "@/hooks/usePushNotifications";
 import { Button } from "@/components/ui/button";
-import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Share2, Sparkles, BellRing, Coins } from 'lucide-react';
+import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Share2, Sparkles, Coins } from 'lucide-react';
 import ProfileUpdateModal from '@/components/ProfileUpdateModal';
 
 export default function Profile() {
@@ -56,7 +55,8 @@ export default function Profile() {
   // Refer & Earn now opens as full page (/refer)
   // Language modal removed
   const fileInputRef = useRef(null);
-  const { isSubscribed, subscribeToPush, unsubscribeFromPush, error: pushError } = usePushNotifications();
+  // Push notification subscription options not used on this simplified profile page now
+  // const { isSubscribed, subscribeToPush, unsubscribeFromPush, error: pushError } = usePushNotifications();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -104,7 +104,7 @@ export default function Profile() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [calcLevelFromCoins, computeNextInfo]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -207,7 +207,7 @@ export default function Profile() {
                   <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-indigo-400/20 via-fuchsia-400/20 to-transparent blur-[3px] animate-spin" style={{ animationDuration: '9s' }} />
                   <div className={`relative w-[5.5rem] h-[5.5rem] rounded-full overflow-hidden flex items-center justify-center text-slate-100 font-bold ring-2 ring-offset-2 ring-offset-slate-900 ${getLevelRingClass(derivedLevel)} bg-gradient-to-br from-slate-800 to-slate-700 shadow-md`}>
                     {avatarUrl ? (
-                      <img src={avatarUrl} alt="avatar" className="w-full h-full object-cover" loading="lazy" decoding="async" />
+                      <img src={avatarUrl} alt={(profile?.full_name || profile?.username) ? `${profile.full_name || profile.username} avatar` : 'User avatar'} className="w-full h-full object-cover" loading="lazy" decoding="async" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <span className="text-2xl">

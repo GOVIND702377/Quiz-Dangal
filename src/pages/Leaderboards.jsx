@@ -3,7 +3,7 @@ import SEO from '@/components/SEO';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Loader2, ChevronRight, Search, Zap } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const periods = [
@@ -103,7 +103,7 @@ export default function Leaderboards() {
       <div className="max-w-4xl mx-auto px-4 py-8 space-y-7">
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <motion.div
+          <m.div
             className="relative w-8 h-8 shrink-0"
             initial={{ rotate: -3, y: 0 }}
             animate={{ rotate: [-3, 3, -3], y: [0, -2, 0] }}
@@ -114,7 +114,7 @@ export default function Leaderboards() {
               className="pointer-events-none absolute -inset-1 rounded-full bg-[radial-gradient(circle,rgba(255,215,0,0.35),rgba(0,0,0,0))] blur-[2px]"
               style={{ zIndex: 0 }}
             />
-            <motion.img
+            <m.img
               src={`${import.meta.env.BASE_URL}Trophy.png`}
               alt="Trophy"
               className="absolute inset-0 w-full h-full object-contain drop-shadow-md select-none"
@@ -128,7 +128,7 @@ export default function Leaderboards() {
               whileHover={{ scale: 1.05 }}
               transition={{ type: 'spring', stiffness: 250, damping: 18 }}
             />
-          </motion.div>
+          </m.div>
           <h1 className="text-3xl font-extrabold text-white text-shadow tracking-tight">Leaderboards</h1>
         </div>
   <p className="text-slate-200/85 text-sm">Top players by performance & consistency</p>
@@ -158,7 +158,7 @@ export default function Leaderboards() {
 
       <AnimatePresence>
         {(!loading && !error && rows.length >= 1) && (
-          <motion.div layout className="grid grid-cols-3 gap-4">
+          <m.div layout className="grid grid-cols-3 gap-4">
             {[2,1,3].map((pos, i) => {
               const r = rows[pos-1];
               if (!r) return <div key={`podium-empty-${i}`}></div>;
@@ -170,7 +170,7 @@ export default function Leaderboards() {
                   ? { circle:'bg-[linear-gradient(145deg,#f5f7fa_0%,#d9e2ec_30%,#c2ccd6_55%,#e4ebf2_85%,#ffffff_100%)] text-slate-700', card:'from-[#42506a40] via-[#bcc7d214] to-[#4a3a7a40]', border:'border-slate-300/50' }
                   : { circle:'bg-[linear-gradient(140deg,#ffe7d0_0%,#ffc891_25%,#f7a350_55%,#ffc891_78%,#ffe7d0_100%)] text-orange-800', card:'from-[#6b3f2640] via-[#ffb77414] to-[#5b367a40]', border:'border-orange-300/50' };
               return (
-                <motion.div key={pos} initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className={`relative flex items-end justify-center rounded-2xl ${heightClass} overflow-hidden border ${medalClasses.border} bg-slate-800/80 shadow-xl`}>  
+                <m.div key={pos} initial={{opacity:0, y:20}} animate={{opacity:1, y:0}} className={`relative flex items-end justify-center rounded-2xl ${heightClass} overflow-hidden border ${medalClasses.border} bg-slate-800/80 shadow-xl`}>
                   {/* sheen */}
                   <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute -top-1/3 left-1/4 w-2/3 h-full rotate-12 bg-gradient-to-b from-white/25 via-transparent to-transparent opacity-40" />
@@ -185,10 +185,10 @@ export default function Leaderboards() {
                     <div className="text-[11px] font-semibold tracking-wide text-white max-w-full truncate">{r.username?`@${r.username}`:(r.full_name || 'Anonymous')}</div>
                     <div className="text-[11px] font-semibold tracking-wider text-slate-100 flex items-center gap-1"><span className="font-mono text-[12px] bg-gradient-to-r from-indigo-200 via-fuchsia-200 to-violet-200 bg-clip-text text-transparent drop-shadow-sm">{(r.leaderboard_score ?? 0).toFixed(2)}</span><span className="text-slate-200/80">SCORE</span></div>
                   </div>
-                </motion.div>
+                </m.div>
               );
             })}
-          </motion.div>
+          </m.div>
         )}
       </AnimatePresence>
 
@@ -237,26 +237,16 @@ export default function Leaderboards() {
             )}
           </div>
         ) : (
-          <motion.div layout className="flex flex-col gap-3">
+          <m.div layout className="flex flex-col gap-3">
     {filteredRows.map((r, i) => {
               const rank = r.rank || i + 1;
               const highlight = myRank === rank;
-              const top3 = rank <= 3;
-              const top10 = rank <= 10;
+              const top3 = rank <= 3; // removed unused top10 variable
               const win = Math.min(100, r.win_rate || 0);
-              const baseGrad = top3
-                ? 'from-amber-400/15 via-yellow-400/5 to-transparent'
-                : top10
-      ? 'from-indigo-500/20 via-violet-500/10 to-transparent'
-      : 'from-indigo-400/5 via-violet-400/5 to-transparent';
-              const borderColor = top3
-                ? 'border-amber-300/60'
-                : top10
-                  ? 'border-indigo-300/60'
-                  : 'border-gray-200';
+              // removed unused baseGrad & borderColor variables
               const name = r.username ? `@${r.username}` : (r.full_name || 'Anonymous');
               return (
-                <motion.div
+                <m.div
                   key={r.user_id || `row-${rank}-${i}`}
                   initial={{opacity:0,y:8}}
                   animate={{opacity:1,y:0}}
@@ -283,11 +273,11 @@ export default function Leaderboards() {
                     <div className="bg-gradient-to-r from-slate-50 via-fuchsia-100 to-violet-100 bg-clip-text text-transparent drop-shadow-sm font-mono tabular-nums tracking-tight">{Number(r.leaderboard_score ?? 0).toFixed(2)}</div>
                     <div className="text-[11px] font-semibold text-slate-200/95 tracking-wider drop-shadow">Score</div>
                   </div>
-                </motion.div>
+                </m.div>
               );
             })}
             <div className="flex justify-end text-[11px] uppercase tracking-wide text-indigo-400/70 mt-2 items-center">Showing {filteredRows.length} of {rows.length}<ChevronRight className="w-3 h-3 ml-1" /></div>
-          </motion.div>
+          </m.div>
         )}
       </div>
     </div>

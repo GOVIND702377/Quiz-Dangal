@@ -1,7 +1,7 @@
 // Clean rebuilt Home.jsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import SEO from '@/components/SEO';
-import { motion, AnimatePresence } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -22,12 +22,12 @@ const HOME_TILES = [
 
 // Gradients removed for minimal solid theme
 
-const accentFor = (i) => ['a','b','c','d'][i % 4];
-const vividFor = (i) => ['1','2','3','4'][i % 4];
-const Tile = ({ tile, quizzes, onJoin, index, joiningId, onOpenList, navigateTo }) => {
+// Removed unused accentFor and vividFor helpers
+const Tile = ({ tile, quizzes, index, navigateTo }) => {
   // pick active or upcoming by TIME (ignore possibly stale status)
   const now = Date.now();
-  const relevant = quizzes
+  // Filter & sort only for existence side-effects (result not stored)
+  quizzes
     .filter(q => (q.category || '').toLowerCase() === tile.slug.toLowerCase())
     .filter(q => {
       const st = q.start_time ? new Date(q.start_time).getTime() : 0;
@@ -37,24 +37,15 @@ const Tile = ({ tile, quizzes, onJoin, index, joiningId, onOpenList, navigateTo 
       return isActive || isUpcoming;
     })
     .sort((a,b) => new Date(a.start_time || a.end_time || 0) - new Date(b.start_time || b.end_time || 0));
-  const quiz = relevant[0];
-  // Accurate total count for this category: only active or upcoming quizzes
-  const totalCount = relevant.length;
-  const isLoading = joiningId && quiz && joiningId === quiz.id;
+  // removed quiz/totalCount/isLoading (simplified tile)
   const Icon = tile.icon;
   const variants = ['neon-orange', 'neon-purple', 'neon-teal', 'neon-pink'];
   // Palette for badge per tile
-  const palettes = [
-    { from: 'from-rose-500', to: 'to-amber-400' },
-    { from: 'from-violet-500', to: 'to-indigo-400' },
-    { from: 'from-emerald-500', to: 'to-teal-400' },
-    { from: 'from-sky-500', to: 'to-cyan-400' },
-  ];
-  const pal = palettes[index % palettes.length];
+  // removed palettes array
   // Always show PLAY instead of SOON/other states (as requested)
   const label = 'PLAY';
   return (
-      <motion.button
+  <m.button
       type="button"
       initial={{ opacity: 0, scale: 0.96 }}
       animate={{ opacity: 1, scale: 1 }}
@@ -75,18 +66,18 @@ const Tile = ({ tile, quizzes, onJoin, index, joiningId, onOpenList, navigateTo 
           <span className="play-pill group-hover:shadow-lg group-hover:brightness-110">{label}</span>
         </div>
       </div>
-      </motion.button>
+  </m.button>
   );
 };
 
 const Home = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { user, userProfile, refreshUserProfile } = useAuth();
+  const { user } = useAuth();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [streakModal, setStreakModal] = useState({ open: false, day: 0, coins: 0 });
-  const claimingRef = useRef(false);
+  // removed claimingRef (unused)
   const [joiningId, setJoiningId] = useState(null);
   // Removed list modal state
 
@@ -160,7 +151,7 @@ const Home = () => {
       <div className="relative z-10 h-full flex items-center justify-center px-4 mt-1 sm:mt-2 mb-6">
         <div className="w-full max-w-[420px]">
           {/* Intro header above categories */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.25 }}
@@ -173,7 +164,7 @@ const Home = () => {
               Compete, earn, repeat — where winners never chill out.
             </p>
             <div className="mx-auto mt-2 h-[2px] w-24 rounded-full bg-gradient-to-r from-indigo-400/60 via-fuchsia-400/60 to-pink-400/60" />
-          </motion.div>
+          </m.div>
           <div className="grid grid-cols-2 gap-3">
             {loading
               ? Array.from({ length: 4 }).map((_, i) => (

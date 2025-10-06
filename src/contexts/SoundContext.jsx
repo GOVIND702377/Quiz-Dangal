@@ -114,7 +114,7 @@ function useAudioEngine() {
       const gain = ctx.createGain();
       const delay = (preset.startDelayMs ?? 0) / 1000;
       const t0 = now + delay;
-  let source;
+  let source; // initialized per tone type
 
       if (preset.type === 'noise') {
         // Reuse a small noise buffer for all noise clicks
@@ -132,7 +132,7 @@ function useAudioEngine() {
         const osc = ctx.createOscillator();
         osc.type = preset.type || 'sine';
         const baseFreq = preset.freq || 440;
-        try { osc.frequency.setValueAtTime(baseFreq, t0); } catch {}
+  try { osc.frequency.setValueAtTime(baseFreq, t0); } catch (e) { /* freq set unsupported */ }
         source = osc;
       }
 
@@ -142,35 +142,35 @@ function useAudioEngine() {
         const f = ctx.createBiquadFilter();
         f.type = preset.filter.type || 'bandpass';
         if (typeof preset.filter.frequency === 'number') {
-          try { f.frequency.setValueAtTime(preset.filter.frequency, now); } catch {}
+          try { f.frequency.setValueAtTime(preset.filter.frequency, now); } catch (e) { /* filter freq set fail */ }
         }
         if (typeof preset.filter.Q === 'number') {
-          try { f.Q.setValueAtTime(preset.filter.Q, now); } catch {}
+          try { f.Q.setValueAtTime(preset.filter.Q, now); } catch (e) { /* filter Q set fail */ }
         }
         nodeChain.connect(f);
         nodeChain = f;
         // Optional filter frequency ramp for transient shaping
         if (typeof preset.filter.toFrequency === 'number' && typeof preset.filter.toMs === 'number') {
           const rampT = Math.max(0, (preset.filter.toMs || 0) / 1000);
-          try { f.frequency.linearRampToValueAtTime(preset.filter.toFrequency, t0 + rampT); } catch {}
+          try { f.frequency.linearRampToValueAtTime(preset.filter.toFrequency, t0 + rampT); } catch (e) { /* ramp fail */ }
         }
       }
 
       // Direct connect without panning or compressor for minimal overhead
       nodeChain.connect(gain);
 
-  gain.gain.setValueAtTime(0, t0);
+  gain.gain.setValueAtTime(0, t0); // start silent
       // ADSR envelope
       const peak = Math.max(0.0001, volume);
-  gain.gain.linearRampToValueAtTime(peak, t0 + attack);
+  gain.gain.linearRampToValueAtTime(peak, t0 + attack); // attack ramp
   gain.gain.linearRampToValueAtTime(peak * (sustain || 0.25), t0 + attack + decay);
   const stopTime = t0 + attack + decay + duration / 1000;
   gain.gain.linearRampToValueAtTime(0.0001, stopTime + release);
 
       gain.connect(ctx.destination);
 
-  if (source.start) source.start(t0);
-      if (source.stop) source.stop(stopTime + release + 0.02);
+  if (source.start) source.start(t0); // schedule start
+      if (source.stop) source.stop(stopTime + release + 0.02); // schedule stop with small buffer
 
       // Best-effort cleanup
       if ('onended' in source) {
@@ -178,14 +178,14 @@ function useAudioEngine() {
           try {
             if (source.disconnect) source.disconnect();
             gain.disconnect();
-          } catch {}
+          } catch (e) { /* source cleanup fail */ }
         };
       }
     };
 
     // Schedule immediately to minimize latency; request a resume in parallel if needed
     if (ctx.state === 'suspended') {
-      try { ctx.resume(); } catch {}
+  try { ctx.resume(); } catch (e) { /* resume fail */ }
     }
     start();
 
@@ -238,7 +238,7 @@ export function SoundProvider({ children }) {
       const v = localStorage.getItem(STORAGE_KEYS.volume);
       if (eNew == null) {
         // Migrate from legacy key but prefer enabling by default
-        const legacy = localStorage.getItem('qd_sound_enabled');
+  // legacy key read removed (unused): const legacy = localStorage.getItem('qd_sound_enabled');
         const initialEnabled = true; // always start with sound on
         setEnabled(initialEnabled);
         localStorage.setItem(STORAGE_KEYS.enabled, initialEnabled ? '1' : '0');
@@ -246,27 +246,27 @@ export function SoundProvider({ children }) {
         setEnabled(eNew === '1');
       }
       if (v != null) setVolume(Math.min(1, Math.max(0, parseFloat(v))));
-    } catch {}
+  } catch (e) { /* settings load fail */ }
   }, []);
 
   // Persist on change
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEYS.enabled, enabled ? '1' : '0'); } catch {}
+  try { localStorage.setItem(STORAGE_KEYS.enabled, enabled ? '1' : '0'); } catch (e) { /* persist fail */ }
   }, [enabled]);
   useEffect(() => {
-    try { localStorage.setItem(STORAGE_KEYS.volume, String(volume)); } catch {}
+  try { localStorage.setItem(STORAGE_KEYS.volume, String(volume)); } catch (e) { /* persist volume fail */ }
   }, [volume]);
 
   const play = useCallback((name) => {
     if (!enabled) return;
     engine.play(name, volume);
     if (name === 'click' && typeof navigator !== 'undefined' && navigator.vibrate) {
-      try { navigator.vibrate(2); } catch {}
+  try { navigator.vibrate(2); } catch (e) { /* vibrate unsupported */ }
     }
   }, [enabled, engine, volume]);
 
   const setClickStyle = useCallback((style) => {
-    try { localStorage.setItem('qd_sound_style', String(style)); } catch {}
+  try { localStorage.setItem('qd_sound_style', String(style)); } catch (e) { /* style persist fail */ }
   }, []);
 
   const value = useMemo(() => ({
@@ -291,7 +291,7 @@ export function SoundProvider({ children }) {
         if (!el) return;
 
   // If inside a container explicitly muting click sounds, skip
-  if (el.closest('[data-mute-click-sound]')) return;
+  if (el.closest('[data-mute-click-sound]')) return; // explicit opt-out
 
         // Traverse up to find a clickable host element
         const clickable = el.closest('button, [role="button"], a, input[type="button"], input[type="submit"], [data-click-sound]');
@@ -303,13 +303,13 @@ export function SoundProvider({ children }) {
         // Avoid double fire if component already calls play('click') onPointerDown
         if (clickable.__qdClickPlayed) return;
         clickable.__qdClickPlayed = true;
-        setTimeout(() => { try { delete clickable.__qdClickPlayed; } catch {} }, 120);
+  setTimeout(() => { try { delete clickable.__qdClickPlayed; } catch (e) { /* cleanup flag fail */ } }, 120);
 
         engine.play('click', volume);
         if (typeof navigator !== 'undefined' && navigator.vibrate) {
-          try { navigator.vibrate(2); } catch {}
+          try { navigator.vibrate(2); } catch (e2) { /* vibrate unsupported */ }
         }
-      } catch {}
+  } catch (e) { /* pointer handler fail */ }
     };
     document.addEventListener('pointerdown', handler, { capture: true });
     return () => document.removeEventListener('pointerdown', handler, { capture: true });

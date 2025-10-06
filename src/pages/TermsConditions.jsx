@@ -1,8 +1,8 @@
 import React from 'react';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { Helmet } from 'react-helmet-async';
 import { Shield, Users, CreditCard, AlertTriangle, CheckCircle, FileText, Calendar, EyeOff, Copyright, Info, Repeat } from 'lucide-react';
-import { getBrandGradient, getBrandText } from '@/lib/brand';
+import { getBrandGradient } from '@/lib/brand';
 
 const TermsConditions = () => {
   const sections = [
@@ -98,7 +98,7 @@ const TermsConditions = () => {
   <meta name="description" content="Terms & Conditions for using Quiz Dangal – eligibility, accounts, gameplay, rewards, fair play, and contact details." />
       </Helmet>
 
-      <motion.div
+  <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
@@ -112,9 +112,9 @@ const TermsConditions = () => {
         <p className="text-lg text-slate-300 leading-relaxed">
           By using Quiz Dangal, you agree to these Terms. Please read them.
         </p>
-      </motion.div>
+  </m.div>
 
-      <motion.div
+  <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
@@ -127,16 +127,16 @@ const TermsConditions = () => {
         <p className="text-slate-300 leading-relaxed">
           If you do not agree, please do not use the platform.
         </p>
-      </motion.div>
+  </m.div>
 
-      <motion.div
+  <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8"
       >
   {highlights.map((highlight, index) => (
-          <motion.div
+          <m.div
             key={index}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -148,13 +148,13 @@ const TermsConditions = () => {
             </div>
       <h3 className="text-sm font-semibold text-white mb-2">{highlight.title}</h3>
       <p className="text-xs text-slate-300 leading-relaxed">{highlight.description}</p>
-          </motion.div>
+          </m.div>
         ))}
-      </motion.div>
+      </m.div>
 
       <div className="space-y-6">
         {sections.map((section, index) => (
-          <motion.div
+          <m.div
             key={index}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -170,7 +170,7 @@ const TermsConditions = () => {
             
             <div className="space-y-4 ml-0 md:ml-16">
               {section.content.map((item, itemIndex) => (
-                <motion.div
+                  <m.div
                   key={itemIndex}
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -179,14 +179,14 @@ const TermsConditions = () => {
                 >
                   <div className={`w-2 h-2 bg-gradient-to-r ${getBrandGradient(itemIndex)} rounded-full mt-2 flex-shrink-0`}></div>
                   <p className="text-slate-300 text-sm leading-relaxed">{item}</p>
-                </motion.div>
+                </m.div>
               ))}
             </div>
-          </motion.div>
+          </m.div>
         ))}
       </div>
 
-      <motion.div
+  <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 1.6 }}
@@ -204,9 +204,9 @@ const TermsConditions = () => {
             For any legal queries, contact us at support@quizdangal.com.
           </p>
         </div>
-      </motion.div>
+  </m.div>
 
-      <motion.div
+  <m.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 1.7 }}
@@ -215,12 +215,12 @@ const TermsConditions = () => {
         <FileText className="w-12 h-12 text-fuchsia-400 mx-auto mb-4" />
         <h3 className="text-xl font-bold bg-gradient-to-r from-violet-300 via-indigo-200 to-fuchsia-300 bg-clip-text text-transparent mb-3">Questions About These Terms?</h3>
         <p className="text-slate-300 leading-relaxed mb-4">
-          If you have any questions about these Terms & Conditions, please don't hesitate to contact our support team.
+          If you have any questions about these Terms &amp; Conditions, please don&apos;t hesitate to contact our support team.
         </p>
         <p className="text-slate-400 text-sm">
-          We're here to help ensure you have a clear understanding of our platform policies and your rights as a user.
+          We&apos;re here to help ensure you have a clear understanding of our platform policies and your rights as a user.
         </p>
-      </motion.div>
+  </m.div>
       </div>
     </div>
   );

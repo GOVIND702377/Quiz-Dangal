@@ -11,6 +11,7 @@ Ek modern quiz web app jo Supabase (Auth + DB + Edge Functions), React (Vite), a
 - Admin tools (notifications, recompute results)
 - PWA (offline cache, installable)
 - Push Notifications (Web Push + VAPID)
+ - Resilient quiz answer syncing (retry + backoff) ✅
 
 ## Tech Stack
 - Frontend: React 18 + Vite 4 + TailwindCSS + Radix UI
@@ -23,11 +24,62 @@ Ek modern quiz web app jo Supabase (Auth + DB + Edge Functions), React (Vite), a
   - `pages/` – App pages (Home, Quiz, Results, Profile, Leaderboards etc.)
   - `components/` – UI components (Header, Modals, etc.)
   - `contexts/` – Supabase Auth context
-  - `hooks/` – Push notifications hook
-  - `lib/` – client helpers (Supabase client)
+  - `hooks/` – Reusable hooks (push notifications, `useQuizEngine` quiz lifecycle)
+  - `lib/` – helpers (`customSupabaseClient`, `utils`, `visibility` etc.)
 - `public/` – Assets + `sw.js` (Service Worker)
 - `supabase/functions/` – Edge functions (e.g., send-notifications)
 - Root configs: `vite.config.js`, `tailwind.config.js`, `postcss.config.js`
+
+### Architecture Additions (Oct 2025)
+- `useQuizEngine` hook: Consolidates quiz lifecycle (load → join/pre-join → active → finish → completion redirect) + timers + engagement polling + submission side-effects.
+- Answer Retry Queue: Failed answer upserts are queued with exponential backoff (2s → 4s → 8s → … capped 30s, max 6 attempts). Flush triggers: online event, tab visibility restored, scheduled backoff timer. User notified once per unsynced question ("Sync delayed").
+- Visibility Utility: `lib/visibility.js` provides `isDocumentHidden()` + future-safe listener helper for DRY tab visibility checks.
+- Constants Centralization: `src/constants.js` holds all timing intervals (polling, redirect delays, prompt delays) to eliminate magic numbers.
+- Prefetch Infra: Idle route/component prefetch mapping + hover/focus prefetch in footer for smoother navigation.
+
+### Hook Contract (`useQuizEngine`)
+Inputs: `(quizId: string, navigate: (path)=>void)`
+Returns:
+```
+{
+  quiz, questions, currentQuestionIndex, answers,
+  quizState,               // 'loading' | 'waiting' | 'active' | 'finished' | 'completed'
+  timeLeft, submitting, joined, participantStatus, totalJoined,
+  setCurrentQuestionIndex, // UI navigation between questions
+  handleJoinOrPrejoin,     // join or pre-join action
+  handleAnswerSelect,      // optimistic answer save + auto-advance
+  handleSubmit,            // finalize & redirect
+  formatTime               // mm:ss formatter
+}
+```
+Error Modes:
+- Missing quiz → toast + redirect home
+- Join failure → toast (destructive)
+- Answer transient failure → enqueued + one-time user warning
+- Submission failure → toast; user may retry
+
+### Extending the Quiz Flow
+- Add new phase: introduce enum value (e.g. `review`) → timer/phase effect can be enhanced to branch; hook returns extra state, page can branch visually.
+- Real-time engagement: swap polling in `refreshEngagement` with a Supabase Realtime channel subscription; keep the function as a fallback.
+- Offline answers: Persist retryQueueRef contents to `localStorage` (serialize questionId/optionId/attempt) and hydrate on mount.
+
+### Testing Suggestions
+- Unit test timer transitions by mocking Date and advancing manual intervals (abstract `update` function if needed).
+- Integration test answer queue: stub network (throw) first N calls then succeed.
+- Visual component split (planned TODOs in `Quiz.jsx`) can further isolate presentational states (Lobby, Waiting, Finished, Completed, ActiveQuestion) for storybook.
+
+### Performance Notes
+- Engagement polling suppressed when `document.visibilityState === 'hidden'`.
+- Minimal state writes: answer save only updates single key in `answers` map.
+- Prefetch warms next routes (Footer navigation) on pointer intent.
+
+### Future Improvements (Backlog)
+- Replace polling with real-time presence.
+- Server authoritative end-of-quiz push (WebSocket / Realtime broadcast) to auto-stop timers.
+- Offline-first: service worker background sync for queued answers.
+- Question-level latency telemetry (measure answer save RTT for analytics).
+
+---
 
 ## Prerequisites
 - Node.js 18+ (recommended)
@@ -109,6 +161,20 @@ Deployment
 2) Admin panel se "Recompute Results" use karke kisi quiz par verify karein.
 3) Opinion category ki questions me sab options `is_correct = false` rehne chahiye. Knowledge categories me exactly 1 option `is_correct = true` hona chahiye (UI enforce karta hai).
 
+## Result cron remediation (Jan 2025)
+
+- Script: `supabase/sql/2025-quiz-dangal-remediation.sql`
+- Apply: Supabase SQL Editor ya `psql` me script run karein (production se pehle staging me verify jaroor karein).
+  - Duplicate `cron.job` rows cleanup + job name/activation normalize (and auto-create the job if missing)
+  - `finalize_due_quizzes` aur `compute_quiz_results` ko updated schema (`end_time`, `result_shown_at`) ke saath align karta hai
+  - Risky `SECURITY DEFINER` functions ke EXECUTE grants tighten karta hai (sirf `authenticated` admins + `service_role`)
+  - Future tables/functions/sequences ke default privileges se `anon`/`authenticated` ka blanket `ALL` grant hata deta hai (explicit grants pe rely karein)
+
+Run hone ke baad quick smoke check:
+1. `select public.finalize_due_quizzes(1);` (service role / admin connection se) — successful return count aana chahiye, error nahi.
+2. Admin panel se kisi finished quiz par "Recompute Results" run karke leaderboard update validate karein.
+3. Supabase dashboard → Auth → Policies me ensure nayi tables expected access rakhte hain (kyunki ab default `ALL` grant nahi milega).
+
 ## Deployment
 - Static site ke liye `npm run build` se `dist/` generate hota hai.
 - Custom domain (`public/CNAME`) ke saath base `'/'` configured hai (`vite.config.js`).
@@ -117,9 +183,9 @@ Deployment
 - Supabase Edge Functions ko Supabase project me deploy aur secrets configure karna zaroori hai.
 
 ## Security & Backup (IMPORTANT)
-- `supabase_backup.sql` destructive dump hai: isme pehle DROP aur fir CREATE hota hai (auth.*, tables, policies sab). Isse production me direct mat chalayein.
-- Is script ko sirf nayi/blank ya staging environment me test/restore karein.
-- Backup file me kisi bhi tarah ke secrets/api_key literals ko commit se pehle scrub/placeholder karna best practice hai.
+- Destructive SQL dumps ko repo me commit na karein; agar kabhi backup lena ho to usse secure storage me rakhein.
+- Restore scripts sirf nayi/blank ya staging environment me test karein.
+- Backup files me kisi bhi tarah ke secrets/api_key literals ko commit se pehle scrub/placeholder karna best practice hai.
 - Schema changes ke liye Supabase CLI migrations prefer karein.
 
 ## Troubleshooting
@@ -128,11 +194,20 @@ Deployment
 - Push subscribe fail: login required, notification permission denied, ya VAPID keys missing.
 - Stale UI/old assets: service worker update ke baad hard refresh/close-open karein.
 - Env missing: frontend `.env` me `VITE_*` vars aur backend function secrets check karein.
+ - Answers not appearing server-side turant: Retry queue still syncing ho sakta hai (check network tab). 6 failed attempts ke baad destructive toast aayega.
 
 ## Scripts (quick)
 - Dev: `npm run dev` (LAN: `npm run dev:lan`)
 - Build: `npm run build`
 - Preview: `npm run preview` (LAN: `npm run preview:lan`)
+ - Analyze bundle: `npm run analyze` (generates `dist/stats.html`)
+ - Tests: `npm test`
+
+### Performance & Diagnostics (Frontend Only Additions)
+- Dynamic QR Code import in `Results` page (heavy `qrcode` lib only loads when poster generation runs).
+- Idle Prefetch helper (`lib/prefetch.js`) warms common routes under good network/device conditions.
+- Optional Web Vitals logging: set `.env` `VITE_ENABLE_VITALS=1` → metrics logged to console (CLS, LCP, FID/INP, TTFB). No network beacons by default.
+
 
 ---
 Agar aapko multi-origin CORS whitelist (prod + localhost) chahiye, edge function me uska support add kiya ja sakta hai. Push flow, referrals, ya leaderboards par aur docs chahiye ho to batayein, hum expand kar denge.
@@ -152,3 +227,30 @@ Refer & Earn aur Results pages ab ek hi static brand poster image share karte ha
 Compatibility notes
 - Agar poster PNG/JPG nahi hai (e.g. WebP/SVG), to runtime pe JPEG me convert karke share kiya jata hai, kyunki kuch apps JPEG ke saath zyada reliable hoti hain (specially iOS/WhatsApp).
 - Agar poster file nahi milti, app last-resort ek chhota JPEG generate karta hai taa ki share me hamesha image attach ho.
+
+---
+
+## Frontend Tooling Additions (Oct 2025 – Backend Safe)
+
+| Task | Command | Notes |
+|------|---------|-------|
+| Production build | `npm run build` | Dist output; unaffected by tests/analyzer |
+| Bundle analyze | `npm run analyze` | Generates `dist/stats.html` (open manually) |
+| Run unit tests | `npm test` | Vitest (jsdom) |
+| Watch tests | `npm run test:watch` | Interactive mode |
+
+Added Dev Dependencies:
+- `vitest`, `@testing-library/react` (+ user-event/dom)
+- `rollup-plugin-visualizer` (guarded by env `ANALYZE=true`)
+
+Initial Test Coverage:
+- `escapeHTML`, `rateLimit`, `debounce` (security helpers) ensure predictable behavior.
+
+Impact:
+- No Supabase schema / network changes.
+- Analyzer only runs when explicitly invoked, keeping normal builds fast.
+
+Planned (optional next):
+- Add tests for `useQuizEngine` transitions using fake timers.
+- Snapshot critical page shells (Quiz lobby, Active question, Results redirect state).
+

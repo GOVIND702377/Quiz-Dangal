@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, m } from 'framer-motion';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { Loader2, Receipt, Gift, CheckCircle2, Clock, XCircle, Coins, Wallet as WalletIcon, Search, Sparkles, PartyPopper, ArrowRight, RefreshCw, ArrowUpDown, Copy } from 'lucide-react';
+import { Loader2, Receipt, Gift, CheckCircle2, Clock, XCircle, Coins, Wallet as WalletIcon, Search, Sparkles, PartyPopper, ArrowRight, Copy } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -22,8 +22,8 @@ export default function Redemptions() {
   const [redeemStep, setRedeemStep] = useState('confirm'); // confirm | success
   const [redeemSubmitting, setRedeemSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState('rewards'); // rewards | history
-  const [historyQuery, setHistoryQuery] = useState('');
-  const [historySort, setHistorySort] = useState('newest'); // newest | oldest
+  const [historyQuery] = useState(''); // removed setter (unused)
+  const [historySort] = useState('newest'); // removed setter (unused)
   
 
   const loadRedemptions = useCallback(async () => {
@@ -40,18 +40,14 @@ export default function Redemptions() {
 
   useEffect(() => {
     if (!user || !hasSupabaseConfig || !supabase) return;
-    let mounted = true;
-    const run = async () => {
-      await loadRedemptions();
-    };
+    const run = async () => { await loadRedemptions(); };
     run();
     const interval = setInterval(run, 15000);
-    return () => { mounted = false; clearInterval(interval); };
+    return () => { clearInterval(interval); };
   }, [user, loadRedemptions]);
 
   // Load available rewards from backend catalog (reward_catalog)
   useEffect(() => {
-    let mounted = true;
     async function loadRewards() {
       if (!hasSupabaseConfig || !supabase) {
         setRewards([]);
@@ -63,16 +59,9 @@ export default function Redemptions() {
         .from('reward_catalog')
         .select('*')
         .eq('is_active', true)
-        // reward_catalog does not have priority/created_at columns in current schema
-        // Sort by lower price first to surface affordable items
         .order('coins_required', { ascending: true })
         .order('id', { ascending: false });
-      if (!mounted) return;
-      if (error) {
-        setRewards([]);
-      } else {
-        setRewards(data || []);
-      }
+      if (error) setRewards([]); else setRewards(data || []);
       setRewardsLoading(false);
     }
     loadRewards();
@@ -152,7 +141,7 @@ export default function Redemptions() {
     }
     try {
       setRedeemSubmitting(true);
-      const { data, error } = await supabase.rpc('redeem_from_catalog', {
+      const { error } = await supabase.rpc('redeem_from_catalog', {
         p_user_id: user.id,
         p_catalog_id: selectedReward.id,
       });
@@ -180,19 +169,19 @@ export default function Redemptions() {
 
       {/* header */}
       <div className="mb-6">
-        <motion.div
+  <m.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45 }}
           className="flex items-center gap-3"
         >
-          <motion.div
+          <m.div
             className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 grid place-items-center ring-2 ring-white/30 shadow-xl"
             animate={{ y: [0, -2, 0] }}
             transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
           >
             <Receipt className="w-5 h-5 text-white" />
-          </motion.div>
+          </m.div>
           <div>
             <h1 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-indigo-200 via-fuchsia-200 to-pink-200 bg-clip-text text-transparent tracking-tight">
               Redemptions
@@ -201,7 +190,7 @@ export default function Redemptions() {
             <p className="text-slate-300/80 text-sm mt-1">Track your reward requests</p>
           </div>
           {/* removed top-right wallet coins badge as requested */}
-        </motion.div>
+  </m.div>
       </div>
 
       {/* Dev guard: if Supabase is not configured, show a helpful message */}
@@ -234,7 +223,7 @@ export default function Redemptions() {
 
       {/* Rewards Section */}
       {activeTab === 'rewards' && (
-        <motion.div
+  <m.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.05 }}
@@ -303,9 +292,9 @@ export default function Redemptions() {
               const createdAt = rw.created_at ? new Date(rw.created_at).getTime() : 0;
               const isNew = createdAt && Date.now() - createdAt <= 1000 * 60 * 60 * 24 * 14;
               return (
-                <motion.div key={rw.id} className="group rounded-2xl p-[1px] bg-gradient-to-br from-indigo-500/30 via-fuchsia-500/20 to-violet-500/30 shadow-lg relative overflow-hidden" whileHover={{ y: -2, scale: 1.005 }} transition={{ type: 'spring', stiffness: 260, damping: 20 }}>
+                <m.div key={rw.id} className="group rounded-2xl p-[1px] bg-gradient-to-br from-indigo-500/30 via-fuchsia-500/20 to-violet-500/30 shadow-lg relative overflow-hidden" whileHover={{ y: -2, scale: 1.005 }} transition={{ type: 'spring', stiffness: 260, damping: 20 }}>
                   {/* subtle conic shine on hover */}
-                  <motion.div
+                  <m.div
                     className="pointer-events-none absolute -inset-20 opacity-0 group-hover:opacity-40 bg-[conic-gradient(from_200deg_at_50%_50%,rgba(99,102,241,0.15),rgba(217,70,239,0.12),rgba(236,72,153,0.1),transparent_60%)]"
                     animate={{ rotate: 360 }}
                     transition={{ repeat: Infinity, duration: 18, ease: 'linear' }}
@@ -359,13 +348,13 @@ export default function Redemptions() {
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
               );
             })}
           </div>
         )}
           </div>
-        </motion.div>
+  </m.div>
       )}
 
       {/* stats card - show only in Rewards tab */}
@@ -427,7 +416,7 @@ export default function Redemptions() {
               const badge = statusBadge(r.status);
               const BadgeIcon = badge.icon;
               return (
-                <motion.div key={r.id} className={`p-3 rounded-xl bg-indigo-900/30 border border-indigo-700/40 hover:border-indigo-400/50 transition hover:shadow-lg ${badge.rowAccent}`} whileHover={{ y: -2 }}>
+                <m.div key={r.id} className={`p-3 rounded-xl bg-indigo-900/30 border border-indigo-700/40 hover:border-indigo-400/50 transition hover:shadow-lg ${badge.rowAccent}`} whileHover={{ y: -2 }}>
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="relative w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-violet-500 to-fuchsia-500 ring-2 ring-white/20">
@@ -465,7 +454,7 @@ export default function Redemptions() {
                       </button>
                     </div>
                   </div>
-                </motion.div>
+                </m.div>
               );
             })}
           </div>
@@ -541,14 +530,14 @@ export default function Redemptions() {
                       </div>
                       {/* Confetti micro-animation */}
                       <AnimatePresence>
-                        <motion.div
+                        <m.div
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           exit={{ opacity: 0 }}
                           className="relative h-0"
                         >
                           {[...Array(10)].map((_, i) => (
-                            <motion.span
+                            <m.span
                               key={i}
                               className="absolute inline-block w-2 h-2 rounded-sm"
                               style={{
@@ -561,7 +550,7 @@ export default function Redemptions() {
                               transition={{ duration: 0.9, delay: i * 0.04, ease: 'ease-out' }}
                             />
                           ))}
-                        </motion.div>
+                        </m.div>
                       </AnimatePresence>
                       <div className="mt-4 flex justify-end">
                         <Button onClick={() => setRedeemOpen(false)} variant="brand">Close</Button>

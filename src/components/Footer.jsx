@@ -1,4 +1,5 @@
 import React from 'react';
+import { prefetchRoute } from '@/lib/utils';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Home, Wallet, User, Medal, Trophy } from 'lucide-react';
 
@@ -39,6 +40,8 @@ const Footer = () => {
               <button
                 key={item.path}
                 onClick={() => navigate(item.path)}
+                onMouseEnter={() => prefetchRoute(item.path)}
+                onFocus={() => prefetchRoute(item.path)}
                 className={`relative flex flex-col items-center justify-center py-1.5 px-2 min-w-0 transition-all duration-200 ease-in-out hover:scale-110 active:scale-95 ${isActive ? 'qd-active-underline' : ''}`}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >

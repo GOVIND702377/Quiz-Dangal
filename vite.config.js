@@ -2,13 +2,16 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 // Clean Vite config without any Hostinger/Horizons debug injections
 // __dirname is not defined in ESM; derive it from import.meta.url
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const analyze = process.env.ANALYZE === 'true';
+
 export default defineConfig({
-	plugins: [react()],
+	plugins: [react(), analyze && visualizer({ filename: 'dist/stats.html', gzipSize: true, brotliSize: true, open: false })].filter(Boolean),
 	// Using a custom domain for this project repo; site is served at domain root.
 	// Base must be '/' so assets resolve under https://quizdangal.com/.
 			// Using custom domain (public/CNAME). Keep base at root.

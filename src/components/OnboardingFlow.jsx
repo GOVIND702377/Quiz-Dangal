@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import ProfileUpdateModal from '@/components/ProfileUpdateModal';
 
 const OnboardingFlow = () => {
-  const { user, userProfile, refreshUserProfile } = useAuth();
+  const { userProfile } = useAuth();
   const [activeStep, setActiveStep] = useState(null);
 
   const checkOnboardingStatus = useCallback(() => {

@@ -9,19 +9,34 @@ const PWAInstallButton = () => {
   const [canInstall, setCanInstall] = useState(false);
 
   useEffect(() => {
-    const mm = window.matchMedia('(display-mode: standalone)');
-    const standalone = mm.matches || (window.navigator.standalone === true);
-    setIsStandalone(standalone);
-    const onModeChange = (e) => setIsStandalone(e.matches || (window.navigator.standalone === true));
-    try {
-      mm.addEventListener('change', onModeChange);
-    } catch {
-      // Safari iOS older versions use addListener/removeListener
-      if (mm.addListener) mm.addListener(onModeChange);
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+
+    const mm = typeof window.matchMedia === 'function' ? window.matchMedia('(display-mode: standalone)') : null;
+    const isStandaloneView = () => {
+      try {
+        return Boolean(mm?.matches || window.navigator?.standalone === true);
+      } catch {
+        return false;
+      }
+    };
+
+    setIsStandalone(isStandaloneView());
+
+    const onModeChange = (event) => {
+      setIsStandalone(Boolean(event?.matches) || (window.navigator?.standalone === true));
+    };
+
+    if (mm) {
+      try {
+        mm.addEventListener('change', onModeChange);
+      } catch {
+        if (mm.addListener) mm.addListener(onModeChange);
+      }
     }
 
     const onBeforeInstall = (e) => {
-      // Use custom prompt
       e.preventDefault();
       setDeferredPrompt(e);
       setCanInstall(true);
@@ -30,15 +45,19 @@ const PWAInstallButton = () => {
       setDeferredPrompt(null);
       setCanInstall(false);
     };
+
     window.addEventListener('beforeinstallprompt', onBeforeInstall);
     window.addEventListener('appinstalled', onInstalled);
+
     return () => {
       window.removeEventListener('beforeinstallprompt', onBeforeInstall);
       window.removeEventListener('appinstalled', onInstalled);
-      try {
-        mm.removeEventListener('change', onModeChange);
-      } catch {
-        if (mm.removeListener) mm.removeListener(onModeChange);
+      if (mm) {
+        try {
+          mm.removeEventListener('change', onModeChange);
+        } catch {
+          if (mm.removeListener) mm.removeListener(onModeChange);
+        }
       }
     };
   }, []);

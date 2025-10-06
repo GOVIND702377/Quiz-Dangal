@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
+import { logger } from '@/lib/logger';
 
 // Read VAPID key from env; do not hardcode in source.
 const VAPID_PUBLIC_KEY = (import.meta?.env?.VITE_VAPID_PUBLIC_KEY || '').trim();
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
   const outputArray = new Uint8Array(rawData.length);
   for (let i = 0; i < rawData.length; ++i) {
@@ -83,10 +84,10 @@ export function usePushNotifications() {
       setSubscription(sub);
       setIsSubscribed(true);
       setError(null);
-      console.log('User is subscribed.', sub);
+      logger.info('Push subscription successful', sub);
       return true;
     } catch (err) {
-      console.error('Failed to subscribe the user: ', err);
+      logger.error('Failed to subscribe the user', err);
       setError(err?.message || 'Subscription failed');
       return false;
     }
@@ -111,16 +112,16 @@ export function usePushNotifications() {
       if (endpoint && hasSupabaseConfig && supabase) {
         try {
           await supabase.rpc('delete_push_subscription', { p_endpoint: endpoint });
-        } catch { /* ignore */ }
+  } catch (e) { /* server delete fail */ }
       }
       // Unsubscribe in browser
-      try { await sub.unsubscribe(); } catch {}
+  try { await sub.unsubscribe(); } catch (e) { /* browser unsubscribe fail */ }
       setIsSubscribed(false);
       setSubscription(null);
       setError(null);
       return true;
     } catch (err) {
-      console.error('Failed to unsubscribe: ', err);
+      logger.error('Failed to unsubscribe', err);
       setError(err?.message || 'Unsubscribe failed');
       return false;
     }

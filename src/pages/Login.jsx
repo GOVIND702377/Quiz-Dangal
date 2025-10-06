@@ -65,7 +65,7 @@ const Login = () => {
     setEmailSent(false);
 
     if (isSignUp) {
-      const { error, data } = await signUp(email, password);
+  const { error } = await signUp(email, password);
       if (error) {
         toast({
           title: "Sign Up Failed",
@@ -80,7 +80,7 @@ const Login = () => {
         });
       }
     } else {
-      const { error, data } = await signIn(email, password);
+  const { error } = await signIn(email, password);
       if (error) {
         toast({
           title: "Sign In Failed",
@@ -106,7 +106,7 @@ const Login = () => {
         <LoginHead />
         <div className="qd-card rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-xl text-center text-slate-100">
           <h2 className="text-2xl font-bold text-white text-shadow-sm mb-4">Check your email</h2>
-          <p className="text-slate-300">We've sent a confirmation link to <strong>{email}</strong>. Please click the link to complete your registration.</p>
+          <p className="text-slate-300">We&apos;ve sent a confirmation link to <strong>{email}</strong>. Please click the link to complete your registration.</p>
   </div>
       </div>
     );
@@ -176,7 +176,7 @@ const Login = () => {
             alt="Quiz Dangal Logo"
             onError={(e) => { e.currentTarget.src='/android-chrome-512x512.png'; }}
             className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 rounded-full shadow-lg"
-            loading="eager" decoding="async" fetchpriority="high" width="80" height="80"
+            loading="eager" decoding="async" width="80" height="80"
           />
           <h1 className="text-3xl font-bold text-white text-shadow mb-2">
             Quiz Dangal

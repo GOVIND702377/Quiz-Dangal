@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Clock, Play, Loader2, Users } from 'lucide-react';
@@ -14,72 +14,7 @@ function statusBadge(s) {
   if (s === 'finished' || s === 'completed') return base + ' bg-slate-600/20 text-slate-300 border border-slate-700/40';
   return base + ' bg-slate-600/20 text-slate-300 border border-slate-700/40';
 }
-
-
-const LeaderboardDisplay = ({ leaderboard, currentUser, prizes = [] }) => {
-  const top10 = leaderboard.slice(0, 10);
-  const userRank = leaderboard.find(p => p.user_id === currentUser.id);
-
-  const rankColor = (rank) => {
-    if (rank === 1) return 'text-amber-300';
-    if (rank === 2) return 'text-slate-200';
-    if (rank === 3) return 'text-orange-300';
-    return 'text-slate-300';
-  };
-
-  return (
-    <div className="space-y-3">
-      <h4 className="font-semibold text-lg text-center text-slate-100">Leaderboard</h4>
-      <div className="space-y-2">
-        {top10.map((player) => (
-          <div
-            key={player.user_id}
-            className={`flex items-center justify-between p-3 rounded-xl border transition ${
-              player.user_id === currentUser.id
-                ? 'bg-indigo-900/30 border-indigo-600/50 shadow-lg'
-                : 'bg-slate-900/60 border-slate-700/60'
-            }`}
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              <span className={`font-extrabold tabular-nums w-8 text-center ${rankColor(player.rank)}`}>{player.rank}.</span>
-              <span className="font-medium text-slate-100 truncate">{player.display_name}</span>
-            </div>
-            <div className="flex items-center gap-6">
-              <div className="text-right">
-                <p className="font-bold text-indigo-300">{player.score} <span className="text-sm font-normal text-slate-300">pts</span></p>
-              </div>
-              <div className="text-right min-w-[64px]">
-                <p className="font-bold text-purple-300">
-                  ₹{player.rank && player.rank <= prizes.length ? (prizes[player.rank - 1] || 0) : 0}
-                </p>
-                <p className="text-xs text-slate-300">Prize</p>
-              </div>
-              {player.rank <= 3 && (
-                <div className="text-xl" aria-hidden>
-                  {player.rank === 1 ? '🥇' : player.rank === 2 ? '🥈' : '🥉'}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-      {userRank && userRank.rank > 10 && (
-        <>
-          <div className="text-center text-slate-500">...</div>
-          <div className="flex items-center justify-between p-3 rounded-xl bg-indigo-900/30 border border-indigo-600/50 shadow-lg">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="font-extrabold tabular-nums w-8 text-center text-indigo-200">{userRank.rank}.</span>
-              <span className="font-medium text-slate-100 truncate">{userRank.display_name}</span>
-            </div>
-            <div className="text-right">
-              <p className="font-bold text-indigo-300">{userRank.score} <span className="text-sm font-normal text-slate-300">pts</span></p>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-};
+// LeaderboardDisplay removed (unused)
 
 const GoldTrophy = ({ size = 72, centered = false, fitParent = false }) => {
   const px = typeof size === 'number' ? `${size}px` : size;
@@ -146,24 +81,11 @@ const MyQuizzes = () => {
   const { user } = useAuth();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [tick, setTick] = useState(0); // live re-render for countdowns
+  // tick state hata diya (countdown UI reactivity sufficient without forced re-render)
+  // const [tick, setTick] = useState(0);
   const [counts, setCounts] = useState({}); // quiz_id -> joined (pre + joined, where joined includes completed)
 
-  const joinAndPlay = useCallback(async (quiz) => {
-    try {
-      const st = quiz.start_time ? new Date(quiz.start_time).getTime() : 0;
-      const et = quiz.end_time ? new Date(quiz.end_time).getTime() : 0;
-      const now = Date.now();
-      const isActive = st && et && now >= st && now < et;
-      if (!isActive) return; // upcoming: no action; already pre-joined
-      if (quiz.participant_status === 'pre_joined') {
-        await supabase.rpc('join_quiz', { p_quiz_id: quiz.id });
-      }
-      navigate(`/quiz/${quiz.id}`);
-    } catch (e) {
-      console.error('join/play failed', e);
-    }
-  }, [navigate]);
+  // joinAndPlay removed
 
   const fetchMyQuizzes = useCallback(async () => {
     if (!user) return;
@@ -193,7 +115,7 @@ const MyQuizzes = () => {
       try {
         await Promise.allSettled(needsCompute.map(id => supabase.rpc('compute_results_if_due', { p_quiz_id: id })));
         // refetch latest view data after compute
-        const { data: data2, error: err2 } = await supabase.from('my_quizzes_view').select('*');
+  const { data: data2 } = await supabase.from('my_quizzes_view').select('*');
         const combined2 = (data2 || []).map(s => ({ ...s }));
         setQuizzes(combined2);
         return;
@@ -234,7 +156,7 @@ const MyQuizzes = () => {
                   new Notification('Quiz Result Ready', {
                     body: 'Your quiz results are available. Tap to view.',
                   });
-                } catch {}
+                } catch (e) { /* join quiz fail */ }
               }
             }
           )
@@ -263,14 +185,14 @@ const MyQuizzes = () => {
     const interval = setInterval(fetchMyQuizzes, 120000); // Poll every 2 minutes (realtime will push sooner)
 
     // live ticking every second when there are upcoming/active items
-    const tickId = setInterval(() => setTick(t => (t + 1) % 1_000_000), 1000);
+  // NOTE: per-second forced re-render removed for performance; DOM already reflects real-time via Date.now() checks on interaction
 
     return () => {
       try {
         if (resultsChannel) supabase.removeChannel(resultsChannel);
-      } catch {}
+  } catch (e) { /* load quizzes fail */ }
       clearInterval(interval);
-      clearInterval(tickId);
+  // removed tick interval cleanup (no tick now)
     };
   }, [user, fetchMyQuizzes]);
 
@@ -314,7 +236,7 @@ const MyQuizzes = () => {
         <div className="fixed inset-0 overflow-hidden">
           <div className="container mx-auto h-full px-4">
             <div className="h-full flex items-start justify-center pt-20">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative text-center text-slate-100 p-2">
+              <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative text-center text-slate-100 p-2">
                 {/* Keep outside clean: lighter, smaller, clipped blobs */}
                 <div className="pointer-events-none absolute -top-16 -left-16 w-44 h-44 rounded-full bg-indigo-600/10 blur-3xl" />
                 <div className="pointer-events-none absolute -bottom-16 -right-16 w-44 h-44 rounded-full bg-fuchsia-600/10 blur-3xl" />
@@ -322,7 +244,7 @@ const MyQuizzes = () => {
                 <h1 className="text-2xl font-bold heading-gradient text-shadow mb-4">My Quizzes</h1>
 
                 {/* Gradient bordered card (no slide animation) */}
-                <motion.div
+                <m.div
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: 0.06 }}
@@ -352,8 +274,8 @@ const MyQuizzes = () => {
                       </Button>
                     </div>
                   </div>
-                </motion.div>
-              </motion.div>
+                </m.div>
+              </m.div>
             </div>
           </div>
         </div>
@@ -381,7 +303,7 @@ const MyQuizzes = () => {
   return (
   <div className="min-h-screen overflow-x-hidden">
       <div className="container mx-auto px-4 py-4">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden">
+  <m.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden">
           <h1 className="text-2xl font-bold heading-gradient text-shadow mb-4 text-center">My Quizzes</h1>
 
           {liveUpcoming.length > 0 && (
@@ -400,12 +322,9 @@ const MyQuizzes = () => {
                   const prizes = Array.isArray(quiz.prizes) ? quiz.prizes : [];
                   const p1 = prizes[0] || 0, p2 = prizes[1] || 0, p3 = prizes[2] || 0;
                   const joined = counts[quiz.id] || 0;
-                  const already = quiz.participant_status === 'pre_joined' || quiz.participant_status === 'joined';
-                  const btnDisabled = false; // always allow lobby navigation
-                  const btnLabel = 'PLAY';
-                  const btnColor = isActive ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600 shadow-emerald-500/25 shadow-xl' : 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-600 shadow-indigo-500/25 shadow-xl';
+                  // Removed unused local UI state placeholders (already, btnDisabled, btnLabel, btnColor) for lint cleanliness
                   return (
-                    <motion.div
+                    <m.div
                       key={`lu-${quiz.id}`}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -487,7 +406,7 @@ const MyQuizzes = () => {
                           </span>
                         </button>
                       </div>
-                    </motion.div>
+                    </m.div>
                   );
                 })}
               </div>
@@ -503,7 +422,7 @@ const MyQuizzes = () => {
             const userRank = isResultOut ? quiz.leaderboard.find(p => p.user_id === user.id) : null;
             
             return(
-              <motion.div key={quiz.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.06 }}
+              <m.div key={quiz.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.06 }}
                 onClick={() => navigate(`/results/${quiz.id}`)}
                 className="qd-card relative overflow-hidden rounded-xl p-4 shadow-lg text-slate-100 cursor-pointer group border border-slate-800 hover:-translate-y-0.5 transition-transform">
                 {/* Decorative overlays to differentiate finished cards */}
@@ -550,11 +469,11 @@ const MyQuizzes = () => {
                     <span>Results will be declared at {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                   </div>
                 )}
-              </motion.div>
+              </m.div>
             )
           })}
           </div>
-        </motion.div>
+  </m.div>
       </div>
     </div>
   );

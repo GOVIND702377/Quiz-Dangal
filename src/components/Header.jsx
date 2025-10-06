@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useRef } from 'react';
-import { motion } from 'framer-motion';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { STREAK_CLAIM_DELAY_MS } from '@/constants';
+import { m } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -9,12 +10,14 @@ import StreakModal from '@/components/StreakModal';
 
 const Header = () => {
   const { user, userProfile, refreshUserProfile } = useAuth();
-  const wallet = Number(userProfile?.wallet_balance || 0);
+  const wallet = useMemo(() => Number(userProfile?.wallet_balance || 0), [userProfile?.wallet_balance]);
+  const walletLabel = useMemo(() => wallet.toLocaleString(), [wallet]);
 
   // Download logic removed
 
   const [streakModal, setStreakModal] = useState({ open: false, day: 0, coins: 0 });
   const claimingRef = useRef(false);
+  const streak = useMemo(() => Number(userProfile?.current_streak || 0), [userProfile?.current_streak]);
 
   // Removed getInitials helper (unused)
 
@@ -33,7 +36,7 @@ const Header = () => {
         try {
           const last = sessionStorage.getItem(key);
           if (last === stamp) return; // already claimed today in this session
-        } catch {}
+        } catch (e) { /* sessionStorage read fail */ }
 
         const { data, error } = await supabase.rpc('handle_daily_login', { user_uuid: user.id });
 
@@ -55,7 +58,7 @@ const Header = () => {
         }
 
         // Mark as claimed for today in this session
-        try { sessionStorage.setItem(key, stamp); } catch {}
+  try { sessionStorage.setItem(key, stamp); } catch (e) { /* sessionStorage write fail */ }
       } catch (e) {
         console.error('Exception handling daily login:', e);
       } finally {
@@ -64,7 +67,7 @@ const Header = () => {
     };
 
     // Use a small timeout to ensure the app has settled after login before claiming
-    const timer = setTimeout(claimStreak, 1500);
+  const timer = setTimeout(claimStreak, STREAK_CLAIM_DELAY_MS);
     return () => clearTimeout(timer);
 
   }, [user, refreshUserProfile]);
@@ -73,7 +76,7 @@ const Header = () => {
 
   return (
     <>
-      <motion.header
+      <m.header
         initial={{ y: -40, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.35, ease: 'easeOut' }}
@@ -110,7 +113,7 @@ const Header = () => {
               {/* Download button (shown only if configured) */}
               {/* Download chip removed; use floating FAB instead */}
               {/* Unified Coin Badge */}
-              <div className="hidden sm:inline-flex hd-badge hd-badge-gold" title="Coins" aria-label={`Coins: ${wallet.toLocaleString()}`}>
+              <div className="hidden sm:inline-flex hd-badge hd-badge-gold" title="Coins" aria-label={`Coins: ${walletLabel}`}>
                 <div className="hd-badge-icon" aria-hidden="true">
                   <div className="hd-badge-coin">
                     <div className="hd-badge-coin-front">
@@ -120,34 +123,36 @@ const Header = () => {
                   </div>
                 </div>
                 <div className="hd-badge-info select-none">
-                  <span className="hd-badge-value tabular-nums">{wallet.toLocaleString()}</span>
+                  <span className="hd-badge-value tabular-nums">{walletLabel}</span>
                   <span className="hd-badge-label">COINS</span>
                 </div>
               </div>
               {/* Streak Badge (inline flame emoji, removed separate FlameIcon component) */}
-              {(() => { const streak = Number(userProfile?.current_streak || 0); return (
-                <button
-                  type="button"
-                  onClick={() => { const day = streak; const coins = Math.min(50, 10 + Math.max(0, day - 1) * 5); setStreakModal({ open: true, day, coins }); }}
-                  className="hd-badge hd-badge-streak -ml-1 sm:-ml-2"
-                  title="Daily Streak"
-                  aria-label={`Streak: ${streak} days`}
-                >
-                  <div className="hd-badge-icon hd-badge-icon-streak-full" aria-hidden="true">
-                    <div className="streak-orb" />
-                    <span className="streak-emoji" style={{fontSize:'20px',lineHeight:1,filter:'drop-shadow(0 1px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 4px rgba(255,150,40,0.5))'}}>🔥</span>
-                  </div>
-                  <div className="hd-badge-info select-none">
-                    <span className="hd-badge-value tabular-nums">{streak}</span>
-                    <span className="hd-badge-label">STREAK</span>
-                  </div>
-                </button>
-              ); })()}
+              <button
+                type="button"
+                onClick={() => {
+                  const day = streak;
+                  const coins = Math.min(50, 10 + Math.max(0, day - 1) * 5);
+                  setStreakModal({ open: true, day, coins });
+                }}
+                className="hd-badge hd-badge-streak -ml-1 sm:-ml-2"
+                title="Daily Streak"
+                aria-label={`Streak: ${streak} days`}
+              >
+                <div className="hd-badge-icon hd-badge-icon-streak-full" aria-hidden="true">
+                  <div className="streak-orb" />
+                  <span className="streak-emoji" style={{fontSize:'20px',lineHeight:1,filter:'drop-shadow(0 1px 2px rgba(0,0,0,0.55)) drop-shadow(0 0 4px rgba(255,150,40,0.5))'}}>🔥</span>
+                </div>
+                <div className="hd-badge-info select-none">
+                  <span className="hd-badge-value tabular-nums">{streak}</span>
+                  <span className="hd-badge-label">STREAK</span>
+                </div>
+              </button>
             </div>
           </div>
         </div>
         </div>
-      </motion.header>
+  </m.header>
 
       <StreakModal
         open={streakModal.open}

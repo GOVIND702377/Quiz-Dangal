@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback } from 'react';
+import { m } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
@@ -101,7 +101,7 @@ function AutoNotificationsActivity() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState('all'); // all | today | 7d | 30d
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       // Fetch logs first (no FK dependency)
       const { data: logs, error: logErr } = await supabase
@@ -132,8 +132,8 @@ function AutoNotificationsActivity() {
     } finally {
       setLoading(false);
     }
-  };
-  useEffect(() => { fetchData(); }, []);
+  }, [toast]);
+  useEffect(() => { fetchData(); }, [fetchData]);
   const filtered = React.useMemo(() => {
     if (!Array.isArray(rows)) return [];
     const now = Date.now();
@@ -183,7 +183,7 @@ function BroadcastActivity() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [range, setRange] = useState('all'); // all | today | 7d | 30d
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('notifications')
@@ -197,8 +197,8 @@ function BroadcastActivity() {
     } finally {
       setLoading(false);
     }
-  };
-  useEffect(() => { fetchData(); }, []);
+  }, [toast]);
+  useEffect(() => { fetchData(); }, [fetchData]);
   const filtered = React.useMemo(() => {
     if (!Array.isArray(rows)) return [];
     const now = Date.now();
@@ -251,16 +251,6 @@ export default function Admin() {
   const activeTab = params.get('tab') || 'overview';
   const setTab = (key) => { const p = new URLSearchParams(params); p.set('tab', key); setParams(p, { replace: false }); };
 
-  // Admin-only gate
-  if (userProfile?.role !== 'admin') {
-    return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
-        <p className="text-gray-600 mt-2">Aapke paas admin adhikaar nahi hain.</p>
-      </div>
-    );
-  }
-
   // Quizzes
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -290,9 +280,7 @@ export default function Admin() {
     title: '', prizes: ['', '', ''], start_time: '', end_time: '', category: '', bulk_text: '', prize_type: 'money'
   });
 
-  useEffect(() => { if (activeTab === 'overview') fetchQuizzes(); }, [activeTab]);
-
-  const fetchQuizzes = async () => {
+  const fetchQuizzes = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('quizzes')
@@ -305,7 +293,19 @@ export default function Admin() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => { if (activeTab === 'overview') fetchQuizzes(); }, [activeTab, fetchQuizzes]);
+
+  // After hooks
+  if (userProfile?.role !== 'admin') {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
+        <p className="text-gray-600 mt-2">Aapke paas admin adhikaar nahi hain.</p>
+      </div>
+    );
+  }
 
   const fetchQuestions = async (quizId) => {
     try {
@@ -322,7 +322,7 @@ export default function Admin() {
 
   // Util: parse bulk text into structured questions with strict validation and RAW checkbox support
   const parseBulkQuestions = (text, { strict = false, allowZeroCorrect = false } = {}) => {
-    const blocks = String(text || '').trim().split(/\n\s*\n+/); // split by blank lines
+  const blocks = String(text || '').trim().split(/\n\s*\n+/); // split by blank lines
     const items = [];
     const errors = [];
     const warnings = [];
@@ -333,19 +333,22 @@ export default function Admin() {
       if (!nonEmpty.length) continue;
       qCounter += 1;
       // First non-empty line is question
-      const qline = nonEmpty[0].replace(/^Q\d*\.?\s*/i, '').replace(/^Question\s*[:\-]\s*/i, '');
+  // Normalize leading question label like "Q1." or "Question -" / "Question:".
+  // Use a character class for colon or hyphen (previous pattern used an escaped hyphen outside a class which was unnecessary)
+  const qline = nonEmpty[0].replace(/^Q\d*\.?\s*/i, '').replace(/^Question\s*[:-]\s*/i, '');
       const opts = [];
-      let answerLine = '';
-      let tickedCount = 0;
+  let answerLine = '';
+  // removed tickedCount (not used outside parsing)
       for (let i = 1; i < lines.length; i++) {
         const ln = lines[i];
         if (!ln) continue;
-        if (/^ans(wer)?\s*[:\-]/i.test(ln)) { answerLine = ln; continue; }
+  // Detect an answer line like "Answer: B" OR "Ans - 2" (colon or hyphen after the label)
+  if (/^ans(wer)?\s*[:-]/i.test(ln)) { answerLine = ln; continue; }
         // Support RAW checkbox style: - [x] text or - [ ] text
         const cb = ln.match(/^[-*•]?\s*\[(x|X| )\]\s*(.+)$/);
         if (cb) {
           const isX = /x/i.test(cb[1]);
-          if (isX) tickedCount += 1;
+          // count removed
           opts.push({ option_text: cb[2].trim(), is_correct: isX });
           continue;
         }
@@ -353,25 +356,26 @@ export default function Admin() {
         const m = ln.match(/^(?:[-*•]|[A-Da-d]\)|\d+\)|[A-Da-d][.:])\s*(.+)$/);
         let textOnly = m ? m[1].trim() : ln.replace(/^[*]\s*/, '').trim();
         const isStar = /^\*/.test(ln);
-        if (isStar) tickedCount += 1;
+  // count removed
         if (textOnly) opts.push({ option_text: textOnly, is_correct: isStar });
       }
       // Determine correct from Answer: X (if provided)
       if (answerLine) {
-        const ans = answerLine.split(/[:\-]/).slice(1).join(':').trim();
+  // Split on first colon or hyphen after the Answer label; using char class instead of sequential colon-hyphen pattern
+  const ans = answerLine.split(/[:-]/).slice(1).join(':').trim();
         const letter = ans.match(/^[A-Da-d]/)?.[0]?.toUpperCase();
         const indexNum = parseInt(ans, 10);
         if (letter) {
           const idx = { A:0, B:1, C:2, D:3 }[letter];
-          if (Number.isInteger(idx) && opts[idx]) { opts.forEach((o, i) => o.is_correct = i === idx); tickedCount = 1; }
+          if (Number.isInteger(idx) && opts[idx]) { opts.forEach((o, i) => o.is_correct = i === idx); }
         } else if (!isNaN(indexNum) && indexNum >= 1 && opts[indexNum-1]) {
           opts.forEach((o, i) => o.is_correct = i === (indexNum-1));
-          tickedCount = 1;
+          // mark correct handled
         } else {
           // match by text include
           const target = ans.toLowerCase();
           const found = opts.findIndex(o => o.option_text.toLowerCase() === target || o.option_text.toLowerCase().includes(target));
-          if (found >= 0) { opts.forEach((o, i) => o.is_correct = i === found); tickedCount = 1; }
+          if (found >= 0) { opts.forEach((o, i) => o.is_correct = i === found); }
         }
       }
       // Clean and enforce max 4 options (preserve correct if possible)
@@ -452,11 +456,7 @@ export default function Admin() {
     return { ok: true };
   };
 
-  // Questions & Options CRUD
-  const addQuestion = () => {
-    // Toggle inline composer instead of prompt
-    setComposerOpen(true);
-  };
+  // Questions & Options CRUD (inline composer toggled directly elsewhere; removed unused addQuestion helper)
 
   const saveNewQuestion = async () => {
     if (!selectedQuiz) return;
@@ -662,10 +662,10 @@ export default function Admin() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl text-foreground">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
+  <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
   <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Quiz Dangal Admin</h1>
   <p className="text-muted-foreground">Admin dashboard</p>
-      </motion.div>
+  </m.div>
 
       {/* Tabs */}
       <div className="flex gap-2 flex-wrap mb-6">
@@ -699,7 +699,7 @@ export default function Admin() {
 
         {/* Create Quiz Form */}
         {showCreateQuiz && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg mb-8">
+          <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg mb-8">
             <h2 className="text-xl font-bold text-foreground mb-1">Create New Quiz</h2>
             {/* Note removed: translations no longer auto-generated */}
             <form onSubmit={handleCreateQuiz} className="space-y-4">
@@ -856,7 +856,7 @@ export default function Admin() {
                 <Button type="button" variant="outline" onClick={() => setShowCreateQuiz(false)}>Cancel</Button>
               </div>
             </form>
-          </motion.div>
+          </m.div>
         )}
 
         {/* Quizzes List */}
@@ -871,8 +871,8 @@ export default function Admin() {
               <div>
                 <h3 className="text-lg font-semibold text-foreground">Active / Upcoming</h3>
                 <div className="space-y-4 mt-2">
-                  {quizzes.filter(q => { const now=Date.now(); const st=q.start_time?new Date(q.start_time).getTime():null; const en=q.end_time?new Date(q.end_time).getTime():null; return en===null || now<=en; }).map((quiz, index) => (
-                    <motion.div key={quiz.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
+                  {quizzes.filter(q => { const now=Date.now(); /* removed unused st variable */ const en=q.end_time?new Date(q.end_time).getTime():null; return en===null || now<=en; }).map((quiz, index) => (
+                    <m.div key={quiz.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h3 className="text-lg font-semibold text-foreground">{quiz.title}</h3>
@@ -925,7 +925,7 @@ export default function Admin() {
                         </div>
                         ); })()}
                       </div>
-                    </motion.div>
+                    </m.div>
                   ))}
                 </div>
               </div>
@@ -934,7 +934,7 @@ export default function Admin() {
                 <h3 className="text-lg font-semibold text-foreground">Finished</h3>
                 <div className="space-y-4 mt-2">
                   {quizzes.filter(q => { const now=Date.now(); const en=q.end_time?new Date(q.end_time).getTime():null; return en!==null && now>en; }).map((quiz, index) => (
-                    <motion.div key={quiz.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
+                    <m.div key={quiz.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <h3 className="text-lg font-semibold text-foreground">{quiz.title}</h3>
@@ -953,7 +953,7 @@ export default function Admin() {
                           <Link to={`/results/${quiz.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md border border-border hover:bg-muted text-blue-600"><Eye className="h-4 w-4"/> Results</Link>
                         </div>
                       </div>
-                    </motion.div>
+                    </m.div>
                   ))}
                 </div>
               </div>
@@ -1151,7 +1151,7 @@ function AdminRedemptionsSection() {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ title: '', coins_required: '', description: '', image_url: '' });
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('reward_catalog')
@@ -1164,9 +1164,9 @@ function AdminRedemptionsSection() {
       setItems(data || []);
     }
     setLoading(false);
-  };
+  }, [toast]);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [load]);
 
   const addItem = async (e) => {
     e.preventDefault();

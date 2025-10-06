@@ -50,7 +50,7 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
                 const pub = supabase?.storage?.from('avatars')?.getPublicUrl(pathOrUrl);
                 const publicUrl = pub?.data?.publicUrl;
                 if (publicUrl) return publicUrl;
-            } catch {}
+            } catch (e) { /* public url resolution fail */ }
             try {
                 const { data, error } = await supabase.storage.from('avatars').createSignedUrl(pathOrUrl, 60 * 60);
                 if (error) throw error;
@@ -139,7 +139,7 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
             if (pub?.data?.publicUrl) {
                 return { path: filePath, previewUrl: pub.data.publicUrl };
             }
-        } catch {}
+    } catch (e) { /* public url fetch fail */ }
         const { data, error: signedError } = await supabase.storage
             .from('avatars')
             .createSignedUrl(filePath, 60 * 60);
@@ -154,13 +154,14 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
                 setErrors({ ...errors, avatar: 'File size must be less than 5MB' });
                 return;
             }
-            
+            if (!file.type.startsWith('image/')) {
+                setErrors({ ...errors, avatar: 'Only image files are allowed' });
+                return;
+            }
             setAvatarFile(file);
             const reader = new FileReader();
-            reader.onload = (e) => setAvatarPreview(e.target.result);
+            reader.onload = (ev) => setAvatarPreview(ev.target.result);
             reader.readAsDataURL(file);
-            
-            // Clear avatar error
             const newErrors = { ...errors };
             delete newErrors.avatar;
             setErrors(newErrors);

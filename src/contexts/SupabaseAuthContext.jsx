@@ -8,59 +8,13 @@ import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 
 const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
+// Inner provider with all hooks so outer wrapper can early-return without tripping hooks rule
+function AuthProviderInner({ children }) {
     const [user, setUser] = useState(null);
     const [userProfile, setUserProfile] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isRecoveryFlow, setIsRecoveryFlow] = useState(false);
     const initProfileRef = useRef(false);
-
-    // Dev bypass: allow running app without Supabase for local UI testing
-    const _bypass = String(import.meta.env.VITE_BYPASS_AUTH || '').toLowerCase();
-    const devBypass = _bypass === '1' || _bypass === 'true' || _bypass === 'yes';
-
-    if (devBypass) {
-        const value = {
-            supabase: null,
-            user: null,
-            userProfile: null,
-            loading: false,
-            signUp: async () => { throw new Error('Auth disabled in dev bypass'); },
-            signIn: async () => { throw new Error('Auth disabled in dev bypass'); },
-            signOut: async () => {},
-            refreshUserProfile: () => {},
-        };
-        return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-    }
-
-    // If Supabase config is missing, still provide a context so children using useAuth don't crash.
-    if (!hasSupabaseConfig) {
-        const value = {
-            supabase: null,
-            user: null,
-            userProfile: null,
-            loading: false,
-            isRecoveryFlow: false,
-            hasSupabaseConfig: false,
-            signUp: async () => { throw new Error('Supabase config missing'); },
-            signIn: async () => { throw new Error('Supabase config missing'); },
-            signOut: async () => {},
-            refreshUserProfile: () => {},
-        };
-        return (
-            <AuthContext.Provider value={value}>
-                <div className="min-h-screen flex items-center justify-center p-6">
-                    <div className="bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-lg w-full shadow-xl text-center">
-                        <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3">Configuration Missing</h2>
-                        <p className="text-gray-700 mb-2">Create a <code>.env</code> file in the project root with:</p>
-                        <pre className="text-left text-sm bg-gray-100 p-3 rounded-md overflow-auto"><code>VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
-                        <p className="text-gray-600 mt-3">Or for local UI only testing set <code>VITE_BYPASS_AUTH=1</code> then restart dev server.</p>
-                    </div>
-                </div>
-            </AuthContext.Provider>
-        );
-    }
 
     // Profile fetch karne ka function
     const refreshUserProfile = async (currentUser) => {
@@ -87,7 +41,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
             const u = new URL(window.location.href);
             const isRec = (u.hash || '').includes('type=recovery') || new URLSearchParams(u.search).get('type') === 'recovery';
             if (isRec) setIsRecoveryFlow(true);
-        } catch {}
+    } catch (e) { /* recovery URL parse fail */ }
         setLoading(true);
         // Pehli baar session check karne ke liye
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -99,11 +53,8 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
             } else {
                 setUserProfile(null);
             }
-        }).catch(async () => {
-            // If fetching session fails (e.g., invalid refresh token), force sign out
-            try { await supabase.auth.signOut(); } catch {}
-            setUser(null);
-            setUserProfile(null);
+        }).catch(() => {
+            // Network/offline errors shouldn't force logout; keep prior session state
             setLoading(false);
         });
 
@@ -135,20 +86,32 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
 
     // Safety net: periodic session validation to recover from invalid/expired refresh tokens
     useEffect(() => {
+        if (!user) return;
+
         const id = setInterval(async () => {
+            if (typeof navigator !== 'undefined' && navigator && navigator.onLine === false) {
+                return; // offline mode: defer session checks
+            }
+
             try {
-                const { data } = await supabase.auth.getSession();
-                if (!data?.session && user) {
-                    try { await supabase.auth.signOut(); } catch {}
+                const { data, error } = await supabase.auth.getSession();
+                if (error) {
+                    return; // transient error; allow Supabase to recover via refresh token
+                }
+
+                if (!data?.session) {
+                    const { data: refreshed } = await supabase.auth.refreshSession();
+                    if (refreshed?.session) {
+                        return;
+                    }
                     setUser(null);
                     setUserProfile(null);
                 }
-            } catch {
-                try { await supabase.auth.signOut(); } catch {}
-                setUser(null);
-                setUserProfile(null);
+            } catch (err) {
+                // swallow transient network issues; Supabase SDK will retry automatically
             }
-        }, 60000); // every 60s
+        }, 5 * 60 * 1000); // every 5 minutes
+
         return () => clearInterval(id);
     }, [user]);
 
@@ -185,7 +148,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
                             referred_user_uuid: user.id,
                             referrer_code: refParam,
                         });
-                        try { sessionStorage.setItem(refFlag, '1'); } catch {}
+                        try { sessionStorage.setItem(refFlag, '1'); } catch (e3) { /* sessionStorage blocked */ }
                     } catch {
                         // ignore referral errors so profile init continues
                     }
@@ -228,7 +191,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
     };
 
     const hardSignOut = async () => {
-        try { await supabase.auth.signOut(); } catch {}
+    try { await supabase.auth.signOut(); } catch (e2) { /* periodic signOut fail */ }
         try {
             // Clear common Supabase/local keys to avoid ghost sessions
             Object.keys(localStorage).forEach((k) => {
@@ -237,7 +200,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
                 }
             });
             sessionStorage.clear();
-        } catch {}
+    } catch (e3) { /* localStorage cleanup fail */ }
         setUser(null);
         setUserProfile(null);
         // Redirect to login explicitly
@@ -256,8 +219,53 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
         signOut: hardSignOut,
         refreshUserProfile,
     };
-
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export const AuthProvider = ({ children }) => {
+    const _bypass = String(import.meta.env.VITE_BYPASS_AUTH || '').toLowerCase();
+    const devBypass = _bypass === '1' || _bypass === 'true' || _bypass === 'yes';
+    if (devBypass) {
+        const value = {
+            supabase: null,
+            user: null,
+            userProfile: null,
+            loading: false,
+            signUp: async () => { throw new Error('Auth disabled in dev bypass'); },
+            signIn: async () => { throw new Error('Auth disabled in dev bypass'); },
+            signOut: async () => {},
+            refreshUserProfile: () => {},
+        };
+        return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    }
+    if (!hasSupabaseConfig) {
+        const value = {
+            supabase: null,
+            user: null,
+            userProfile: null,
+            loading: false,
+            isRecoveryFlow: false,
+            hasSupabaseConfig: false,
+            signUp: async () => { throw new Error('Supabase config missing'); },
+            signIn: async () => { throw new Error('Supabase config missing'); },
+            signOut: async () => {},
+            refreshUserProfile: () => {},
+        };
+        return (
+            <AuthContext.Provider value={value}>
+                <div className="min-h-screen flex items-center justify-center p-6">
+                    <div className="bg-white/80 backdrop-blur-md border border-white/20 rounded-2xl p-8 max-w-lg w-full shadow-xl text-center">
+                        <h2 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-3">Configuration Missing</h2>
+                        <p className="text-gray-700 mb-2">Create a <code>.env</code> file in the project root with:</p>
+                        <pre className="text-left text-sm bg-gray-100 p-3 rounded-md overflow-auto"><code>VITE_SUPABASE_URL=your_supabase_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key</code></pre>
+                        <p className="text-gray-600 mt-3">Or for local UI only testing set <code>VITE_BYPASS_AUTH=1</code> then restart dev server.</p>
+                    </div>
+                </div>
+            </AuthContext.Provider>
+        );
+    }
+    return <AuthProviderInner>{children}</AuthProviderInner>;
 };
 
 export const useAuth = () => {

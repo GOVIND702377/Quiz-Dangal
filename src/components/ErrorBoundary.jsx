@@ -8,7 +8,7 @@ class ErrorBoundary extends React.Component {
     this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
 
@@ -37,7 +37,7 @@ class ErrorBoundary extends React.Component {
             <AlertTriangle className="mx-auto h-16 w-16 text-red-400 mb-4" />
             <h2 className="text-2xl font-bold mb-4 text-white">Something went wrong</h2>
             <p className="text-slate-300 mb-6">
-              We're sorry, but something unexpected happened. Please try refreshing the page.
+              We&apos;re sorry, but something unexpected happened. Please try refreshing the page.
             </p>
             
             {import.meta.env.DEV && this.state.error && (

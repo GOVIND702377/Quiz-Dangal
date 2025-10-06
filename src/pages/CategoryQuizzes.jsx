@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { m } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
+import { rateLimit } from '@/lib/security';
 import { formatDateOnly, formatTimeOnly } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
-import { Users, Flame, MessageSquare, Brain, Clapperboard, Play, Clock } from 'lucide-react';
+import { Users, Flame, MessageSquare, Brain, Clapperboard, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
@@ -36,7 +37,7 @@ const CategoryQuizzes = () => {
   const [joiningId, setJoiningId] = useState(null);
   const [counts, setCounts] = useState({}); // { [quizId]: joined (pre+joined+completed as joined) }
   const [joinedMap, setJoinedMap] = useState({}); // quiz_id -> 'joined' | 'pre'
-  const [tick, setTick] = useState(0); // force re-render for live countdown
+  const [tick, setTick] = useState(0); // reintroduced for live countdown display recalculation
 
   const fetchQuizzes = useCallback(async () => {
     try {
@@ -84,7 +85,7 @@ const CategoryQuizzes = () => {
           map[row.quiz_id] = pre + joined;
         }
         setCounts(map);
-      } catch {}
+  } catch (e) { /* fetch categories fail */ }
     };
     if (quizzes && quizzes.length) run();
   }, [quizzes]);
@@ -134,13 +135,19 @@ const CategoryQuizzes = () => {
       const isActive = st && et && now >= st && now < et;
       const isUpcoming = st && now < st;
       const rpc = isUpcoming ? 'pre_join_quiz' : (isActive ? 'join_quiz' : 'pre_join_quiz');
-      const { data, error } = await supabase.rpc(rpc, { p_quiz_id: q.id });
-      if (error) throw error;
+  const { error } = await supabase.rpc(rpc, { p_quiz_id: q.id });
+  if (error) throw error; // removed unused data variable
       // Update UI state immediately so button shows JOINED without refresh
       setJoinedMap(prev => ({ ...prev, [q.id]: isActive ? 'joined' : 'pre' }));
       if (isUpcoming) {
         toast({ title: 'Pre-joined!', description: 'We will remind you before start.' });
       } else {
+            // Basic client-side rate limiting (defense-in-depth; backend still authoritative)
+            const rl = rateLimit(`join_${user?.id || 'anon'}`, { max: 4, windowMs: 8000 });
+            if (!rl.allowed) {
+              toast({ title: 'Slow down', description: 'Please wait a moment before trying again.', variant: 'destructive' });
+              return;
+            }
         toast({ title: 'Joined!', description: 'Taking you to the quiz.' });
         navigate(`/quiz/${q.id}`);
       }
@@ -181,6 +188,7 @@ const CategoryQuizzes = () => {
 
   return (
     <div className="container mx-auto px-4 py-3 text-foreground">
+      <span className="hidden" aria-hidden>{tick}</span>
       {/* Hero Header */}
       <div className={`relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-r ${meta.from} ${meta.to} shadow-xl mb-4`}>
         <div className="absolute inset-0 pointer-events-none" style={{background:'radial-gradient(700px 180px at -10% -20%, rgba(255,255,255,0.07), transparent), radial-gradient(420px 100px at 110% 10%, rgba(255,255,255,0.05), transparent)'}} />
@@ -239,7 +247,7 @@ const CategoryQuizzes = () => {
             const totalWindow = (st && et) ? Math.max(1, et - st) : null;
             const progressed = isActive && totalWindow ? Math.min(100, Math.max(0, Math.round(((now - st) / totalWindow) * 100))) : null;
             return (
-              <motion.div
+              <m.div
                 key={q.id}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -333,7 +341,7 @@ const CategoryQuizzes = () => {
                     </button>
                   </div>
                 </div>
-              </motion.div>
+              </m.div>
             );
           })}
         </div>
