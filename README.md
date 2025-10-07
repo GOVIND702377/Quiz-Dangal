@@ -91,14 +91,23 @@ Error Modes:
 1) Dependencies install
 - `npm install`
 
-2) Environment variables (Frontend)
-Project root me `.env` banayein (ya existing update karein):
-- `VITE_SUPABASE_URL` = aapke Supabase project ka URL
-- `VITE_SUPABASE_ANON_KEY` = Supabase anon key
-- `VITE_VAPID_PUBLIC_KEY` = Web Push VAPID public key
-- Optional: `VITE_BYPASS_AUTH=1` (sirf local UI testing ke liye; auth flows disable ho jayenge)
+2) Environment variables (Frontend + Local secrets)
+- `env.example` ko base mana kar `.env` banayein (frontend-only values).
+- Sensitive keys ko repo se bahar rakhein: `.env.local.example` copy karke `.env.local` banayein aur actual Supabase URL/keys service role/database password waha daalein. `.gitignore` already is file ko skip karta hai.
+- Agar pehle se credentials leak ho gaye ho (jaise repo ya chat me share), turant Supabase dashboard se naye keys rotate karein varna account compromise ho sakta hai.
+- Required vars:
+  - `VITE_SUPABASE_URL` = aapke Supabase project ka URL
+  - `VITE_SUPABASE_ANON_KEY` = Supabase anon key
+  - `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE` (server scripts ke liye sirf `.env.local` me)
+  - `VITE_VAPID_PUBLIC_KEY` = Web Push VAPID public key
+  - Optional: `VITE_BYPASS_AUTH=1` (sirf local UI testing ke liye; auth flows disable ho jayenge)
 
-3) Supabase Function Secrets (Backend)
+3) Supabase Migrations (Database)
+- Supabase CLI install ho to: `supabase db push`
+- Ya phir Supabase Dashboard → SQL editor me `supabase/migrations/` ke latest files run karein.
+- Khaskar `supabase/migrations/20251007221500_add_prize_type_column.sql` zaroor apply karein; bina iske admin panel me quiz create karte waqt `prize_type` column missing error aayega.
+
+4) Supabase Function Secrets (Backend)
 Supabase dashboard me function secrets set karein:
 - `SUPABASE_URL`
 - `SUPABASE_ANON_KEY`
@@ -108,11 +117,11 @@ Supabase dashboard me function secrets set karein:
 - `CONTACT_EMAIL` (e.g., mailto:notify@example.com)
 - `ALLOWED_ORIGIN` (prod domain; default `https://quizdangal.com`)
 
-4) Dev server
+5) Dev server
 - `npm run dev`
 - LAN testing (same WiFi me dusre device par): `npm run dev:lan`
 
-5) Production build/preview
+6) Production build/preview
 - Build: `npm run build`
 - Preview: `npm run preview`
 

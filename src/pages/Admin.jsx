@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { m } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { supabase } from '@/lib/customSupabaseClient';
+import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
 import { formatDateTime, toDatetimeLocalValue } from '@/lib/utils';
@@ -251,6 +251,8 @@ export default function Admin() {
   const activeTab = params.get('tab') || 'overview';
   const setTab = (key) => { const p = new URLSearchParams(params); p.set('tab', key); setParams(p, { replace: false }); };
 
+  const supabaseReady = hasSupabaseConfig && Boolean(supabase);
+
   // Quizzes
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -295,7 +297,7 @@ export default function Admin() {
     }
   }, [toast]);
 
-  useEffect(() => { if (activeTab === 'overview') fetchQuizzes(); }, [activeTab, fetchQuizzes]);
+  useEffect(() => { if (!supabaseReady) return; if (activeTab === 'overview') fetchQuizzes(); }, [activeTab, fetchQuizzes, supabaseReady]);
 
   // After hooks
   if (userProfile?.role !== 'admin') {
@@ -303,6 +305,22 @@ export default function Admin() {
       <div className="container mx-auto px-4 py-8 text-center">
         <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
         <p className="text-gray-600 mt-2">Aapke paas admin adhikaar nahi hain.</p>
+      </div>
+    );
+  }
+
+  if (!supabaseReady) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="qd-card rounded-2xl max-w-lg w-full p-6 text-center">
+          <h2 className="text-xl font-semibold text-yellow-300 mb-3">Supabase config missing</h2>
+          <p className="text-sm text-white/70">
+            Admin tools ko local ya staging par chalane ke liye <code>.env</code> me <code>VITE_SUPABASE_URL</code> aur <code>VITE_SUPABASE_ANON_KEY</code> bharein.
+          </p>
+          <p className="text-sm text-white/65 mt-3">
+            Agar sirf UI preview karna hai to <code>VITE_BYPASS_AUTH=1</code> se login mock ho jayega, lekin Supabase ke bina data actions (quizzes create/update, notifications) disable rahenge.
+          </p>
+        </div>
       </div>
     );
   }
@@ -587,23 +605,52 @@ export default function Admin() {
         const d = new Date(val);
         return isNaN(d.getTime()) ? null : d.toISOString();
       };
-      const { data: insertData, error } = await supabase
-        .from('quizzes')
-        .insert([{
+      const buildPayload = (includePrizeType = true) => {
+        const base = {
           title: quizForm.title,
           prize_pool: prizePool,
           prizes: prizesArray,
-          // Single-step creation with schedule
           start_time: toISOorNull(quizForm.start_time),
           end_time: toISOorNull(quizForm.end_time),
           status: 'upcoming',
           category: quizForm.category || null,
-          prize_type: quizForm.prize_type || 'money'
-        }])
-        .select('id, title, category, prizes, prize_pool, start_time, end_time')
-        .single();
+        };
+        if (includePrizeType) {
+          base.prize_type = quizForm.prize_type || 'money';
+        }
+        return base;
+      };
 
-      if (error) throw error;
+      const tryInsert = async (includePrizeType = true) => {
+        return supabase
+          .from('quizzes')
+          .insert([buildPayload(includePrizeType)])
+          .select('id, title, category, prizes, prize_pool, start_time, end_time')
+          .single();
+      };
+
+      let insertData;
+  let insertError;
+
+      const firstAttempt = await tryInsert(true);
+      insertData = firstAttempt.data;
+      insertError = firstAttempt.error;
+
+      if (insertError && /prize_type/.test(insertError.message || '')) {
+  const secondAttempt = await tryInsert(false);
+        insertData = secondAttempt.data;
+        insertError = secondAttempt.error;
+        if (!insertError && insertData) {
+          toast({
+            title: 'Migration pending',
+            description: 'Quiz ban gaya, lekin Supabase schema me prize_type column missing hai. Please run latest migrations.',
+            variant: 'warning',
+          });
+          insertData.prize_type = quizForm.prize_type || 'money';
+        }
+      }
+
+      if (insertError) throw insertError;
 
   toast({ title: 'Quiz created', description: 'Questions will be saved now.' });
   // Use prepared items BEFORE resetting form state

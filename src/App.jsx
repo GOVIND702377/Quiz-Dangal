@@ -187,7 +187,21 @@ function AdminRoute({ children }) {
     );
   }
   if (!userProfile || userProfile.role !== 'admin') {
-    return <Navigate to="/" replace />;
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="qd-card rounded-2xl max-w-md w-full p-6 text-center">
+          <h2 className="text-xl font-semibold text-red-400 mb-2">Admin access required</h2>
+          <p className="text-sm text-white/70">
+            Local or staging par admin panel kholne ke liye aapke Supabase <code>profiles</code> record ka <strong>role</strong> field <code>&apos;admin&apos;</code> hona zaroori hai.
+          </p>
+          <ul className="text-left text-sm text-white/65 mt-4 space-y-2 list-disc list-inside">
+            <li>Supabase dashboard &rarr; Table editor &rarr; <code>profiles</code> me login user ka <code>role</code> update karein.</li>
+            <li>Changes apply hone ke baad dobara login karein ya session refresh karein.</li>
+            <li>Agar dev bypass (<code>VITE_BYPASS_AUTH=1</code>) use kar rahe hain to mock admin profile already enable hai.</li>
+          </ul>
+        </div>
+      </div>
+    );
   }
   return children;
 }

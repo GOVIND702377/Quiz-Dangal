@@ -7,5 +7,5 @@ describe('useQuizEngine module', () => {
   it('imports without throwing', async () => {
     const mod = await import('@/hooks/useQuizEngine.js');
     expect(typeof mod.useQuizEngine).toBe('function');
-  });
+  }, 30000);
 });

@@ -226,11 +226,26 @@ export const AuthProvider = ({ children }) => {
     const _bypass = String(import.meta.env.VITE_BYPASS_AUTH || '').toLowerCase();
     const devBypass = _bypass === '1' || _bypass === 'true' || _bypass === 'yes';
     if (devBypass) {
+        const mockUser = {
+            id: 'dev-bypass-admin',
+            email: 'dev-admin@example.com',
+            app_metadata: { provider: 'dev-bypass' },
+        };
+        const mockProfile = {
+            id: mockUser.id,
+            full_name: 'Dev Admin',
+            role: 'admin',
+            wallet_balance: 0,
+            current_streak: 0,
+            referral_code: 'DEVADMIN',
+        };
         const value = {
             supabase: null,
-            user: null,
-            userProfile: null,
+            user: mockUser,
+            userProfile: mockProfile,
             loading: false,
+            isRecoveryFlow: false,
+            hasSupabaseConfig: false,
             signUp: async () => { throw new Error('Auth disabled in dev bypass'); },
             signIn: async () => { throw new Error('Auth disabled in dev bypass'); },
             signOut: async () => {},
