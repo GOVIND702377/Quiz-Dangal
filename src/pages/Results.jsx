@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { m } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getSignedAvatarUrls } from '@/lib/avatar';
+import { getPrizeDisplay } from '@/lib/utils';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -208,6 +209,10 @@ const Results = () => {
 
   // Removed static background poster; we render a clean gradient background only.
 
+  const prizeType = quiz?.prize_type || 'money';
+  const userPrizeVal = (userRank?.rank && Array.isArray(quiz?.prizes) && quiz.prizes[userRank.rank - 1]) ? quiz.prizes[userRank.rank - 1] : 0;
+  const userPrizeDisplay = getPrizeDisplay(prizeType, userPrizeVal, { fallback: 0 });
+
   // Compose a dynamic Results poster (portrait-only) with strict flow and QR footer
   const generateComposedResultsPoster = async () => {
     try {
@@ -229,8 +234,8 @@ const Results = () => {
 
       const PAD=64, cxMid=W/2; let y = PAD + 12;
       // Big top logo in gradient circle
-      const badgeR=140, badgeCY=y+badgeR; ctx.save(); ctx.beginPath(); ctx.arc(cxMid,badgeCY,badgeR,0,Math.PI*2); ctx.closePath(); const bg1=ctx.createLinearGradient(cxMid-badgeR,badgeCY-badgeR,cxMid+badgeR,badgeCY+badgeR); bg1.addColorStop(0,'#1cc5ff'); bg1.addColorStop(1,'#ef47ff'); ctx.fillStyle=bg1; ctx.fill();
-  try { const posterLogo=(import.meta.env.VITE_POSTER_LOGO_URL || '/poster-logo.png'); let logo; try { logo=await loadImage(posterLogo); } catch (e) { logo=await loadImage('/android-chrome-192x192.png'); } const inset=16; const d=(badgeR*2)-inset; ctx.save(); ctx.beginPath(); ctx.arc(cxMid,badgeCY,badgeR-inset/2,0,Math.PI*2); ctx.clip(); ctx.drawImage(logo, Math.round(cxMid-d/2), Math.round(badgeCY-d/2), Math.round(d), Math.round(d)); ctx.restore(); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(cxMid,badgeCY,badgeR-inset/2,0,Math.PI*2); ctx.stroke(); } catch (e) { /* badge logo draw fail */ }
+    const badgeR=140, badgeCY=y+badgeR; ctx.save(); ctx.beginPath(); ctx.arc(cxMid,badgeCY,badgeR,0,Math.PI*2); ctx.closePath(); const bg1=ctx.createLinearGradient(cxMid-badgeR,badgeCY-badgeR,cxMid+badgeR,badgeCY+badgeR); bg1.addColorStop(0,'#1cc5ff'); bg1.addColorStop(1,'#ef47ff'); ctx.fillStyle=bg1; ctx.fill();
+  try { const posterLogoSetting = (import.meta.env.VITE_POSTER_LOGO_URL || '').trim(); const posterLogo = posterLogoSetting || '/android-chrome-192x192.png'; let logo; try { logo=await loadImage(posterLogo); } catch (e) { logo=await loadImage('/android-chrome-192x192.png'); } const inset=16; const d=(badgeR*2)-inset; ctx.save(); ctx.beginPath(); ctx.arc(cxMid,badgeCY,badgeR-inset/2,0,Math.PI*2); ctx.clip(); ctx.drawImage(logo, Math.round(cxMid-d/2), Math.round(badgeCY-d/2), Math.round(d), Math.round(d)); ctx.restore(); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(cxMid,badgeCY,badgeR-inset/2,0,Math.PI*2); ctx.stroke(); } catch (e) { /* badge logo draw fail */ }
       ctx.restore(); y = badgeCY + badgeR + 18;
 
       // Header + subtitle
@@ -242,8 +247,9 @@ const Results = () => {
       // Results box
       const boxX=PAD, boxW=W-PAD*2, lineLeft=boxX+56; const boxTopPad=48, boxBotPad=40;
       const rankText = userRank?.rank ? `#${userRank.rank} Rank!` : 'Results Live!';
-      const prizeVal = (userRank?.rank && Array.isArray(quiz?.prizes) && quiz.prizes[userRank.rank-1]) ? quiz.prizes[userRank.rank-1] : 0;
-      const prizeText = `👑 Prize: ₹${prizeVal}`;
+      const prizeDisplay = getPrizeDisplay(prizeType, userPrizeVal, { fallback: 0 });
+  const prizeIconText = prizeDisplay.showIconSeparately && prizeDisplay.icon ? `${prizeDisplay.icon} ` : '';
+  const prizeText = `👑 Prize: ${prizeIconText}${prizeDisplay.formatted}`;
       const scoreText = typeof userRank?.score === 'number' ? `☑️ Score: ${userRank.score}` : '';
       const rankSize=fitFontSize(rankText, boxW-100, '900', 112, 80);
       const prizeSize=fitFontSize(prizeText, boxW-100, '900', 48, 32);
@@ -511,7 +517,10 @@ const Results = () => {
               </div>
               <div className="min-w-[68px]">
                 <div className="text-[11px] text-slate-400">Prize</div>
-                <div className="text-sm font-bold text-purple-300">₹{userRank.rank && Array.isArray(quiz?.prizes) && quiz.prizes[userRank.rank-1] ? quiz.prizes[userRank.rank-1] : 0}</div>
+                <div className="text-sm font-bold text-purple-300 flex items-center justify-end gap-1">
+                  {userPrizeDisplay.showIconSeparately && userPrizeDisplay.icon && <span aria-hidden="true">{userPrizeDisplay.icon}</span>}
+                  <span>{userPrizeDisplay.formatted}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -520,11 +529,15 @@ const Results = () => {
         {/* Prize chips */}
         {Array.isArray(quiz?.prizes) && quiz.prizes.length > 0 && (
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 mb-4 overflow-x-auto whitespace-nowrap">
-            {quiz.prizes.map((amount, idx) => (
-              <span key={idx} className={`inline-block mr-2 mb-2 px-2.5 py-1 rounded-lg text-xs font-semibold border ${idx===0 ? 'bg-amber-500/10 text-amber-200 border-amber-500/30' : idx===1 ? 'bg-sky-500/10 text-sky-200 border-sky-500/30' : idx===2 ? 'bg-violet-500/10 text-violet-200 border-violet-500/30' : 'bg-slate-800/60 text-slate-200 border-slate-700'}`}>
-                {(idx===0 ? '🥇 1st' : idx===1 ? '🥈 2nd' : idx===2 ? '🥉 3rd' : `#${idx+1}`)} • ₹{amount}
-              </span>
-            ))}
+            {quiz.prizes.map((amount, idx) => {
+              const prizeDisplay = getPrizeDisplay(prizeType, amount, { fallback: 0 });
+              const iconPart = prizeDisplay.showIconSeparately && prizeDisplay.icon ? `${prizeDisplay.icon} ` : '';
+              return (
+                <span key={idx} className={`inline-block mr-2 mb-2 px-2.5 py-1 rounded-lg text-xs font-semibold border ${idx===0 ? 'bg-amber-500/10 text-amber-200 border-amber-500/30' : idx===1 ? 'bg-sky-500/10 text-sky-200 border-sky-500/30' : idx===2 ? 'bg-violet-500/10 text-violet-200 border-violet-500/30' : 'bg-slate-800/60 text-slate-200 border-slate-700'}`}>
+                  {(idx===0 ? '🥇 1st' : idx===1 ? '🥈 2nd' : idx===2 ? '🥉 3rd' : `#${idx+1}`)} • {`${iconPart}${prizeDisplay.formatted}`.trim()}
+                </span>
+              );
+            })}
           </div>
         )}
 
@@ -533,7 +546,8 @@ const Results = () => {
           <div className="text-sm font-semibold text-white mb-2 flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-300" />Leaderboard</div>
           <div className="space-y-2">
             {results.map((participant, index) => {
-              const prize = (participant.rank && Array.isArray(quiz?.prizes) && quiz.prizes[participant.rank - 1]) ? quiz.prizes[participant.rank - 1] : 0;
+              const prizeVal = (participant.rank && Array.isArray(quiz?.prizes) && quiz.prizes[participant.rank - 1]) ? quiz.prizes[participant.rank - 1] : 0;
+              const prizeDisplay = getPrizeDisplay(prizeType, prizeVal, { fallback: 0 });
               const isMe = participant.user_id === user?.id;
               return (
                 <m.div key={participant.id} variants={itemVariants} initial="hidden" animate="show" className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${isMe ? 'bg-indigo-950/40 border-indigo-700/40 ring-1 ring-indigo-500/20' : index<3 ? 'bg-slate-900/70 border-slate-700/60' : 'bg-slate-950/30 border-slate-800 hover:bg-slate-900/60'}`}>
@@ -561,7 +575,10 @@ const Results = () => {
                       <p className="text-[10px] text-slate-400 leading-none">Score</p>
                     </div>
                     <div className="text-right min-w-[64px]">
-                      <p className="text-sm font-bold text-purple-300 leading-none">₹{prize}</p>
+                      <p className="text-sm font-bold text-purple-300 leading-none flex items-center justify-end gap-1">
+                        {prizeDisplay.showIconSeparately && prizeDisplay.icon && <span aria-hidden="true">{prizeDisplay.icon}</span>}
+                        <span>{prizeDisplay.formatted}</span>
+                      </p>
                       <p className="text-[10px] text-slate-400 leading-none">Prize</p>
                     </div>
                   </div>

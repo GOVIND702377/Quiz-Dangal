@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { m, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { formatDateOnly, formatTimeOnly } from '@/lib/utils';
+import { formatDateOnly, formatTimeOnly, getPrizeDisplay } from '@/lib/utils';
 import { useQuizEngine } from '@/hooks/useQuizEngine';
 import { Loader2, CheckCircle, Clock, Users, X } from 'lucide-react';
 
@@ -47,12 +47,20 @@ const Quiz = () => {
 
   const PrizeChips = () => {
     const prizes = Array.isArray(quiz.prizes) ? quiz.prizes : [];
-    const p1 = prizes[0] || 0, p2 = prizes[1] || 0, p3 = prizes[2] || 0;
+    const prizeType = quiz.prize_type || 'money';
+    const p1 = prizes[0] ?? 0;
+    const p2 = prizes[1] ?? 0;
+    const p3 = prizes[2] ?? 0;
+    const formatPrize = (value) => {
+      const display = getPrizeDisplay(prizeType, value, { fallback: 0 });
+      const iconPart = display.showIconSeparately && display.icon ? `${display.icon} ` : '';
+      return `${iconPart}${display.formatted}`.trim();
+    };
     return (
       <div className="mt-2 flex items-center gap-2 text-xs">
-        <span className="px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-700/30">1st ₹{p1}</span>
-        <span className="px-2 py-1 rounded-md bg-sky-500/15 text-sky-300 border border-sky-700/30">2nd ₹{p2}</span>
-        <span className="px-2 py-1 rounded-md bg-violet-500/15 text-violet-300 border border-violet-700/30">3rd ₹{p3}</span>
+        <span className="px-2 py-1 rounded-md bg-amber-500/15 text-amber-300 border border-amber-700/30">1st {formatPrize(p1)}</span>
+        <span className="px-2 py-1 rounded-md bg-sky-500/15 text-sky-300 border border-sky-700/30">2nd {formatPrize(p2)}</span>
+        <span className="px-2 py-1 rounded-md bg-violet-500/15 text-violet-300 border border-violet-700/30">3rd {formatPrize(p3)}</span>
       </div>
     );
   };

@@ -91,3 +91,98 @@ export function toDatetimeLocalValue(value) {
 		return '';
 	}
 }
+
+// --- Prize helpers ---
+const PRIZE_TYPE_META = {
+	money: { icon: '₹', prefix: '₹', suffix: '', label: 'cash' },
+	coins: { icon: '🪙', prefix: '', suffix: ' coins', label: 'coins' },
+	others: { icon: '🎁', prefix: '', suffix: '', label: 'rewards' },
+};
+
+const PRIZE_TYPE_ALIASES = {
+	rupee: 'money',
+	rupees: 'money',
+	cash: 'money',
+	inr: 'money',
+	coin: 'coins',
+	token: 'coins',
+	tokens: 'coins',
+	reward: 'others',
+	rewards: 'others',
+	other: 'others',
+	gift: 'others',
+};
+
+const defaultPrizeMeta = PRIZE_TYPE_META.money;
+
+const normalizePrizeType = (prizeType = 'money') => {
+	if (prizeType === null || prizeType === undefined) return 'money';
+	const raw = String(prizeType).trim().toLowerCase();
+	if (!raw) return 'money';
+	if (PRIZE_TYPE_META[raw]) return raw;
+	if (PRIZE_TYPE_ALIASES[raw]) return PRIZE_TYPE_ALIASES[raw];
+	return 'money';
+};
+
+const sanitizePrizeValue = (value) => {
+	if (value === null || value === undefined) return null;
+	if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+	const trimmed = String(value).trim();
+	if (!trimmed) return null;
+	const numeric = Number(trimmed.replace(/[^0-9.]/g, ''));
+	return Number.isFinite(numeric) ? numeric : trimmed;
+};
+
+export function getPrizeTypeMeta(prizeType = 'money') {
+	const normalized = normalizePrizeType(prizeType);
+	return PRIZE_TYPE_META[normalized] || defaultPrizeMeta;
+}
+
+export function formatPrizeAmount(prizeType, amount, options = {}) {
+	const resolvedType = normalizePrizeType(prizeType);
+	const meta = getPrizeTypeMeta(resolvedType);
+	const { fallback = '0', includeLabel = false } = options;
+	const sanitized = sanitizePrizeValue(amount);
+	const raw = sanitized ?? fallback;
+	const numeric = typeof raw === 'number' ? raw : Number(raw);
+	const displayValue = Number.isFinite(numeric)
+		? numeric.toLocaleString('en-IN')
+		: String(raw);
+	const formatted = `${meta.prefix || ''}${displayValue}${meta.suffix || ''}`.trim();
+	if (includeLabel && meta.label) {
+		const formattedLower = formatted.toLowerCase();
+		if (!formattedLower.endsWith(meta.label.toLowerCase())) {
+			return `${formatted} ${meta.label}`.trim();
+		}
+	}
+	return formatted;
+}
+
+export function getPrizeDisplay(prizeType, amount, options = {}) {
+	const resolvedPrizeType = normalizePrizeType(prizeType);
+	const meta = getPrizeTypeMeta(resolvedPrizeType);
+	const { fallback = '0' } = options;
+	const sanitized = sanitizePrizeValue(amount);
+	const raw = sanitized ?? fallback;
+	const numeric = typeof raw === 'number' ? raw : Number(raw);
+	const value = Number.isFinite(numeric)
+		? numeric.toLocaleString('en-IN')
+		: String(raw);
+	const formatted = `${meta.prefix || ''}${value}${meta.suffix || ''}`.trim();
+	const showIconSeparately = Boolean((meta.icon || '').trim() && (meta.prefix || '').trim() !== (meta.icon || '').trim());
+	return {
+		icon: meta.icon,
+		formatted,
+		value,
+		prefix: meta.prefix || '',
+		suffix: meta.suffix || '',
+		label: meta.label,
+		prizeType: typeof prizeType === 'string' && prizeType.trim() ? prizeType : resolvedPrizeType,
+		resolvedPrizeType,
+		showIconSeparately,
+	};
+}
+
+export function describePrizeType(prizeType) {
+	return getPrizeTypeMeta(prizeType).label;
+}

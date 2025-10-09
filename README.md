@@ -1,13 +1,8 @@
 # Quiz Dangal
 
 Ek modern quiz web app jo Supabase (Auth + DB + Edge Functions), React (Vite), aur PWA features ka use karta hai. Is README me Hindi-first guidance diya gaya hai taaki setup aur deployment asaan ho.
-
 ## Features
 - User Auth (Supabase)
-- Quizzes (participation, answers, results)
-- Leaderboards (daily/weekly/all-time)
-- Wallet & Rewards (coins, redemptions)
-- Referrals (bonus logic)
 - Admin tools (notifications, recompute results)
 - PWA (offline cache, installable)
 - Push Notifications (Web Push + VAPID)
@@ -15,32 +10,16 @@ Ek modern quiz web app jo Supabase (Auth + DB + Edge Functions), React (Vite), a
 
 ## Tech Stack
 - Frontend: React 18 + Vite 4 + TailwindCSS + Radix UI
-- Backend: Supabase (Postgres + RLS), Edge Function (Deno)
-- Push: Web Push (VAPID)
-- Build/Deploy: Static build (dist/) + custom domain (CNAME)
 
 ## Folder Structure (short)
 - `src/` – React code
-  - `pages/` – App pages (Home, Quiz, Results, Profile, Leaderboards etc.)
-  - `components/` – UI components (Header, Modals, etc.)
-  - `contexts/` – Supabase Auth context
-  - `hooks/` – Reusable hooks (push notifications, `useQuizEngine` quiz lifecycle)
-  - `lib/` – helpers (`customSupabaseClient`, `utils`, `visibility` etc.)
-- `public/` – Assets + `sw.js` (Service Worker)
-- `supabase/functions/` – Edge functions (e.g., send-notifications)
 - Root configs: `vite.config.js`, `tailwind.config.js`, `postcss.config.js`
 
-### Architecture Additions (Oct 2025)
-- `useQuizEngine` hook: Consolidates quiz lifecycle (load → join/pre-join → active → finish → completion redirect) + timers + engagement polling + submission side-effects.
 - Answer Retry Queue: Failed answer upserts are queued with exponential backoff (2s → 4s → 8s → … capped 30s, max 6 attempts). Flush triggers: online event, tab visibility restored, scheduled backoff timer. User notified once per unsynced question ("Sync delayed").
 - Visibility Utility: `lib/visibility.js` provides `isDocumentHidden()` + future-safe listener helper for DRY tab visibility checks.
-- Constants Centralization: `src/constants.js` holds all timing intervals (polling, redirect delays, prompt delays) to eliminate magic numbers.
-- Prefetch Infra: Idle route/component prefetch mapping + hover/focus prefetch in footer for smoother navigation.
+ - Note: `dist/` aur `coverage/` generated output hote hain; git me commit na karein (repo `.gitignore` ignore karta hai).
 
 ### Hook Contract (`useQuizEngine`)
-Inputs: `(quizId: string, navigate: (path)=>void)`
-Returns:
-```
 {
   quiz, questions, currentQuestionIndex, answers,
   quizState,               // 'loading' | 'waiting' | 'active' | 'finished' | 'completed'
@@ -191,6 +170,14 @@ Run hone ke baad quick smoke check:
 - GitHub Pages fallback ke liye `public/404.html` silently `/` par rewrite karta hai; normal redirect par page invisible hota hai (no flash) aur sirf 1.2s se zyada delay hone par hi smooth loader + help link show hota hai.
 - Supabase Edge Functions ko Supabase project me deploy aur secrets configure karna zaroori hai.
 
+### Secure Build (Leak Scan)
+- Extra safety ke liye production bundle me secret leak scan run kar sakte hain:
+  - Fast build: `npm run build`
+  - Secure build (with scan): `npm run build:secure`
+  - Sirf scan (existing dist par): `npm run scan:dist`
+  - Scanner patterns: service role markers, private key blocks, `DATABASE_URL`, VAPID private key env names. Public anon key ko intentionally flag nahi karta.
+  - Agar koi suspicious match milta hai to command non-zero exit code return karta hai (CI fail) taaki accidental deploy ruk jaye.
+
 ## Security & Backup (IMPORTANT)
 - Destructive SQL dumps ko repo me commit na karein; agar kabhi backup lena ho to usse secure storage me rakhein.
 - Restore scripts sirf nayi/blank ya staging environment me test karein.
@@ -208,9 +195,23 @@ Run hone ke baad quick smoke check:
 ## Scripts (quick)
 - Dev: `npm run dev` (LAN: `npm run dev:lan`)
 - Build: `npm run build`
+- Build (secure): `npm run build:secure`
 - Preview: `npm run preview` (LAN: `npm run preview:lan`)
  - Analyze bundle: `npm run analyze` (generates `dist/stats.html`)
  - Tests: `npm test`
+
+### Secrets Rotation Checklist
+Kabhi bhi keys leak hone ka doubt ho (repo, logs, chat, build assets), turant:
+1) Supabase Dashboard → Project Settings → API:
+  - `anon` key rotate
+  - `service_role` key rotate
+2) Database password (if exposed) rotate karein (Settings → Database → Reset password) aur dependent clients update karein.
+3) Edge Function secrets re-set karein (send-notifications):
+  - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+  - `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`
+  - `ALLOWED_ORIGIN`, `CONTACT_EMAIL`
+4) Local envs update: `.env` (frontend-only) + `.env.local` (private) ko naye values se update karein (repo me commit na karein).
+5) Fresh `npm run build:secure` run karke ensure karein ki dist me koi secret literals nahi reh gaye.
 
 ### Performance & Diagnostics (Frontend Only Additions)
 - Dynamic QR Code import in `Results` page (heavy `qrcode` lib only loads when poster generation runs).
@@ -247,6 +248,9 @@ Compatibility notes
 | Bundle analyze | `npm run analyze` | Generates `dist/stats.html` (open manually) |
 | Run unit tests | `npm test` | Vitest (jsdom) |
 | Watch tests | `npm run test:watch` | Interactive mode |
+| Coverage (v8) | `npm run test:cov` | HTML + text + lcov (see `coverage/`) |
+| Lint (strict) | `npm run lint` | Fails on any warning (unused imports/vars) |
+| Lint auto-fix | `npm run lint:fix` | Applies safe fixes |
 
 Added Dev Dependencies:
 - `vitest`, `@testing-library/react` (+ user-event/dom)
@@ -254,6 +258,38 @@ Added Dev Dependencies:
 
 Initial Test Coverage:
 - `escapeHTML`, `rateLimit`, `debounce` (security helpers) ensure predictable behavior.
+
+### Coverage Notes (Oct 2025)
+Current overall statements coverage is low (≈2–4%) because only core utility / engine smoke tests exist. High-leverage areas to raise coverage fast:
+1. `lib/utils.js` prize formatting + number/time helpers
+2. `lib/logger.js` branch for `debug` / `warn` filtering
+3. `hooks/usePushNotifications.js` subscription flow (mock ServiceWorker + Notification)
+4. `hooks/useQuizEngine.js` phase transitions (mock Date & timers)
+5. `lib/visibility.js` `isDocumentHidden` toggle
+
+Add a focused spec per file; even shallow tests will drastically lift % because large UI pages (pure JSX) currently contribute many uncovered lines.
+
+To open HTML coverage report on Windows:
+```
+start ./coverage/index.html
+```
+
+### Lint Rules (Unused Code Hygiene)
+ESLint now blocks unused imports & variables via `eslint-plugin-unused-imports`.
+Patterns to intentionally ignore variable/arg:
+```js
+const _internal = compute(); // leading underscore
+function handler(_evt) { /* ignored arg */ }
+```
+Refactors removed legacy components: `OnboardingFlow`, `CategoryQuizzesModal`.
+
+### Future Dev Scripts (Optional Ideas)
+Add if needed:
+```jsonc
+"coverage:open": "npm run test:cov && start ./coverage/index.html",
+"lint:ci": "eslint \"src/**/*.{js,jsx}\" --max-warnings=0"
+```
+Not added by default to keep scripts lean.
 
 Impact:
 - No Supabase schema / network changes.

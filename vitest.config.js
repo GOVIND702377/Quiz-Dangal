@@ -14,7 +14,22 @@ export default defineConfig({
     setupFiles: './vitest.setup.js',
     globals: true,
     coverage: {
-      reporter: ['text', 'html'],
+      reporter: ['text', 'html', 'lcov'],
+      reportsDirectory: './coverage',
+      exclude: [
+        'src/__tests__/**',
+        'src/main.jsx',
+        'dist/**',
+        'public/**',
+        'scripts/**',
+        'supabase/**',
+        'vitest.config.*',
+        'vite.config.*',
+        'tailwind.config.*',
+        'postcss.config.*',
+        '**/index.html'
+      ],
+      clean: true
     },
   },
 });

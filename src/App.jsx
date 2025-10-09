@@ -24,6 +24,7 @@ const TermsConditions = lazy(() => import('@/pages/TermsConditions'));
 const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 const Quiz = lazy(() => import('@/pages/Quiz'));
 const CategoryQuizzes = lazy(() => import('@/pages/CategoryQuizzes'));
+// Unified Admin panel now lives in Admin.jsx
 const Admin = lazy(() => import('@/pages/Admin'));
 const Results = lazy(() => import('@/pages/Results'));
 const Leaderboards = lazy(() => import('@/pages/Leaderboards'));

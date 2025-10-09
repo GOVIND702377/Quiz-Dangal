@@ -3,7 +3,7 @@
 // Is file ka poora purana code delete karke yeh naya code paste karen.
 // ========================================================================
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 
 const AuthContext = createContext();
@@ -34,6 +34,38 @@ function AuthProviderInner({ children }) {
             }
         }
     };
+
+    const hardSignOut = useCallback(async ({ redirect = true } = {}) => {
+        try {
+            await supabase?.auth.signOut();
+        } catch {
+            // ignore signOut errors (likely already signed out)
+        }
+        try {
+            Object.keys(localStorage).forEach((k) => {
+                if (k.startsWith('sb-') || k.startsWith('qd_') || k.toLowerCase().includes('supabase')) {
+                    localStorage.removeItem(k);
+                }
+            });
+        } catch {
+            // storage might be unavailable (Safari private mode etc.)
+        }
+        try {
+            sessionStorage.clear();
+        } catch {
+            // ignore sessionStorage issues
+        }
+        setUser(null);
+        setUserProfile(null);
+        setIsRecoveryFlow(false);
+        if (redirect) {
+            try {
+                window.location.assign('/login');
+            } catch {
+                window.location.href = '/login';
+            }
+        }
+    }, []);
 
     useEffect(() => {
         // Detect recovery intent in URL once, so routing can allow reset page even if a session appears
@@ -96,24 +128,33 @@ function AuthProviderInner({ children }) {
             try {
                 const { data, error } = await supabase.auth.getSession();
                 if (error) {
-                    return; // transient error; allow Supabase to recover via refresh token
+                    if (error.message?.includes('Invalid Refresh Token') || (error instanceof Error && error.message.includes('Refresh Token'))) {
+                        await hardSignOut();
+                    }
+                    return; // transient/handled
                 }
 
                 if (!data?.session) {
-                    const { data: refreshed } = await supabase.auth.refreshSession();
-                    if (refreshed?.session) {
+                    const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+                    if (refreshError) {
+                        if (refreshError.message?.includes('Invalid Refresh Token')) {
+                            await hardSignOut();
+                        }
                         return;
                     }
-                    setUser(null);
-                    setUserProfile(null);
+                    if (!refreshed?.session) {
+                        await hardSignOut();
+                    }
                 }
             } catch (err) {
-                // swallow transient network issues; Supabase SDK will retry automatically
+                if (err?.message?.includes('Invalid Refresh Token')) {
+                    await hardSignOut();
+                }
             }
         }, 5 * 60 * 1000); // every 5 minutes
 
         return () => clearInterval(id);
-    }, [user]);
+    }, [user, hardSignOut]);
 
     // Auto-create/upsert profile row for new users if not exists + referral attribution (via secure RPC)
     useEffect(() => {
@@ -188,23 +229,6 @@ function AuthProviderInner({ children }) {
     // SIGN IN FUNCTION (EMAIL)
     const signIn = async (email, password) => {
         return await supabase.auth.signInWithPassword({ email, password });
-    };
-
-    const hardSignOut = async () => {
-    try { await supabase.auth.signOut(); } catch (e2) { /* periodic signOut fail */ }
-        try {
-            // Clear common Supabase/local keys to avoid ghost sessions
-            Object.keys(localStorage).forEach((k) => {
-                if (k.startsWith('sb-') || k.startsWith('qd_') || k.toLowerCase().includes('supabase')) {
-                    localStorage.removeItem(k);
-                }
-            });
-            sessionStorage.clear();
-    } catch (e3) { /* localStorage cleanup fail */ }
-        setUser(null);
-        setUserProfile(null);
-        // Redirect to login explicitly
-        try { window.location.assign('/login'); } catch { window.location.href = '/login'; }
     };
 
     const value = {

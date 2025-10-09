@@ -85,7 +85,7 @@ const Home = () => {
     try {
       const { data: quizzesData, error } = await supabase
         .from('quizzes')
-        .select('id,title,category,start_time,end_time,status,prize_pool,prizes')
+        .select('id,title,category,start_time,end_time,status,prize_pool,prizes,prize_type')
         .order('start_time', { ascending: true });
       if (error) throw error;
       setQuizzes(quizzesData || []);

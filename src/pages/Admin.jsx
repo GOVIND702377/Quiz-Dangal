@@ -1,1317 +1,624 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { m } from 'framer-motion';
-import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
+// Unified Admin panel (merged from former AdminClean). Single source of truth.
+// Keep this file focused and under control; add new panels as separate components if it grows.
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { m, AnimatePresence } from 'framer-motion';
+import { Plus, Trash2, RefreshCcw, ListChecks, Loader2, Eye, Settings } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';
-import { formatDateTime, toDatetimeLocalValue } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus, Trash2, Settings, Loader2, ShieldCheck, RefreshCcw, LayoutDashboard, BellRing, Gift, ListChecks, Eye } from 'lucide-react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Link, useSearchParams } from 'react-router-dom';
+import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
+import { formatDateTime } from '@/lib/utils';
 
-function AdminNotificationsSection() {
-  const { toast } = useToast();
-  // Removed manual notifications (DB-backed) UI/state
-  // Push notifications state
-  const [pushTitle, setPushTitle] = useState('');
-  const [pushMessage, setPushMessage] = useState('');
-  const [sendingPush, setSendingPush] = useState(false);
+// ---------------- Constants & Helpers ----------------
+const categories = ['opinion', 'general', 'sports', 'movies'];
+const blankQuestion = () => ({ text: '', options: ['', '', ''], correctIndex: 0 });
 
-  // Manual notifications removed; only broadcast push remains
-
-  const handleSendPushNotification = async (e) => {
-    e.preventDefault();
-    if (!pushTitle.trim() || !pushMessage.trim()) {
-      toast({ title: 'Title/Message required', variant: 'destructive' });
-      return;
-    }
-    setSendingPush(true);
-    try {
-      const { error } = await supabase.functions.invoke('send-notifications', {
-        body: { title: pushTitle.trim(), message: pushMessage.trim() },
-      });
-      if (error) throw error;
-      toast({ title: 'Push sent', description: 'Notifications queued to subscribers.' });
-      setPushTitle('');
-      setPushMessage('');
-    } catch (err) {
-      toast({ title: 'Push failed', description: err.message || 'Try again later', variant: 'destructive' });
-    } finally {
-      setSendingPush(false);
-    }
-  };
-
-  // Removed manual notification submit handler
-
-  const [tab, setTab] = useState('broadcast'); // 'broadcast' | 'auto'
-  return (
-    <div className="space-y-4 text-foreground">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent flex items-center">
-            <ShieldCheck className="mr-2" /> Admin: Notifications
-          </h2>
-          <p className="text-muted-foreground text-sm">Announcements aur quiz notifications yahan se bhejein</p>
-        </div>
-      </div>
-
-      {/* Send Push Notifications (Broadcast to all subscribers) */}
-      <div className="bg-card border border-border rounded-2xl p-4 shadow-lg">
-        <h3 className="text-xl font-bold text-foreground mb-4 flex items-center"><BellRing className="w-5 h-5 mr-2"/>Send Push Notification</h3>
-        <form onSubmit={handleSendPushNotification} className="space-y-3">
-          <div>
-            <Label htmlFor="pushTitle">Push Notification Title *</Label>
-            <Input id="pushTitle" value={pushTitle} onChange={(e) => setPushTitle(e.target.value)} placeholder="e.g., New Quiz Alert!" required />
-          </div>
-          <div>
-            <Label htmlFor="pushMessage">Push Notification Message *</Label>
-            <Textarea id="pushMessage" value={pushMessage} onChange={(e) => setPushMessage(e.target.value)} placeholder="Don't miss out on today's quiz!" required />
-          </div>
-          <Button type="submit" disabled={sendingPush} className="bg-purple-600 hover:bg-purple-700">
-            {sendingPush ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Sending Push...</>) : 'Send Push Notification'}
-          </Button>
-        </form>
-      </div>
-
-      {/* Toggle buttons under the form */}
-      <div className="flex gap-2">
-        <Button variant={tab==='broadcast' ? 'default' : 'outline'} onClick={() => setTab('broadcast')}>
-          Admin ki bheji hui
-        </Button>
-        <Button variant={tab==='auto' ? 'default' : 'outline'} onClick={() => setTab('auto')}>
-          Automatic wali
-        </Button>
-      </div>
-
-      {/* Tab content */}
-      {tab === 'broadcast' ? (
-        <BroadcastActivity />
-      ) : (
-        <AutoNotificationsActivity />
-      )}
-    </div>
-  );
+function formatPrizeDisplay(type, amount, { fallback = 0 } = {}) {
+	if (amount == null) amount = fallback;
+	if (type === 'coins') return `${amount} coins`;
+	if (type === 'others') return `${amount}`;
+	return `₹${amount}`;
 }
 
-function AutoNotificationsActivity() {
-  const { toast } = useToast();
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [range, setRange] = useState('all'); // all | today | 7d | 30d
-  const fetchData = useCallback(async () => {
-    try {
-      // Fetch logs first (no FK dependency)
-      const { data: logs, error: logErr } = await supabase
-        .from('quiz_notification_log')
-        .select('id, quiz_id, type, sent_at')
-        .order('sent_at', { ascending: false })
-        .limit(50);
-      if (logErr) throw logErr;
-      const list = logs || [];
-
-      // Fetch quiz titles for involved quiz_ids
-      const ids = Array.from(new Set(list.map(r => r.quiz_id).filter(Boolean)));
-      let titleById = {};
-      if (ids.length > 0) {
-        const { data: qrows, error: qErr } = await supabase
-          .from('quizzes')
-          .select('id, title')
-          .in('id', ids);
-        if (qErr) throw qErr;
-        titleById = Object.fromEntries((qrows || []).map(q => [q.id, q.title]));
-      }
-
-      // Attach title for display
-      const enriched = list.map(r => ({ ...r, quiz_title: titleById[r.quiz_id] || 'Quiz' }));
-      setRows(enriched);
-    } catch (e) {
-      toast({ title: 'Load failed', description: e.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-  useEffect(() => { fetchData(); }, [fetchData]);
-  const filtered = React.useMemo(() => {
-    if (!Array.isArray(rows)) return [];
-    const now = Date.now();
-    let from = 0;
-    if (range === 'today') {
-      const d = new Date(); d.setHours(0,0,0,0); from = d.getTime();
-    } else if (range === '7d') {
-      from = now - 7*24*60*60*1000;
-    } else if (range === '30d') {
-      from = now - 30*24*60*60*1000;
-    }
-    if (!from) return rows;
-    return rows.filter(r => new Date(r.sent_at).getTime() >= from);
-  }, [rows, range]);
-  return (
-    <div className="bg-card border border-border rounded-2xl p-4 shadow-lg mb-6">
-      <h3 className="text-lg font-semibold mb-3 flex items-center"><ListChecks className="w-5 h-5 mr-2"/>Activity: Automatic Quiz Notifications</h3>
-      <div className="flex items-center gap-2 mb-3 text-xs">
-        <span className="text-muted-foreground">Range:</span>
-        {['all','today','7d','30d'].map(k => (
-          <button key={k} onClick={() => setRange(k)} className={`px-2 py-1 rounded border ${range===k?'bg-primary text-primary-foreground':'border-border text-foreground'}`}>{k.toUpperCase()}</button>
-        ))}
-      </div>
-      {loading ? (
-        <div className="text-sm text-muted-foreground">Loading...</div>
-      ) : filtered.length === 0 ? (
-        <div className="text-sm text-muted-foreground">No automatic notifications yet.</div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((r) => (
-            <div key={r.id} className="flex items-center justify-between text-sm border border-border rounded-lg px-3 py-2">
-              <div>
-                <div className="font-medium">{r.quiz_title}</div>
-                <div className="text-muted-foreground">Type: {r.type} • {new Date(r.sent_at).toLocaleString()}</div>
-              </div>
-              <Link to={r.type === 'result' ? `/#/results/${r.quiz_id}` : `/#/quiz/${r.quiz_id}`} className="text-primary hover:underline">Open</Link>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+function parseBulk(text, { allowZeroCorrect = false } = {}) {
+	const blocks = String(text || '').trim().split(/\n\s*\n+/);
+	const items = []; const errors = []; const warnings = [];
+	let qn = 0;
+	for (const block of blocks) {
+		const lines = block.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+		if (!lines.length) continue; qn += 1;
+		const qline = lines[0].replace(/^Q\d*\.?\s*/i, '').replace(/^Question\s*[:-]\s*/i, '');
+		const opts = []; let answerLine = '';
+		for (let i=1;i<lines.length;i++) {
+			const ln = lines[i];
+			if (/^ans(wer)?\s*[:-]/i.test(ln)) { answerLine = ln; continue; }
+			const cb = ln.match(/^[-*•]?\s*\[(x|X| )\]\s*(.+)$/); if (cb) { opts.push({ option_text: cb[2].trim(), is_correct: /x/i.test(cb[1]) }); continue; }
+			const bullet = ln.match(/^(?:[-*•]|[A-Da-d]\)|\d+\)|[A-Da-d][.:])\s*(.+)$/);
+			const textOnly = bullet ? bullet[1].trim() : ln.replace(/^[*]\s*/, '').trim();
+			if (textOnly) opts.push({ option_text: textOnly, is_correct: /^\*/.test(ln) });
+		}
+		if (answerLine) {
+			const ans = answerLine.split(/[:-]/).slice(1).join(':').trim();
+			const letter = ans.match(/^[A-D]/i)?.[0]?.toUpperCase();
+			const idx = letter ? {A:0,B:1,C:2,D:3}[letter] : NaN;
+			const num = parseInt(ans,10);
+			if (!Number.isNaN(idx) && opts[idx]) opts.forEach((o,i)=>o.is_correct=i===idx);
+			else if (!Number.isNaN(num) && opts[num-1]) opts.forEach((o,i)=>o.is_correct=i===num-1);
+			else {
+				const target = ans.toLowerCase();
+				const fi = opts.findIndex(o=>o.option_text.toLowerCase()===target || o.option_text.toLowerCase().includes(target));
+				if (fi>=0) opts.forEach((o,i)=>o.is_correct=i===fi);
+			}
+		}
+		let clean = opts.filter(o=>o.option_text);
+		if (clean.length>4) { const ci=clean.findIndex(o=>o.is_correct); if (ci>=0) { const c=clean[ci]; const rest=clean.filter((_,i)=>i!==ci); clean=[c,...rest.slice(0,3)]; } else clean=clean.slice(0,4); warnings.push(`Q${qn}: Trimmed to 4 options.`); }
+		if (!qline) { errors.push(`Q${qn}: Missing question text.`); continue; }
+		if (clean.length<2) { errors.push(`Q${qn}: Need at least 2 options.`); continue; }
+		if (allowZeroCorrect) clean = clean.map(o=>({...o,is_correct:false})); else {
+			const cc = clean.filter(o=>o.is_correct).length;
+			if (cc===0) clean[0].is_correct=true; else if (cc>1) { let seen=false; clean=clean.map(o=> o.is_correct && !seen ? (seen=true, o) : {...o,is_correct:false}); }
+		}
+		items.push({ question_text: qline, options: clean });
+	}
+	return { items, errors, warnings };
 }
 
-function BroadcastActivity() {
-  const { toast } = useToast();
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [range, setRange] = useState('all'); // all | today | 7d | 30d
-  const fetchData = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('id, title, message, created_at, created_by, type')
-        .order('created_at', { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      setRows(data || []);
-    } catch (e) {
-      toast({ title: 'Load failed', description: e.message, variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-  useEffect(() => { fetchData(); }, [fetchData]);
-  const filtered = React.useMemo(() => {
-    if (!Array.isArray(rows)) return [];
-    const now = Date.now();
-    let from = 0;
-    if (range === 'today') {
-      const d = new Date(); d.setHours(0,0,0,0); from = d.getTime();
-    } else if (range === '7d') {
-      from = now - 7*24*60*60*1000;
-    } else if (range === '30d') {
-      from = now - 30*24*60*60*1000;
-    }
-    if (!from) return rows;
-    return rows.filter(r => new Date(r.created_at).getTime() >= from);
-  }, [rows, range]);
-  return (
-    <div className="bg-card border border-border rounded-2xl p-4 shadow-lg mb-6">
-      <h3 className="text-lg font-semibold mb-3 flex items-center"><BellRing className="w-5 h-5 mr-2"/>Activity: Admin Broadcast Pushes</h3>
-      <div className="flex items-center gap-2 mb-3 text-xs">
-        <span className="text-muted-foreground">Range:</span>
-        {['all','today','7d','30d'].map(k => (
-          <button key={k} onClick={() => setRange(k)} className={`px-2 py-1 rounded border ${range===k?'bg-primary text-primary-foreground':'border-border text-foreground'}`}>{k.toUpperCase()}</button>
-        ))}
-      </div>
-      {loading ? (
-        <div className="text-sm text-muted-foreground">Loading...</div>
-      ) : filtered.length === 0 ? (
-        <div className="text-sm text-muted-foreground">No broadcast pushes yet.</div>
-      ) : (
-        <div className="space-y-2">
-          {filtered.map((r) => (
-            <div key={r.id} className="text-sm border border-border rounded-lg px-3 py-2">
-              <div className="font-medium">{r.title}</div>
-              <div className="text-muted-foreground whitespace-pre-wrap">{r.message}</div>
-              <div className="text-muted-foreground mt-1 flex items-center gap-2">
-                <span>{new Date(r.created_at).toLocaleString()}</span>
-                {r.type ? (<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted border border-border">{r.type}</span>) : null}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
+// ---------------- Component ----------------
 export default function Admin() {
-  const { userProfile } = useAuth();
-  const { toast } = useToast();
-  const [params, setParams] = useSearchParams();
-  const activeTab = params.get('tab') || 'overview';
-  const setTab = (key) => { const p = new URLSearchParams(params); p.set('tab', key); setParams(p, { replace: false }); };
+	const { toast } = useToast();
+	const [searchParams, setSearchParams] = useSearchParams();
+	const tab = searchParams.get('tab') || 'overview';
+	const setTab = t => { searchParams.set('tab', t); setSearchParams(searchParams, { replace:true }); };
 
-  const supabaseReady = hasSupabaseConfig && Boolean(supabase);
+	const [quizzes, setQuizzes] = useState([]);
+	const [loading, setLoading] = useState(false);
+	const [showCreate, setShowCreate] = useState(false);
+	const [form, setForm] = useState({ title: '', category: '', start_time:'', end_time:'', prizes:['','',''], prize_type:'money', bulk:'' });
+	const [entryMode, setEntryMode] = useState('form');
+	const [drafts, setDrafts] = useState([blankQuestion()]);
+	const [selectedQuiz, setSelectedQuiz] = useState(null);
+	const [questions, setQuestions] = useState([]);
+	const [busyQuizId, setBusyQuizId] = useState(null);
+	const [showQuestions, setShowQuestions] = useState(false);
+	const opinion = form.category === 'opinion';
 
-  // Quizzes
-  const [quizzes, setQuizzes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreateQuiz, setShowCreateQuiz] = useState(false);
-  const [selectedQuiz, setSelectedQuiz] = useState(null);
-  const [showQuestions, setShowQuestions] = useState(false);
-  const [questions, setQuestions] = useState([]);
-  // Inline question composer state
-  const [composerOpen, setComposerOpen] = useState(false);
-  const [newQ, setNewQ] = useState({ text: '', options: ['','', '', ''], correctIndex: 0 });
-  // Bulk add dialog state
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkText, setBulkText] = useState('');
-  const [bulkMode, setBulkMode] = useState('append'); // 'append' | 'replace'
-  const [bulkWorking, setBulkWorking] = useState(false);
-  // Publish panel removed in simplified flow
-  const [busyQuizId, setBusyQuizId] = useState(null);
-  const categories = ['opinion', 'gk', 'movies', 'sports'];
-  // Create flow: entry mode and structured builder state
-  const [entryMode, setEntryMode] = useState('form'); // 'form' | 'paste'
-  const makeBlankQuestion = () => ({ text: '', options: ['', ''], correctIndex: 0 });
-  const [questionsDraft, setQuestionsDraft] = useState([makeBlankQuestion()]);
+	const fetchQuizzes = useCallback(async ()=>{
+		setLoading(true);
+		if (!supabase) { setQuizzes([]); return; }
+		const { data, error } = await supabase.from('quizzes').select('id,title,category,prizes,prize_pool,prize_type,start_time,end_time').order('start_time', { ascending:false });
+		if (error) toast({ title:'Fetch failed', description:error.message, variant:'destructive' });
+		else setQuizzes(data||[]);
+		setLoading(false);
+	},[toast]);
 
-  // Removed translation trigger and auto-sync; no-op now
+	const fetchQuestions = useCallback(async (quizId)=>{
+		if (!supabase) { setQuestions([]); return; }
+		const { data, error } = await supabase.from('questions').select('id,question_text,options(id,option_text,is_correct)').eq('quiz_id', quizId);
+		if (error) toast({ title:'Questions failed', description:error.message, variant:'destructive' }); else setQuestions(data||[]);
+	},[toast]);
 
-  const [quizForm, setQuizForm] = useState({
-    title: '', prizes: ['', '', ''], start_time: '', end_time: '', category: '', bulk_text: '', prize_type: 'money'
-  });
+	useEffect(()=>{ fetchQuizzes(); },[fetchQuizzes]);
 
-  const fetchQuizzes = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('quizzes')
-        .select('*')
-        .order('start_time', { ascending: false });
-      if (error) throw error;
-      setQuizzes(data || []);
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to fetch quizzes.', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+	const handleCreate = async e => {
+		e.preventDefault();
+		try {
+			const errs = [];
+			if (!form.category) errs.push('Select category');
+			if (!form.title.trim()) errs.push('Title required');
+			if (!form.start_time || !form.end_time) errs.push('Start & End time required');
+			const st = new Date(form.start_time); const en = new Date(form.end_time);
+			if (en<=st) errs.push('End after start');
+			const p0 = parseInt(form.prizes[0]||'',10); if (Number.isNaN(p0)||p0<=0) errs.push('1st prize invalid');
+			if (errs.length) { toast({ title:'Fix form', description:errs[0], variant:'destructive'}); return; }
 
-  useEffect(() => { if (!supabaseReady) return; if (activeTab === 'overview') fetchQuizzes(); }, [activeTab, fetchQuizzes, supabaseReady]);
+			const items = drafts.map(d=>{ const ops=(d.options||[]).map(o=>o.trim()).filter(Boolean).slice(0,4); if (!d.text.trim()||ops.length<2) return null; const c=Math.min(Math.max(d.correctIndex||0,0), ops.length-1); return { question_text:d.text.trim(), options: ops.map((t,i)=>({ option_text:t, is_correct: opinion ? false : i===c })) }; }).filter(Boolean);
+			if (!items.length) { toast({ title:'Add questions', variant:'destructive'}); return; }
 
-  // After hooks
-  if (userProfile?.role !== 'admin') {
-    return (
-      <div className="container mx-auto px-4 py-8 text-center">
-        <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
-        <p className="text-gray-600 mt-2">Aapke paas admin adhikaar nahi hain.</p>
-      </div>
-    );
-  }
+			const prizesArr = form.prizes.filter(p=>p).map(p=>parseInt(p,10));
+			const prizePool = prizesArr.reduce((s,v)=>s+v,0);
+			const payload = { title:form.title.trim(), category:form.category, start_time: new Date(form.start_time).toISOString(), end_time:new Date(form.end_time).toISOString(), prizes:prizesArr, prize_pool:prizePool, prize_type: form.prize_type };
+			if (!supabase) throw new Error('Supabase config missing');
+			const { data:quiz, error } = await supabase.from('quizzes').insert([payload]).select().single();
+			if (error) throw error;
+			toast({ title:'Quiz created', description: quiz.title });
 
-  if (!supabaseReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4">
-        <div className="qd-card rounded-2xl max-w-lg w-full p-6 text-center">
-          <h2 className="text-xl font-semibold text-yellow-300 mb-3">Supabase config missing</h2>
-          <p className="text-sm text-white/70">
-            Admin tools ko local ya staging par chalane ke liye <code>.env</code> me <code>VITE_SUPABASE_URL</code> aur <code>VITE_SUPABASE_ANON_KEY</code> bharein.
-          </p>
-          <p className="text-sm text-white/65 mt-3">
-            Agar sirf UI preview karna hai to <code>VITE_BYPASS_AUTH=1</code> se login mock ho jayega, lekin Supabase ke bina data actions (quizzes create/update, notifications) disable rahenge.
-          </p>
-        </div>
-      </div>
-    );
-  }
+			const res = await bulkInsert(quiz.id, items, 'replace');
+			if (!res.ok) toast({ title:'Question insert fallback', description:res.message||'Failed', variant:'destructive'}); else toast({ title:'Questions added', description:`${items.length} questions` });
+			setShowCreate(false); setForm({ title:'', category:'', start_time:'', end_time:'', prizes:['','',''], prize_type:'money', bulk:'' }); setDrafts([blankQuestion()]);
+			fetchQuizzes();
+		} catch (err) {
+			toast({ title:'Create failed', description: err.message, variant:'destructive'});
+		}
+	};
 
-  const fetchQuestions = async (quizId) => {
-    try {
-      const { data, error } = await supabase
-        .from('questions')
-        .select(`id, question_text, options ( id, option_text, is_correct )`)
-        .eq('quiz_id', quizId);
-      if (error) throw error;
-      setQuestions(data || []);
-    } catch (error) {
-      toast({ title: 'Error', description: 'Failed to fetch questions.', variant: 'destructive' });
-    }
-  };
+	const bulkInsert = async (quizId, items, mode='append') => {
+		try {
+			if (!supabase) throw new Error('No Supabase client');
+			const { error } = await supabase.rpc('admin_bulk_upsert_questions', { p_quiz_id: quizId, p_payload: items, p_mode: mode });
+			if (!error) return { ok:true };
+		} catch (e) { /* fallback */ }
+		if (!supabase) return { ok:false, message:'No Supabase client' };
+		if (mode==='replace') await supabase.from('questions').delete().eq('quiz_id', quizId);
+		for (const it of items) {
+			const { data:qrow, error:qerr } = await supabase.from('questions').insert({ quiz_id: quizId, question_text: it.question_text }).select('id').single();
+			if (qerr) return { ok:false, message:qerr.message };
+			const rows = it.options.map(o=>({ question_id:qrow.id, option_text:o.option_text, is_correct: !!o.is_correct }));
+			const { error:oerr } = await supabase.from('options').insert(rows); if (oerr) return { ok:false, message:oerr.message };
+		}
+		return { ok:true };
+	};
 
-  // Util: parse bulk text into structured questions with strict validation and RAW checkbox support
-  const parseBulkQuestions = (text, { strict = false, allowZeroCorrect = false } = {}) => {
-  const blocks = String(text || '').trim().split(/\n\s*\n+/); // split by blank lines
-    const items = [];
-    const errors = [];
-    const warnings = [];
-    let qCounter = 0;
-    for (const block of blocks) {
-      const lines = block.split(/\r?\n/).map(l => l.trim());
-      const nonEmpty = lines.filter(Boolean);
-      if (!nonEmpty.length) continue;
-      qCounter += 1;
-      // First non-empty line is question
-  // Normalize leading question label like "Q1." or "Question -" / "Question:".
-  // Use a character class for colon or hyphen (previous pattern used an escaped hyphen outside a class which was unnecessary)
-  const qline = nonEmpty[0].replace(/^Q\d*\.?\s*/i, '').replace(/^Question\s*[:-]\s*/i, '');
-      const opts = [];
-  let answerLine = '';
-  // removed tickedCount (not used outside parsing)
-      for (let i = 1; i < lines.length; i++) {
-        const ln = lines[i];
-        if (!ln) continue;
-  // Detect an answer line like "Answer: B" OR "Ans - 2" (colon or hyphen after the label)
-  if (/^ans(wer)?\s*[:-]/i.test(ln)) { answerLine = ln; continue; }
-        // Support RAW checkbox style: - [x] text or - [ ] text
-        const cb = ln.match(/^[-*•]?\s*\[(x|X| )\]\s*(.+)$/);
-        if (cb) {
-          const isX = /x/i.test(cb[1]);
-          // count removed
-          opts.push({ option_text: cb[2].trim(), is_correct: isX });
-          continue;
-        }
-        // Fallback option markers: -, *, A) B) 1) etc
-        const m = ln.match(/^(?:[-*•]|[A-Da-d]\)|\d+\)|[A-Da-d][.:])\s*(.+)$/);
-        let textOnly = m ? m[1].trim() : ln.replace(/^[*]\s*/, '').trim();
-        const isStar = /^\*/.test(ln);
-  // count removed
-        if (textOnly) opts.push({ option_text: textOnly, is_correct: isStar });
-      }
-      // Determine correct from Answer: X (if provided)
-      if (answerLine) {
-  // Split on first colon or hyphen after the Answer label; using char class instead of sequential colon-hyphen pattern
-  const ans = answerLine.split(/[:-]/).slice(1).join(':').trim();
-        const letter = ans.match(/^[A-Da-d]/)?.[0]?.toUpperCase();
-        const indexNum = parseInt(ans, 10);
-        if (letter) {
-          const idx = { A:0, B:1, C:2, D:3 }[letter];
-          if (Number.isInteger(idx) && opts[idx]) { opts.forEach((o, i) => o.is_correct = i === idx); }
-        } else if (!isNaN(indexNum) && indexNum >= 1 && opts[indexNum-1]) {
-          opts.forEach((o, i) => o.is_correct = i === (indexNum-1));
-          // mark correct handled
-        } else {
-          // match by text include
-          const target = ans.toLowerCase();
-          const found = opts.findIndex(o => o.option_text.toLowerCase() === target || o.option_text.toLowerCase().includes(target));
-          if (found >= 0) { opts.forEach((o, i) => o.is_correct = i === found); }
-        }
-      }
-      // Clean and enforce max 4 options (preserve correct if possible)
-      let cleanOpts = opts.filter(o => o.option_text);
-      if (cleanOpts.length > 4) {
-        // Keep the first marked-correct if any, plus first 3 others preserving order
-        const correctIdx = cleanOpts.findIndex(o => o.is_correct);
-        if (correctIdx >= 0) {
-          const correct = cleanOpts[correctIdx];
-          const others = cleanOpts.filter((_, i) => i !== correctIdx);
-          cleanOpts = [correct, ...others.slice(0, 3)];
-        } else {
-          cleanOpts = cleanOpts.slice(0, 4);
-        }
-        warnings.push(`Q${qCounter}: More than 4 options found; trimmed to 4 (kept the marked correct).`);
-      }
-      // Validation: question text
-      if (!qline) { errors.push(`Q${qCounter}: Question text missing.`); continue; }
-      // Validation: min 2 options
-      if (cleanOpts.length < 2) { errors.push(`Q${qCounter}: At least 2 options required.`); continue; }
-      // Validation: exactly one correct if strict
-      let correctCount = cleanOpts.filter(o => o.is_correct).length;
-      if (allowZeroCorrect) {
-        // Opinion: ignore any correctness marks; set all to false
-        if (correctCount > 0) warnings.push(`Q${qCounter}: Correct marks ignored for opinion category.`);
-        cleanOpts = cleanOpts.map(o => ({ ...o, is_correct: false }));
-      } else if (strict) {
-        if (correctCount === 0) {
-          errors.push(`Q${qCounter}: Mark exactly one correct option with [x] or provide an Answer: line.`);
-        } else if (correctCount > 1) {
-          errors.push(`Q${qCounter}: Multiple correct marks detected; keep only one [x] or use a single Answer: line.`);
-        }
-      } else {
-        // Non-strict: ensure at least one correct by defaulting to first if none
-        if (correctCount === 0) cleanOpts[0].is_correct = true;
-        else if (correctCount > 1) {
-          let seen = false;
-          cleanOpts = cleanOpts.map(o => {
-            if (o.is_correct && !seen) { seen = true; return o; }
-            return { ...o, is_correct: false };
-          });
-        }
-      }
-      items.push({ question_text: qline, options: cleanOpts });
-    }
-    return { items, errors, warnings };
-  };
+	const deleteQuiz = async id => { if (!window.confirm('Delete this quiz?')) return; if(!supabase) return; const { error } = await supabase.from('quizzes').delete().eq('id', id); if (error) toast({ title:'Delete failed', description:error.message, variant:'destructive'}); else { toast({ title:'Deleted' }); fetchQuizzes(); } };
+	const recompute = async id => { if(!supabase) return; try { setBusyQuizId(id); const { error } = await supabase.rpc('admin_recompute_quiz_results', { p_quiz_id:id }); if (error) throw error; toast({ title:'Recomputed' }); } catch(e){ toast({ title:'Recompute failed', description:e.message, variant:'destructive'});} finally { setBusyQuizId(null);} };
 
-  // Bulk insert using RPC if available; else fallback to client-side
-  const bulkInsertQuestions = async (quizId, items, mode = 'append') => {
-    // Try RPC first
-    try {
-      const { error } = await supabase.rpc('admin_bulk_upsert_questions', {
-        p_quiz_id: quizId,
-        p_payload: items,
-        p_mode: mode,
-      });
-      if (!error) return { ok: true };
-    } catch { /* fallback */ }
+	const quizBlocks = useMemo(()=>{
+		const now = Date.now();
+		const active = []; const finished = [];
+		for (const q of quizzes) {
+			const end = q.end_time ? new Date(q.end_time).getTime() : null;
+			if (end !== null && now > end) finished.push(q); else active.push(q);
+		}
+		return { active, finished };
+	},[quizzes]);
 
-    // Fallback: client-side inserts
-    if (mode === 'replace') {
-      await supabase.from('questions').delete().eq('quiz_id', quizId);
-    }
-    // Insert questions
-    for (const it of items) {
-      const { data: qrow, error: qerr } = await supabase
-        .from('questions')
-        .insert({ quiz_id: quizId, question_text: it.question_text })
-        .select('id')
-        .single();
-      if (qerr) return { ok: false, message: qerr.message };
-      const qid = qrow.id;
-      const optsRows = it.options.map(o => ({ question_id: qid, option_text: o.option_text, is_correct: !!o.is_correct }));
-      const { error: oerr } = await supabase.from('options').insert(optsRows);
-      if (oerr) return { ok: false, message: oerr.message };
-    }
-    return { ok: true };
-  };
+	return (
+		<div className="container mx-auto p-6 max-w-5xl text-slate-200">
+			<h1 className="text-2xl font-bold mb-6 text-slate-100">Admin Dashboard</h1>
+			{!hasSupabaseConfig && (
+				<div className="mb-6 text-sm text-amber-400">Supabase env keys missing. Read-only UI only.</div>
+			)}
+			<div className="flex gap-2 mb-6 flex-wrap">
+				{['overview','notifications','redemptions'].map(t=> (
+					<button key={t} onClick={()=>setTab(t)} className={`px-3 py-1.5 rounded border text-sm ${t===tab? 'bg-indigo-600 text-white border-indigo-600':'bg-slate-800/40 text-slate-300 border-slate-700 hover:text-white'}`}>{t}</button>
+				))}
+			</div>
+			{tab==='overview' && (
+				<div className="space-y-8">
+					<div>
+						<Button onClick={()=>setShowCreate(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white"><Plus className="w-4 h-4 mr-1"/>New Quiz</Button>
+					</div>
+					<AnimatePresence>
+						{showCreate && (
+							<m.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} className="bg-slate-800/40 border border-slate-700 rounded-xl p-5">
+								<h2 className="font-semibold text-lg mb-4">Create Quiz</h2>
+								<form onSubmit={handleCreate} className="space-y-4">
+									<div>
+										<Label className="mb-1 block">Category</Label>
+										<div className="flex flex-wrap gap-2">
+											{categories.map(c=> (
+												<button key={c} type="button" onClick={()=>setForm(f=>({...f,category:c}))} className={`px-3 py-1 rounded-full text-xs border ${form.category===c?'bg-indigo-600 text-white border-indigo-600':'border-slate-600 text-slate-300 hover:text-white'}`}>{c}</button>
+											))}
+										</div>
+									</div>
+									<div className="grid md:grid-cols-2 gap-4">
+										<div>
+											<Label>Title</Label>
+											<Input value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="Daily Quiz" required />
+										</div>
+										<div>
+											<Label>Prize Type</Label>
+											<div className="flex gap-2 mt-1">
+												{['money','coins','others'].map(pt=> (
+													<button type="button" key={pt} onClick={()=>setForm(f=>({...f,prize_type:pt}))} className={`px-2 py-1 rounded text-xs border ${form.prize_type===pt?'bg-indigo-600 text-white border-indigo-600':'border-slate-600 text-slate-300 hover:text-white'}`}>{pt}</button>
+												))}
+											</div>
+										</div>
+									</div>
+									<div className="grid md:grid-cols-3 gap-2">
+										{form.prizes.map((p,i)=> (
+											<Input key={i} value={p} placeholder={`${i+1}${['st','nd','rd'][i]||'th'} Prize`} onChange={e=>setForm(f=>{ const prizes=[...f.prizes]; prizes[i]=e.target.value; return {...f, prizes}; })} />
+										))}
+									</div>
+									<div className="grid md:grid-cols-2 gap-4">
+										<div>
+											<Label>Start Time</Label>
+											<Input type="datetime-local" value={form.start_time} onChange={e=>setForm(f=>({...f,start_time:e.target.value}))} required />
+										</div>
+										<div>
+											<Label>End Time</Label>
+											<Input type="datetime-local" value={form.end_time} onChange={e=>setForm(f=>({...f,end_time:e.target.value}))} required />
+										</div>
+									</div>
+									<div>
+										<Label>Questions Mode</Label>
+										<div className="flex gap-2 mt-1">
+											{['form','paste'].map(mo => (
+												<button key={mo} type="button" onClick={()=>setEntryMode(mo)} className={`px-3 py-1 rounded text-xs border ${entryMode===mo? 'bg-indigo-600 text-white border-indigo-600':'border-slate-600 text-slate-300 hover:text-white'}`}>{mo}</button>
+											))}
+										</div>
+									</div>
+									{entryMode==='form' ? (
+										<div className="space-y-3">
+											<p className="text-xs text-slate-400">{opinion? 'Opinion: no correct option stored.' : 'Mark one correct option with radio.'}</p>
+											{drafts.map((q,qi)=> (
+												<div key={qi} className="border border-slate-600 rounded p-3 space-y-2">
+													<div className="flex gap-2 items-center">
+														<span className="text-xs text-slate-400 w-6">Q{qi+1}</span>
+														<Input value={q.text} onChange={e=>setDrafts(ds=>{ const arr=[...ds]; arr[qi]={...arr[qi], text:e.target.value}; return arr; })} placeholder="Question text" className="flex-1" />
+														<Button type="button" variant="outline" size="sm" className="border-red-300 text-red-500" onClick={()=> setDrafts(ds=> ds.length===1? [blankQuestion()] : ds.filter((_,i)=>i!==qi))}>Del</Button>
+													</div>
+													{(q.options||[]).slice(0,4).map((opt,oi)=>(
+														<div key={oi} className="flex items-center gap-2">
+															{!opinion && <input type="radio" name={`q-${qi}`} checked={(q.correctIndex||0)===oi} onChange={()=> setDrafts(ds=>{ const arr=[...ds]; arr[qi]={...arr[qi], correctIndex:oi}; return arr; })} />}
+															<Input value={opt} onChange={e=> setDrafts(ds=>{ const arr=[...ds]; const ops=[...arr[qi].options]; ops[oi]=e.target.value; arr[qi]={...arr[qi], options:ops}; return arr; })} placeholder={`Option ${oi+1}`} className="flex-1" />
+															{(q.options||[]).length>2 && (
+																<Button type="button" size="sm" variant="outline" className="border-red-300 text-red-500" onClick={()=> setDrafts(ds=>{ const arr=[...ds]; const ops=[...arr[qi].options]; ops.splice(oi,1); arr[qi]={...arr[qi], options:ops}; return arr; })}>X</Button>
+															)}
+														</div>
+													))}
+													<div className="flex gap-2 items-center">
+														<Button type="button" size="sm" disabled={(q.options||[]).length>=4} onClick={()=> setDrafts(ds=>{ const arr=[...ds]; const ops=[...arr[qi].options]; if(ops.length<4) ops.push(''); arr[qi]={...arr[qi], options:ops}; return arr; })}><Plus className="w-4 h-4 mr-1"/>Option</Button>
+														<span className="text-xs text-slate-500">Max 4 options</span>
+													</div>
+												</div>
+											))}
+											<Button type="button" onClick={()=> setDrafts(d=>[...d, blankQuestion()])}><Plus className="w-4 h-4 mr-1"/>Question</Button>
+										</div>
+									) : (
+										<div className="space-y-2">
+											<Label>Paste Questions</Label>
+											<Textarea className="h-40" value={form.bulk} onChange={e=> setForm(f=>({...f, bulk:e.target.value}))} placeholder={`Q1. Capital of India?\n- [ ] Mumbai\n- [x] Delhi\n- [ ] Kolkata\n- [ ] Jaipur\n\nQ2. ...`}/>
+											{(() => { const {items, errors, warnings} = parseBulk(form.bulk, { allowZeroCorrect: opinion }); return (
+												<div className="text-xs space-y-1">
+													<div>{items.length} parsed</div>
+													{warnings[0] && <div className="text-amber-500">{warnings[0]}</div>}
+													{errors[0] && <div className="text-red-500">{errors[0]}</div>}
+													<Button type="button" size="sm" disabled={!!errors.length || !items.length} onClick={()=> {
+														if (errors.length) return; if (!items.length) return;
+														const draft = items.map(it=> ({ text: it.question_text, options: it.options.map(o=>o.option_text), correctIndex: opinion?0: it.options.findIndex(o=>o.is_correct) >=0 ? it.options.findIndex(o=>o.is_correct):0 }));
+														setDrafts(draft.length? draft : [blankQuestion()]); setEntryMode('form'); toast({ title:'Loaded', description:`${draft.length} questions moved to form.`});
+													}}>Load into form</Button>
+												</div>
+											); })()}
+										</div>
+									)}
+									<div className="flex gap-3">
+										<Button type="submit" className="bg-green-600 hover:bg-green-700">Create</Button>
+										<Button type="button" variant="outline" onClick={()=> setShowCreate(false)}>Cancel</Button>
+									</div>
+								</form>
+							</m.div>
+						)}
+					</AnimatePresence>
 
-  // Questions & Options CRUD (inline composer toggled directly elsewhere; removed unused addQuestion helper)
-
-  const saveNewQuestion = async () => {
-    if (!selectedQuiz) return;
-    const locked = selectedQuiz?.start_time ? (new Date(selectedQuiz.start_time).getTime() <= Date.now()) : false;
-    if (locked) { toast({ title:'Locked', description:'Cannot add after quiz start', variant:'destructive' }); return; }
-    const text = (newQ.text || '').trim();
-  const opts = (newQ.options || []).map(o => (o || '').trim()).filter(Boolean).slice(0, 4);
-    if (!text) { toast({ title:'Question required', variant:'destructive' }); return; }
-    if (opts.length < 2) { toast({ title:'At least 2 options required', variant:'destructive' }); return; }
-  const isOpinionSel = selectedQuiz?.category === 'opinion';
-  const cIdx = Math.min(Math.max(newQ.correctIndex || 0, 0), opts.length - 1);
-    try {
-      const { data: qrow, error: qerr } = await supabase
-        .from('questions')
-        .insert({ quiz_id: selectedQuiz.id, question_text: text })
-        .select('id')
-        .single();
-      if (qerr) throw qerr;
-    const qid = qrow.id;
-    const rows = opts.map((opt, i) => ({ question_id: qid, option_text: opt, is_correct: isOpinionSel ? false : i === cIdx }));
-      const { error: oerr } = await supabase.from('options').insert(rows);
-      if (oerr) throw oerr;
-      toast({ title:'Added', description:'Question created' });
-      setComposerOpen(false);
-      setNewQ({ text:'', options:['','','',''], correctIndex:0 });
-      await fetchQuestions(selectedQuiz.id);
-    } catch (e) {
-      toast({ title:'Add failed', description:e.message, variant:'destructive' });
-    }
-  };
-
-  const saveQuestion = async (qid, text) => {
-    const t = (text || '').trim();
-    if (!t) return toast({ title: 'Question khaali nahi ho sakta', variant: 'destructive' });
-    const { error } = await supabase.from('questions').update({ question_text: t }).eq('id', qid);
-    if (error) return toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
-  await fetchQuestions(selectedQuiz.id);
-  };
-
-  const deleteQuestion = async (qid) => {
-    if (!confirm('Is question aur iske options ko delete karein?')) return;
-    const { error } = await supabase.from('questions').delete().eq('id', qid);
-    if (error) return toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
-  await fetchQuestions(selectedQuiz.id);
-  };
-
-  const addOption = async (qid) => {
-    const text = window.prompt('Option text daalein');
-    if (!text || !text.trim()) return;
-    const { error } = await supabase.from('options').insert({ question_id: qid, option_text: text.trim() });
-    if (error) return toast({ title: 'Add failed', description: error.message, variant: 'destructive' });
-  await fetchQuestions(selectedQuiz.id);
-  };
-
-  const saveOption = async (oid, text) => {
-    const t = (text || '').trim();
-    if (!t) return toast({ title: 'Option khaali nahi ho sakta', variant: 'destructive' });
-    const { error } = await supabase.from('options').update({ option_text: t }).eq('id', oid);
-    if (error) return toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
-  await fetchQuestions(selectedQuiz.id);
-  };
-
-  const deleteOption = async (oid) => {
-    if (!confirm('Is option ko delete karein?')) return;
-    const { error } = await supabase.from('options').delete().eq('id', oid);
-    if (error) return toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
-  await fetchQuestions(selectedQuiz.id);
-  };
-
-  const handleCreateQuiz = async (e) => {
-    e.preventDefault();
-    try {
-      // Validate required fields
-      const errs = [];
-      const title = (quizForm.title || '').trim();
-      if (!quizForm.category) errs.push('Please choose a category');
-      if (!title || title.length < 3) errs.push('Title is too short');
-      if (!quizForm.start_time) errs.push('Start time is required');
-      if (!quizForm.end_time) errs.push('End time is required');
-      // Build from structured form mode always (require review)
-      let prepared = { items: [], errors: [], warnings: [] };
-      const items = [];
-      if (!questionsDraft.length) errs.push('Add at least one question');
-      questionsDraft.forEach((q, i) => {
-        const qText = (q.text || '').trim();
-        const opts = (q.options || []).map(o => (o || '').trim()).filter(Boolean).slice(0,4);
-        if (!qText) prepared.errors.push(`Q${i+1}: Question text is required`);
-        if (opts.length < 2) prepared.errors.push(`Q${i+1}: At least 2 options required`);
-        if (opts.length > 4) prepared.warnings.push(`Q${i+1}: Max 4 options; extra ignored`);
-        const cIdx = Math.max(0, Math.min(q.correctIndex ?? 0, opts.length - 1));
-        // Ensure exactly one correct
-        const builtOpts = opts.map((t, idx) => ({ option_text: t, is_correct: idx === cIdx }));
-        if (qText && opts.length >= 2) items.push({ question_text: qText, options: builtOpts });
-      });
-      prepared.items = items;
-      if (prepared.errors.length) errs.push(prepared.errors[0]);
-      if (!prepared.items.length) errs.push('No valid questions detected');
-      if (entryMode === 'paste') errs.push('Load pasted questions into Form and review before creating');
-
-      const toLocalDate = (val) => { try { const d = new Date(val); return isNaN(d.getTime()) ? null : d; } catch { return null; } };
-      const dStart = toLocalDate(quizForm.start_time);
-      const dEnd = toLocalDate(quizForm.end_time);
-      if (!dStart || !dEnd) errs.push('Invalid start/end time');
-      if (dStart && dEnd && dEnd <= dStart) errs.push('End time must be after start time');
-      // Optional: enforce future start time
-      if (dStart && dStart.getTime() < Date.now() - 60_000) errs.push('Start time must be in the future');
-
-      // Prizes: require 1st prize positive integer; others >= 0 if provided
-      const p0 = parseInt(quizForm.prizes[0] || '', 10);
-      const p1 = quizForm.prizes[1] ? parseInt(quizForm.prizes[1], 10) : 0;
-      const p2 = quizForm.prizes[2] ? parseInt(quizForm.prizes[2], 10) : 0;
-      if (isNaN(p0) || p0 <= 0) errs.push('1st prize must be a positive number');
-      if (quizForm.prizes[1] && (isNaN(p1) || p1 < 0)) errs.push('2nd prize must be 0 or more');
-      if (quizForm.prizes[2] && (isNaN(p2) || p2 < 0)) errs.push('3rd prize must be 0 or more');
-
-      if (errs.length) {
-        toast({ title: 'Please fix the form', description: errs[0], variant: 'destructive' });
-        return;
-      }
-
-      const prizesArray = quizForm.prizes.filter(p => p).map(p => parseInt(p));
-      const prizePool = prizesArray.reduce((sum, prize) => sum + prize, 0);
-
-      // Convert local datetime-local strings to UTC ISO
-      const toISOorNull = (val) => {
-        if (!val) return null;
-        // val is like '2025-10-01T21:30'
-        const d = new Date(val);
-        return isNaN(d.getTime()) ? null : d.toISOString();
-      };
-      const buildPayload = (includePrizeType = true) => {
-        const base = {
-          title: quizForm.title,
-          prize_pool: prizePool,
-          prizes: prizesArray,
-          start_time: toISOorNull(quizForm.start_time),
-          end_time: toISOorNull(quizForm.end_time),
-          status: 'upcoming',
-          category: quizForm.category || null,
-        };
-        if (includePrizeType) {
-          base.prize_type = quizForm.prize_type || 'money';
-        }
-        return base;
-      };
-
-      const tryInsert = async (includePrizeType = true) => {
-        return supabase
-          .from('quizzes')
-          .insert([buildPayload(includePrizeType)])
-          .select('id, title, category, prizes, prize_pool, start_time, end_time')
-          .single();
-      };
-
-      let insertData;
-  let insertError;
-
-      const firstAttempt = await tryInsert(true);
-      insertData = firstAttempt.data;
-      insertError = firstAttempt.error;
-
-      if (insertError && /prize_type/.test(insertError.message || '')) {
-  const secondAttempt = await tryInsert(false);
-        insertData = secondAttempt.data;
-        insertError = secondAttempt.error;
-        if (!insertError && insertData) {
-          toast({
-            title: 'Migration pending',
-            description: 'Quiz ban gaya, lekin Supabase schema me prize_type column missing hai. Please run latest migrations.',
-            variant: 'warning',
-          });
-          insertData.prize_type = quizForm.prize_type || 'money';
-        }
-      }
-
-      if (insertError) throw insertError;
-
-  toast({ title: 'Quiz created', description: 'Questions will be saved now.' });
-  // Use prepared items BEFORE resetting form state
-  const initialItems = prepared.items;
-
-      setShowCreateQuiz(false);
-  setQuizForm({ title: '', prizes: ['', '', ''], start_time: '', end_time: '', category: '', bulk_text: '', prize_type: 'money' });
-  setEntryMode('form');
-  setQuestionsDraft([makeBlankQuestion()]);
-      // Open Questions editor directly for the created draft
-      setSelectedQuiz(insertData);
-      // If bulk text was provided in create form, apply immediately (replace)
-      if (initialItems.length > 0) {
-        setBulkWorking(true);
-        const res = await bulkInsertQuestions(insertData.id, initialItems, 'replace');
-        setBulkWorking(false);
-        if (!res.ok) {
-          toast({ title: 'Bulk add failed', description: res.message || 'Please try again', variant: 'destructive' });
-        } else {
-          toast({ title: 'Questions added', description: `${initialItems.length} questions created.` });
-        }
-      }
-      await fetchQuestions(insertData.id);
-      setShowQuestions(true);
-      // Also refresh list in background
-      fetchQuizzes();
-    } catch (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const deleteQuiz = async (quizId) => {
-    if (!confirm('Kya aap is quiz ko delete karna chahte hain?')) return;
-    try {
-      const { error } = await supabase.from('quizzes').delete().eq('id', quizId);
-      if (error) throw error;
-      toast({ title: 'Success', description: 'Quiz delete ho gaya.' });
-      fetchQuizzes();
-    } catch (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const recomputeResults = async (quizId) => {
-    try {
-      setBusyQuizId(quizId);
-      const { error } = await supabase.rpc('admin_recompute_quiz_results', { p_quiz_id: quizId });
-      if (error) throw error;
-      toast({ title: 'Results recomputed', description: 'Leaderboard update ho gaya.' });
-    } catch (error) {
-      toast({ title: 'Recompute failed', description: error.message, variant: 'destructive' });
-    } finally {
-      setBusyQuizId(null);
-    }
-  };
-
-  return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl text-foreground">
-  <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-  <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent mb-2">Quiz Dangal Admin</h1>
-  <p className="text-muted-foreground">Admin dashboard</p>
-  </m.div>
-
-      {/* Tabs */}
-      <div className="flex gap-2 flex-wrap mb-6">
-        {[
-          { key: 'overview', title: 'Overview', icon: <LayoutDashboard className="w-4 h-4"/> },
-          { key: 'notifications', title: 'Notifications', icon: <BellRing className="w-4 h-4"/> },
-          { key: 'redemptions', title: 'Redemptions', icon: <Gift className="w-4 h-4"/> },
-        ].map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-3 py-2 rounded-lg border text-sm transition-colors inline-flex items-center gap-2 ${t.key === activeTab
-              ? 'bg-primary text-primary-foreground border-transparent shadow'
-              : 'bg-muted text-muted-foreground border-border hover:text-foreground'} `}
-          >
-            {t.icon}
-            {t.title}
-          </button>
-        ))}
-      </div>
-
-      {activeTab === 'overview' && (
-        <>
-        {/* Create Quiz Button */}
-        <div className="mb-6">
-          <Button onClick={() => setShowCreateQuiz(true)} className="bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white">
-            <Plus className="h-4 w-4 mr-2" />
-            Create New Quiz
-          </Button>
-        </div>
-
-        {/* Create Quiz Form */}
-        {showCreateQuiz && (
-          <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg mb-8">
-            <h2 className="text-xl font-bold text-foreground mb-1">Create New Quiz</h2>
-            {/* Note removed: translations no longer auto-generated */}
-            <form onSubmit={handleCreateQuiz} className="space-y-4">
-              <div>
-                <Label>Category (Section)</Label>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {categories.map((c) => (
-                    <button
-                      type="button"
-                      key={c}
-                      onClick={() => setQuizForm({ ...quizForm, category: c })}
-                      className={`px-3 py-1 rounded-full border text-sm capitalize ${quizForm.category === c ? 'bg-primary text-primary-foreground border-transparent' : 'bg-muted text-muted-foreground border-border hover:text-foreground'}`}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-                {!quizForm.category && (
-                  <p className="text-xs text-destructive mt-1">Please choose a category</p>
-                )}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="title">Quiz Title</Label>
-                  <Input id="title" value={quizForm.title} onChange={(e) => setQuizForm({...quizForm, title: e.target.value})} placeholder="Daily Opinion Quiz - Evening" required />
-                </div>
-              </div>
-
-              <div>
-                <Label>Prize Distribution</Label>
-                <div className="flex items-center gap-3 mt-1 text-sm">
-                  <span className="text-muted-foreground">Type:</span>
-                  <div className="flex gap-2">
-                    {['money','coins','others'].map(pt => (
-                      <button type="button" key={pt} onClick={()=>setQuizForm({...quizForm, prize_type: pt})} className={`px-2 py-1 rounded border text-xs capitalize ${quizForm.prize_type===pt?'bg-primary text-primary-foreground border-transparent':'bg-muted text-muted-foreground border-border'}`}>{pt}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <Input placeholder={quizForm.prize_type==='coins'?"1st Prize (coins)":"1st Prize (amount)"} value={quizForm.prizes[0]} onChange={(e) => { const p=[...quizForm.prizes]; p[0]=e.target.value; setQuizForm({...quizForm, prizes:p}); }} />
-                  <Input placeholder={quizForm.prize_type==='coins'?"2nd Prize (coins)":"2nd Prize (amount)"} value={quizForm.prizes[1]} onChange={(e) => { const p=[...quizForm.prizes]; p[1]=e.target.value; setQuizForm({...quizForm, prizes:p}); }} />
-                  <Input placeholder={quizForm.prize_type==='coins'?"3rd Prize (coins)":"3rd Prize (amount)"} value={quizForm.prizes[2]} onChange={(e) => { const p=[...quizForm.prizes]; p[2]=e.target.value; setQuizForm({...quizForm, prizes:p}); }} />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Start Time</Label>
-                  <Input type="datetime-local" value={quizForm.start_time} onChange={(e)=>setQuizForm({ ...quizForm, start_time: e.target.value })} required />
-                </div>
-                <div>
-                  <Label>End Time</Label>
-                  <Input type="datetime-local" value={quizForm.end_time} onChange={(e)=>setQuizForm({ ...quizForm, end_time: e.target.value })} required />
-                </div>
-              </div>
-
-              {/* Entry mode toggle */}
-              <div className="flex items-center gap-3">
-                <Label>Questions entry mode:</Label>
-                <div className="flex gap-2">
-                  <button type="button" className={`px-3 py-1 rounded-md text-sm border ${entryMode==='form'?'bg-primary text-primary-foreground border-transparent':'bg-muted text-muted-foreground border-border'}`} onClick={()=>setEntryMode('form')}>Form</button>
-                  <button type="button" className={`px-3 py-1 rounded-md text-sm border ${entryMode==='paste'?'bg-primary text-primary-foreground border-transparent':'bg-muted text-muted-foreground border-border'}`} onClick={()=>setEntryMode('paste')}>Paste</button>
-                </div>
-              </div>
-
-              {entryMode === 'form' ? (
-                <div className="space-y-3">
-                  <div className="text-sm text-muted-foreground">
-                    {quizForm.category === 'opinion' ? 'Add questions with 2–4 options. No correct option in Opinion category.' : 'Add questions with 2–4 options. Select exactly one correct.'}
-                  </div>
-                  {questionsDraft.map((q, qi) => (
-                    <div key={qi} className="p-3 rounded-xl border border-border">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground w-10">Q{qi+1}.</span>
-                        <Input value={q.text} onChange={(e)=>{ const arr=[...questionsDraft]; arr[qi] = { ...arr[qi], text: e.target.value }; setQuestionsDraft(arr); }} placeholder="Question text" className="flex-1" />
-                        <Button type="button" variant="outline" size="sm" className="border-red-300 text-red-600" onClick={()=>{ const arr=[...questionsDraft]; arr.splice(qi,1); setQuestionsDraft(arr.length?arr:[makeBlankQuestion()]); }}>Remove</Button>
-                      </div>
-                      <div className="mt-2 space-y-2">
-                        {(q.options||[]).slice(0,4).map((opt, oi) => (
-                          <div key={oi} className="flex items-center gap-2">
-                            {quizForm.category !== 'opinion' && (
-                              <input type="radio" name={`qdraft-${qi}`} checked={(q.correctIndex??0)===oi} onChange={()=>{ const arr=[...questionsDraft]; arr[qi] = { ...arr[qi], correctIndex: oi }; setQuestionsDraft(arr); }} />
-                            )}
-                            <Input value={opt} onChange={(e)=>{ const arr=[...questionsDraft]; const ops=[...(arr[qi].options||[])]; ops[oi] = e.target.value; arr[qi] = { ...arr[qi], options: ops }; setQuestionsDraft(arr); }} placeholder={`Option ${oi+1}`} className="flex-1" />
-                            {(q.options||[]).length>2 && (
-                              <Button type="button" variant="outline" size="sm" className="border-red-300 text-red-600" onClick={()=>{ const arr=[...questionsDraft]; const ops=[...(arr[qi].options||[])]; ops.splice(oi,1); const newCorrect=Math.min(arr[qi].correctIndex??0, ops.length-1); arr[qi] = { ...arr[qi], options: ops, correctIndex: newCorrect }; setQuestionsDraft(arr); }}>Delete</Button>
-                            )}
-                          </div>
-                        ))}
-                        <div className="flex items-center gap-2">
-                          <Button type="button" size="sm" className="bg-green-600 hover:bg-green-700 disabled:opacity-60" disabled={(q.options||[]).length>=4} onClick={()=>{ const arr=[...questionsDraft]; const ops=[...(arr[qi].options||[])].slice(0,4).concat(''); arr[qi] = { ...arr[qi], options: ops }; setQuestionsDraft(arr); }}><Plus className="w-4 h-4 mr-1"/>Add Option</Button>
-                          <div className="text-xs text-muted-foreground">Max 4 options.</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  <div>
-                    <Button type="button" onClick={()=> setQuestionsDraft(prev => [...prev, makeBlankQuestion()])}><Plus className="w-4 h-4 mr-1"/>Add Question</Button>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <Label>Paste Questions (RAW format) *</Label>
-                  <Textarea
-                    placeholder={'Use RAW format with [x]/[ ] tick and max 4 options. Example:\nQ1. Capital of India?\n- [ ] Mumbai\n- [x] Delhi\n- [ ] Kolkata\n- [ ] Jaipur\n\nQ2. Best color?\n- [x] Blue\n- [ ] Red\n- [ ] Green\n(Alternatively, provide Answer: B or Answer: 2 line)'}
-                    value={quizForm.bulk_text}
-                    onChange={(e)=>setQuizForm({ ...quizForm, bulk_text: e.target.value })}
-                    className="mt-1 h-40"
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">{quizForm.category === 'opinion' ? 'No correct option required for Opinion category.' : 'Mark exactly one correct option per question with [x] or Answer: A/B/1.'} Max 4 options per question.</p>
-                  {(() => { const { items, errors, warnings } = parseBulkQuestions(quizForm.bulk_text, { strict: true, allowZeroCorrect: quizForm.category === 'opinion' }); return (
-                    <div className="mt-2 space-y-1 text-sm">
-                      <div className="text-foreground/80">Preview: {items.length} questions</div>
-                      {warnings.length > 0 && (
-                        <div className="text-xs text-amber-600">{warnings[0]}{warnings.length>1?` (+${warnings.length-1} more)`:''}</div>
-                      )}
-                      {errors.length > 0 && (
-                        <div className="text-xs text-destructive">{errors[0]}{errors.length>1?` (+${errors.length-1} more)`:''}</div>
-                      )}
-                      <div className="pt-2">
-                        <Button type="button" onClick={() => {
-                          const parsed = parseBulkQuestions(quizForm.bulk_text, { strict: true, allowZeroCorrect: quizForm.category === 'opinion' });
-                          if (parsed.errors.length) { toast({ title:'Fix pasted input', description: parsed.errors[0], variant:'destructive' }); return; }
-                          if (!parsed.items.length) { toast({ title:'No valid questions', variant:'destructive' }); return; }
-                          const draft = parsed.items.map((it) => {
-                            const opts = (it.options || []).slice(0,4);
-                            const correctIdx = quizForm.category === 'opinion' ? 0 : Math.max(0, opts.findIndex(o => o.is_correct));
-                            return { text: it.question_text, options: opts.map(o => o.option_text), correctIndex: correctIdx < 0 ? 0 : correctIdx };
-                          });
-                          setQuestionsDraft(draft.length ? draft : [makeBlankQuestion()]);
-                          setEntryMode('form');
-                          toast({ title:'Loaded into form', description:`${draft.length} questions ready to review & edit.` });
-                        }} className="bg-indigo-600 hover:bg-indigo-700">Load into Form (Preview & Edit)</Button>
-                      </div>
-                    </div>
-                  ); })()}
-                </div>
-              )}
-              {/* Times will be set on Publish */}
-
-              <div className="flex space-x-4">
-                {(() => {
-                  let disableCreate = false;
-                  if (entryMode === 'paste') {
-                    disableCreate = true;
-                  } else {
-                    // Form mode: ensure at least one valid question
-                    const valid = questionsDraft.some(q => (q.text||'').trim() && (q.options||[]).filter(o => (o||'').trim()).length >= 2);
-                    disableCreate = !valid;
-                  }
-                  return (
-                    <Button type="submit" disabled={disableCreate} className="bg-green-600 hover:bg-green-700 disabled:opacity-60">Create Quiz</Button>
-                  );
-                })()}
-                <Button type="button" variant="outline" onClick={() => setShowCreateQuiz(false)}>Cancel</Button>
-              </div>
-            </form>
-          </m.div>
-        )}
-
-        {/* Quizzes List */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold text-foreground flex items-center"><ListChecks className="w-5 h-5 mr-2"/>All Quizzes</h2>
-          {loading ? (
-            <div className="py-8 text-center text-muted-foreground">
-              <Loader2 className="inline-block h-6 w-6 animate-spin text-indigo-500 mr-2" /> Loading quizzes...
-            </div>
-          ) : (
-            <div className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">Active / Upcoming</h3>
-                <div className="space-y-4 mt-2">
-                  {quizzes.filter(q => { const now=Date.now(); /* removed unused st variable */ const en=q.end_time?new Date(q.end_time).getTime():null; return en===null || now<=en; }).map((quiz, index) => (
-                    <m.div key={quiz.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-foreground">{quiz.title}</h3>
-                          <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span>Category: {quiz.category || '—'}</span>
-                            <span>Prize Type: {quiz.prize_type || 'money'}</span>
-                            <span>Prize Pool: {quiz.prize_type==='coins'?'🪙':''}₹{quiz.prize_pool}</span>
-                            <span>Prizes: {quiz.prize_type==='coins'?'🪙 ':''}{Array.isArray(quiz.prizes)?quiz.prizes.join(', '):''}</span>
-                          </div>
-                          <div className="mt-2 text-sm text-muted-foreground">
-                            <span>Start: {quiz.start_time ? formatDateTime(quiz.start_time) : '—'}</span>
-                            <span className="ml-4">End: {quiz.end_time ? formatDateTime(quiz.end_time) : '—'}</span>
-                          </div>
-                          {(() => { const locked = quiz.start_time ? (new Date(quiz.start_time).getTime() <= Date.now()) : false; return (
-                          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
-                            <select disabled={locked} title={locked ? 'Locked after start time' : undefined} className={`border border-border bg-background text-foreground rounded-md px-2 py-2 capitalize ${locked ? 'opacity-60 cursor-not-allowed' : ''}`} value={quiz.category || ''} onChange={async (e)=>{ if (locked) { toast({ title:'Locked', description:'Cannot change after start', variant:'destructive' }); return; } const { error } = await supabase.from('quizzes').update({ category: e.target.value }).eq('id', quiz.id); if (error) toast({ title:'Update failed', description:error.message, variant:'destructive' }); else fetchQuizzes(); }}>
-                              <option value="">Select category</option>
-                              {categories.map(c => (<option value={c} key={c}>{c}</option>))}
-                            </select>
-                            <Input type="datetime-local" disabled={locked} title={locked ? 'Locked after start time' : undefined} value={toDatetimeLocalValue(quiz.start_time)} onChange={async (e)=>{
-                              if (locked) { toast({ title:'Locked', description:'Cannot change after start', variant:'destructive' }); return; }
-                              const val = e.target.value;
-                              const iso = val ? new Date(val).toISOString() : null;
-                              quizzes[index].start_time = iso;
-                              setQuizzes([...quizzes]);
-                              const { error } = await supabase.from('quizzes').update({ start_time: iso }).eq('id', quiz.id);
-                              if (error) { toast({ title:'Update failed', description:error.message, variant:'destructive' }); fetchQuizzes(); }
-                            }} />
-                            <Input type="datetime-local" disabled={locked} title={locked ? 'Locked after start time' : undefined} value={toDatetimeLocalValue(quiz.end_time)} onChange={async (e)=>{
-                              if (locked) { toast({ title:'Locked', description:'Cannot change after start', variant:'destructive' }); return; }
-                              const val = e.target.value;
-                              const iso = val ? new Date(val).toISOString() : null;
-                              quizzes[index].end_time = iso;
-                              setQuizzes([...quizzes]);
-                              const { error } = await supabase.from('quizzes').update({ end_time: iso }).eq('id', quiz.id);
-                              if (error) { toast({ title:'Update failed', description:error.message, variant:'destructive' }); fetchQuizzes(); }
-                            }} />
-                          </div>
-                          ); })()}
-                        </div>
-                        {(() => { const now = Date.now(); const st = quiz.start_time ? new Date(quiz.start_time).getTime() : null; const canDelete = !st || now < st; return (
-                        <div className="flex space-x-2">
-                          <Button size="sm" variant="outline" onClick={() => recomputeResults(quiz.id)} disabled={busyQuizId === quiz.id} className="text-indigo-600 hover:text-indigo-700">{busyQuizId === quiz.id ? (<><Loader2 className="h-4 w-4 mr-1 animate-spin"/>Recomputing</>) : (<><RefreshCcw className="h-4 w-4 mr-1"/>Recompute</>)}</Button>
-                          <Link to={`/results/${quiz.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md border border-border hover:bg-muted text-blue-600"><Eye className="h-4 w-4"/> Results</Link>
-                          <Button size="sm" variant="outline" onClick={() => { setSelectedQuiz(quiz); fetchQuestions(quiz.id); setShowQuestions(true); }} className="text-blue-600 hover:text-blue-700"><Settings className="h-4 w-4" />Questions</Button>
-                          <div className="relative group">
-                            <Button size="sm" variant="outline" onClick={() => deleteQuiz(quiz.id)} disabled={!canDelete} className={`${canDelete ? 'text-red-600 hover:text-red-700' : 'text-muted-foreground opacity-60 cursor-not-allowed'}`}><Trash2 className="h-4 w-4" /></Button>
-                            {!canDelete && (<div className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs bg-popover text-popover-foreground border border-border px-2 py-1 rounded shadow hidden group-hover:block">Cannot delete after start time</div>)}
-                          </div>
-                        </div>
-                        ); })()}
-                      </div>
-                    </m.div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">Finished</h3>
-                <div className="space-y-4 mt-2">
-                  {quizzes.filter(q => { const now=Date.now(); const en=q.end_time?new Date(q.end_time).getTime():null; return en!==null && now>en; }).map((quiz, index) => (
-                    <m.div key={quiz.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} className="bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-semibold text-foreground">{quiz.title}</h3>
-                          <div className="flex flex-wrap items-center gap-4 mt-2 text-sm text-muted-foreground">
-                            <span>Category: {quiz.category || '—'}</span>
-                            <span>Prize Type: {quiz.prize_type || 'money'}</span>
-                            <span>Prize Pool: {quiz.prize_type==='coins'?'🪙':''}₹{quiz.prize_pool}</span>
-                            <span>Prizes: {quiz.prize_type==='coins'?'🪙 ':''}{Array.isArray(quiz.prizes)?quiz.prizes.join(', '):''}</span>
-                          </div>
-                          <div className="mt-2 text-sm text-muted-foreground">
-                            <span>Start: {quiz.start_time ? formatDateTime(quiz.start_time) : '—'}</span>
-                            <span className="ml-4">End: {quiz.end_time ? formatDateTime(quiz.end_time) : '—'}</span>
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Link to={`/results/${quiz.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md border border-border hover:bg-muted text-blue-600"><Eye className="h-4 w-4"/> Results</Link>
-                        </div>
-                      </div>
-                    </m.div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Questions Editor Panel */}
-        {showQuestions && selectedQuiz && (
-          <div className="mt-6 bg-card text-card-foreground border border-border rounded-2xl p-6 shadow-lg">
-              <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-foreground">Questions for: {selectedQuiz.title}</h3>
-              <div className="flex gap-2">
-                {(() => { const locked = selectedQuiz?.start_time ? (new Date(selectedQuiz.start_time).getTime() <= Date.now()) : false; return (
-                <>
-                <Button onClick={() => { if (locked) { toast({ title:'Locked', description:'Cannot add after quiz start', variant:'destructive' }); return; } setComposerOpen(true); }} disabled={locked} className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60" size="sm"><Plus className="w-4 h-4 mr-1"/>{composerOpen ? 'Composer Open' : 'Add Question'}</Button>
-                <Dialog open={bulkOpen} onOpenChange={setBulkOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={locked}>Bulk Add/Replace</Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Bulk add questions</DialogTitle>
-                      <DialogDescription>Paste multiple questions with options. Supported formats shown below.</DialogDescription>
-                    </DialogHeader>
-                    <div>
-                      <Textarea value={bulkText} onChange={(e)=>setBulkText(e.target.value)} className="h-56" disabled={locked} placeholder={
-                        'RAW format with [x]/[ ] and max 4 options. Example:\nQ. Sample?\n- [x] Option 1\n- [ ] Option 2\n- [ ] Option 3\n- [ ] Option 4\n\nAlternatively: use Answer: B or Answer: 2'
-                      } />
-                      {(() => { const { items, errors, warnings } = parseBulkQuestions(bulkText, { strict: true, allowZeroCorrect: selectedQuiz?.category === 'opinion' }); return (
-                        <div className="mt-2 space-y-1 text-sm">
-                          <div className="flex items-center justify-between">
-                            <div className="text-foreground/80">Preview: {items.length} questions</div>
-                            <label className="text-sm text-foreground/80 flex items-center gap-2">
-                              <span>Mode:</span>
-                              <select value={bulkMode} onChange={(e)=>setBulkMode(e.target.value)} className="border border-border bg-background text-foreground rounded-md px-2 py-1 text-sm" disabled={locked}>
-                                <option value="append">Append</option>
-                                <option value="replace">Replace existing</option>
-                              </select>
-                            </label>
-                          </div>
-                          {warnings.length > 0 && (
-                            <div className="text-xs text-amber-600">{warnings[0]}{warnings.length>1?` (+${warnings.length-1} more)`:''}</div>
-                          )}
-                          {errors.length > 0 && (
-                            <div className="text-xs text-destructive">{errors[0]}{errors.length>1?` (+${errors.length-1} more)`:''}</div>
-                          )}
-                        </div>
-                      ); })()}
-                    </div>
-                    <DialogFooter>
-                      <DialogClose asChild>
-                        <Button variant="outline">Cancel</Button>
-                      </DialogClose>
-                      <Button disabled={bulkWorking || locked || parseBulkQuestions(bulkText, { strict: true, allowZeroCorrect: selectedQuiz?.category === 'opinion' }).errors.length > 0} onClick={async ()=>{
-                        const parsed = parseBulkQuestions(bulkText, { strict: true, allowZeroCorrect: selectedQuiz?.category === 'opinion' });
-                        const items = parsed.items;
-                        if (!items.length) { toast({ title: 'No valid questions detected', variant: 'destructive' }); return; }
-                        setBulkWorking(true);
-                        const res = await bulkInsertQuestions(selectedQuiz.id, items, bulkMode);
-                        setBulkWorking(false);
-                        if (!res.ok) { toast({ title: 'Bulk add failed', description: res.message || 'Try again', variant: 'destructive' }); return; }
-                        toast({ title: 'Questions added', description: `${items.length} questions processed.` });
-                        setBulkOpen(false); setBulkText('');
-                        await fetchQuestions(selectedQuiz.id);
-                      }}>{bulkWorking ? (<><Loader2 className="w-4 h-4 mr-1 animate-spin"/>Working…</>) : 'Apply'}</Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                {/* Publish panel removed */}
-                <Button variant="outline" size="sm" onClick={()=>setShowQuestions(false)}>Close</Button>
-                </>
-                ); })()}
-              </div>
-            </div>
-
-            {questions.length === 0 ? (
-              <div className="py-6 text-center text-muted-foreground">No questions yet</div>
-            ) : (
-              <div className="space-y-4">
-                {/* Inline Composer */}
-                {(() => { const locked = selectedQuiz?.start_time ? (new Date(selectedQuiz.start_time).getTime() <= Date.now()) : false; if (!composerOpen) return null; const isOpinionSel = selectedQuiz?.category === 'opinion'; return (
-                  <div className="p-3 rounded-xl bg-card/80 border border-border">
-                    <div className="mb-2 text-sm font-semibold text-foreground">New Question</div>
-                    <Input
-                      placeholder="Type your question"
-                      value={newQ.text}
-                      disabled={locked}
-                      onChange={(e)=>setNewQ(prev => ({...prev, text: e.target.value }))}
-                      className="mb-3"
-                    />
-                    <div className="space-y-2">
-                      {(newQ.options || []).slice(0,4).map((opt, idx) => (
-                        <div key={idx} className="flex items-center gap-2">
-                          {!isOpinionSel && (
-                            <input
-                              type="radio"
-                              name="newq-correct"
-                              checked={newQ.correctIndex === idx}
-                              disabled={locked}
-                              onChange={()=>setNewQ(prev => ({...prev, correctIndex: idx }))}
-                            />
-                          )}
-                          <Input
-                            placeholder={`Option ${idx+1}`}
-                            value={opt}
-                            disabled={locked}
-                            onChange={(e)=>{
-                              const arr = [...newQ.options]; arr[idx] = e.target.value; setNewQ(prev => ({...prev, options: arr }));
-                            }}
-                            className="flex-1"
-                          />
-                          {newQ.options.length > 2 && (
-                            <Button type="button" variant="outline" size="sm" className={`border-red-300 ${locked ? 'text-muted-foreground opacity-60 cursor-not-allowed' : 'text-red-600'}`} disabled={locked}
-                              onClick={()=>{ const arr=[...newQ.options]; arr.splice(idx,1); setNewQ(prev => ({...prev, options: arr, correctIndex: Math.min(prev.correctIndex, arr.length-1) })); }}>
-                              <Trash2 className="w-4 h-4"/>
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                      <div className="flex items-center gap-2">
-                        <Button type="button" size="sm" className="bg-green-600 hover:bg-green-700 disabled:opacity-60" disabled={locked || (newQ.options || []).length >= 4}
-                          onClick={()=> setNewQ(prev => ({...prev, options: [...prev.options].slice(0,4).concat('') }))}>
-                          <Plus className="w-4 h-4 mr-1"/> Add Option
-                        </Button>
-                        <div className="text-xs text-muted-foreground">{isOpinionSel ? 'Opinion: no correct option needed.' : 'Select the correct option. Max 4 options.'}</div>
-                      </div>
-                    </div>
-                    <div className="mt-3 flex gap-2">
-                      <Button type="button" onClick={saveNewQuestion} className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60" disabled={locked}>Save Question</Button>
-                      <Button type="button" variant="outline" onClick={()=>{ setComposerOpen(false); setNewQ({ text:'', options:['','','',''], correctIndex:0 }); }}>Cancel</Button>
-                    </div>
-                  </div>
-                ); })()}
-
-                {questions.map((q) => { const locked = selectedQuiz?.start_time ? (new Date(selectedQuiz.start_time).getTime() <= Date.now()) : false; const isOpinionSel = selectedQuiz?.category === 'opinion'; return (
-                  <div key={q.id} className="p-3 rounded-xl bg-card/80 border border-border">
-                    <div className="flex items-center gap-2">
-                      <Input defaultValue={q.question_text} onBlur={(e)=>{ if (locked) { toast({ title:'Locked', description:'Cannot edit after quiz start', variant:'destructive' }); return; } saveQuestion(q.id, e.target.value); }} className="flex-1" disabled={locked} />
-                      <Button variant="outline" size="sm" className={`border-red-300 ${locked ? 'text-muted-foreground opacity-60 cursor-not-allowed' : 'text-red-600'}`} onClick={()=>{ if (locked) { toast({ title:'Locked', description:'Cannot delete after quiz start', variant:'destructive' }); return; } deleteQuestion(q.id); }} disabled={locked}><Trash2 className="w-4 h-4"/></Button>
-                    </div>
-                    <div className="mt-2 pl-1">
-                      <div className="text-xs text-muted-foreground mb-1">Options</div>
-                      <div className="space-y-2">
-                        {(q.options || []).map((o)=> (
-                          <div key={o.id} className="flex items-center gap-2">
-                            <Input defaultValue={o.option_text} onBlur={(e)=>{ if (locked) { toast({ title:'Locked', description:'Cannot edit after quiz start', variant:'destructive' }); return; } saveOption(o.id, e.target.value); }} className="flex-1" disabled={locked} />
-                            {!isOpinionSel && (
-                              <label className="flex items-center gap-1 text-xs text-foreground/80">
-                                <input
-                                  type="radio"
-                                  name={`correct-${q.id}`}
-                                  defaultChecked={!!o.is_correct}
-                                  disabled={locked}
-                                  onChange={async (e)=>{
-                                    if (locked) { e.preventDefault(); return; }
-                                    if (!e.target.checked) return;
-                                    // Set this option correct and others false
-                                    const { error: e1 } = await supabase.from('options').update({ is_correct: false }).eq('question_id', q.id);
-                                    if (e1) { toast({ title:'Update failed', description:e1.message, variant:'destructive' }); return; }
-                                    const { error: e2 } = await supabase.from('options').update({ is_correct: true }).eq('id', o.id);
-                                    if (e2) toast({ title:'Update failed', description:e2.message, variant:'destructive' });
-                                    await fetchQuestions(selectedQuiz.id);
-                                  }}
-                                />
-                                Correct
-                              </label>
-                            )}
-                            <Button variant="outline" size="sm" className={`border-red-300 ${locked ? 'text-muted-foreground opacity-60 cursor-not-allowed' : 'text-red-600'}`} onClick={()=>{ if (locked) { toast({ title:'Locked', description:'Cannot delete after quiz start', variant:'destructive' }); return; } deleteOption(o.id); }} disabled={locked}><Trash2 className="w-4 h-4"/></Button>
-                          </div>
-                        ))}
-                        <Button onClick={()=>{ if (locked) { toast({ title:'Locked', description:'Cannot add after quiz start', variant:'destructive' }); return; } if ((q.options||[]).length >= 4) { toast({ title:'Limit reached', description:'Max 4 options per question', variant:'destructive' }); return; } addOption(q.id); }} size="sm" className="bg-green-600 hover:bg-green-700 disabled:opacity-60" disabled={locked}><Plus className="w-4 h-4 mr-1"/>Add Option</Button>
-                      </div>
-                    </div>
-                  </div>
-                ); })}
-              </div>
-            )}
-          </div>
-        )}
-        </>
-      )}
-
-      {activeTab === 'notifications' && <AdminNotificationsSection />}
-
-      {activeTab === 'redemptions' && <AdminRedemptionsSection />}
-    </div>
-  );
+					<section>
+						<h2 className="text-lg font-semibold flex items-center gap-2 mb-3"><ListChecks className="w-5 h-5"/>All Quizzes</h2>
+						{loading ? <div className="py-8 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin inline mr-2"/>Loading...</div> : (
+							<div className="space-y-6">
+								<div>
+									<h3 className="font-medium mb-2">Active / Upcoming</h3>
+									<div className="space-y-4">
+										{quizBlocks.active.map(q => {
+											const prizeType = q.prize_type || 'money';
+											const pool = formatPrizeDisplay(prizeType, q.prize_pool, { fallback:0 });
+											const prizes = Array.isArray(q.prizes) ? q.prizes.map(p=> formatPrizeDisplay(prizeType,p,{fallback:0})).join(', ') : '';
+											return (
+												<m.div key={q.id} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="border border-slate-700 rounded-xl p-4 bg-slate-800/30">
+													<div className="flex justify-between gap-4 flex-wrap">
+														<div className="flex-1 min-w-[240px]">
+															<h4 className="font-semibold">{q.title}</h4>
+															<div className="text-xs text-slate-400 flex flex-wrap gap-3 mt-1">
+																<span>Category: {q.category||'—'}</span>
+																<span>Type: {prizeType}</span>
+																<span>Pool: {pool}</span>
+																<span>Prizes: {prizes}</span>
+															</div>
+															<div className="text-xs text-slate-500 mt-1">
+																<span>Start: {q.start_time? formatDateTime(q.start_time):'—'}</span>
+																<span className="ml-4">End: {q.end_time? formatDateTime(q.end_time):'—'}</span>
+															</div>
+														</div>
+														<div className="flex gap-2 items-start">
+															<Button size="sm" variant="outline" onClick={()=> recompute(q.id)} disabled={busyQuizId===q.id}>{busyQuizId===q.id? <><Loader2 className="w-4 h-4 mr-1 animate-spin"/>...</> : <><RefreshCcw className="w-4 h-4 mr-1"/>Recompute</>}</Button>
+															<Link to={`/results/${q.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md border border-slate-600 hover:bg-slate-700 text-blue-400"><Eye className="w-4 h-4"/>Results</Link>
+															<Button size="sm" variant="outline" onClick={()=> { setSelectedQuiz(q); fetchQuestions(q.id); setShowQuestions(true); }} className="text-blue-400"><Settings className="w-4 h-4 mr-1"/>Questions</Button>
+															<Button size="sm" variant="outline" onClick={()=> deleteQuiz(q.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></Button>
+														</div>
+													</div>
+													<AnimatePresence>
+														{showQuestions && selectedQuiz?.id===q.id && (
+															<m.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}} className="mt-4 space-y-2">
+																<h5 className="font-medium flex items-center gap-2">Questions for {q.title}</h5>
+																{questions.length===0 && <div className="text-xs text-slate-400">No questions.</div>}
+																{questions.map((ques,i)=>(
+																	<div key={ques.id} className="border border-slate-600 rounded p-3">
+																		<div className="text-sm font-medium">Q{i+1}: {ques.question_text}</div>
+																		<div className="flex flex-wrap gap-2 mt-1">
+																			{(ques.options||[]).map(o=>(
+																				<div key={o.id} className={`px-2 py-0.5 text-xs rounded-full ${o.is_correct ? 'bg-green-600 text-white':'bg-slate-700 text-slate-300'}`}>{o.option_text}{o.is_correct && <span className="ml-1">✓</span>}</div>
+																			))}
+																		</div>
+																	</div>
+																))}
+															</m.div>
+														)}
+													</AnimatePresence>
+												</m.div>
+											);
+										})}
+									</div>
+								</div>
+								<div>
+									<h3 className="font-medium mb-2">Finished</h3>
+									<div className="space-y-4">
+										{quizBlocks.finished.map(q => {
+											const prizeType = q.prize_type || 'money';
+											const pool = formatPrizeDisplay(prizeType, q.prize_pool, { fallback:0 });
+											const prizes = Array.isArray(q.prizes) ? q.prizes.map(p=> formatPrizeDisplay(prizeType,p,{fallback:0})).join(', ') : '';
+											return (
+												<m.div key={q.id} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="border border-slate-700 rounded-xl p-4 bg-slate-800/30">
+													<h4 className="font-semibold">{q.title}</h4>
+													<div className="text-xs text-slate-400 flex flex-wrap gap-3 mt-1">
+														<span>Category: {q.category||'—'}</span>
+														<span>Type: {prizeType}</span>
+														<span>Pool: {pool}</span>
+														<span>Prizes: {prizes}</span>
+													</div>
+												</m.div>
+											);
+										})}
+									</div>
+								</div>
+							</div>
+						)}
+					</section>
+				</div>
+			)}
+			{tab==='notifications' && (
+				<NotificationsPanel />
+			)}
+			{tab==='redemptions' && (
+				<RedemptionsPanel />
+			)}
+		</div>
+	);
 }
 
-function AdminRedemptionsSection() {
-  const { toast } = useToast();
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ title: '', coins_required: '', description: '', image_url: '' });
+// ---------------- Redemptions Panel ----------------
+function RedemptionsPanel() {
+	const { toast } = useToast();
+	// Only Rewards Catalog management is shown in this panel (no approval/rejection/history)
+	const [rewards, setRewards] = React.useState([]);
+	const [rewardsLoading, setRewardsLoading] = React.useState(false);
+	const [showNewReward, setShowNewReward] = React.useState(false);
+	// rewardForm fields: reward_type (text), reward_value (text), coins_required (int), is_active (bool)
+	const [rewardForm, setRewardForm] = React.useState({ reward_type:'coins', reward_value:'', coins_required:'', is_active:true });
+	const [savingReward, setSavingReward] = React.useState(false);
+	const [editingId, setEditingId] = React.useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('reward_catalog')
-      .select('*')
-      .order('coins_required', { ascending: false });
-    if (error) {
-      toast({ title: 'Load failed', description: error.message, variant: 'destructive' });
-      setItems([]);
-    } else {
-      setItems(data || []);
-    }
-    setLoading(false);
-  }, [toast]);
 
-  useEffect(() => { load(); }, [load]);
+	const loadRewards = React.useCallback(async ()=> {
+		if (!supabase) return; setRewardsLoading(true);
+		const { data, error } = await supabase
+			.from('reward_catalog')
+			.select('id,reward_type,reward_value,coins_required,is_active')
+			.order('id', { ascending:false })
+			.limit(200);
+		if (error) toast({ title:'Rewards load failed', description:error.message, variant:'destructive'}); else setRewards(data||[]);
+		setRewardsLoading(false);
+	},[toast]);
 
-  const addItem = async (e) => {
-    e.preventDefault();
-    const title = form.title.trim();
-    const coins = parseInt(form.coins_required, 10);
-    if (!title || isNaN(coins) || coins < 0) {
-      toast({ title: 'Invalid input', description: 'Title required and coins must be a non-negative number', variant: 'destructive' });
-      return;
-    }
-    setAdding(true);
-    const { error } = await supabase.from('reward_catalog').insert({
-      title: title,
-      coins_required: coins,
-      description: form.description?.trim() || null,
-      image_url: form.image_url?.trim() || null,
-      is_active: true,
-    });
-    if (error) toast({ title: 'Add failed', description: error.message, variant: 'destructive' });
-    else {
-      toast({ title: 'Added', description: 'Catalog item created' });
-      setForm({ title: '', coins_required: '', description: '', image_url: '' });
-      load();
-    }
-    setAdding(false);
-  };
+	React.useEffect(() => { loadRewards(); }, [loadRewards]);
 
-  const saveInline = async (id, patch) => {
-    const { error } = await supabase.from('reward_catalog').update(patch).eq('id', id);
-    if (error) toast({ title: 'Update failed', description: error.message, variant: 'destructive' });
-    else load();
-  };
+	// Approval flow removed: auto-fulfillment is in place. Admin sees read-only history and manages catalog only.
 
-  const removeItem = async (id) => {
-    if (!confirm('Delete this item?')) return;
-    const { error } = await supabase.from('reward_catalog').delete().eq('id', id);
-    if (error) toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
-    else { toast({ title: 'Deleted' }); load(); }
-  };
+	const resetRewardForm = () => setRewardForm({ reward_type:'coins', reward_value:'', coins_required:'', is_active:true });
+	const saveReward = async e => {
+		e.preventDefault(); if(!supabase) return; setSavingReward(true);
+		try {
+			const payload = {
+				reward_type: String(rewardForm.reward_type||'').trim() || 'other',
+				reward_value: String(rewardForm.reward_value||'').trim(),
+				coins_required: rewardForm.coins_required!=='' && rewardForm.coins_required!==null ? parseInt(rewardForm.coins_required,10) : null,
+				is_active: !!rewardForm.is_active,
+			};
+			if (!payload.reward_value) throw new Error('Value required');
+			if (payload.coins_required === null || Number.isNaN(payload.coins_required)) throw new Error('Coins required');
+			let resp;
+			if (editingId) resp = await supabase.from('reward_catalog').update(payload).eq('id', editingId).select().single();
+			else resp = await supabase.from('reward_catalog').insert([payload]).select().single();
+			if (resp.error) throw resp.error;
+			toast({ title: editingId? 'Reward updated':'Reward created' });
+			resetRewardForm(); setShowNewReward(false); setEditingId(null); loadRewards();
+		} catch(e){ toast({ title:'Save failed', description:e.message, variant:'destructive'});} finally { setSavingReward(false); }
+	};
 
-  return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Admin: Redemptions Catalog</h2>
-        <p className="text-muted-foreground text-sm">Items jinko users coins se redeem kar sakte hain</p>
-      </div>
+	const toggleRewardActive = async r => {
+		if (!supabase) return; const { error } = await supabase.from('reward_catalog').update({ is_active: !r.is_active }).eq('id', r.id);
+		if (error) toast({ title:'Toggle failed', description:error.message, variant:'destructive'}); else { toast({ title: r.is_active? 'Deactivated':'Activated' }); loadRewards(); }
+	};
 
-      <div className="bg-card text-card-foreground border border-border rounded-2xl p-4 shadow-lg">
-        <form onSubmit={addItem} className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-          <div>
-            <Label htmlFor="rc_title">Title *</Label>
-            <Input id="rc_title" value={form.title} onChange={(e)=>setForm({ ...form, title: e.target.value })} placeholder="e.g., ₹100 Paytm" required />
-          </div>
-          <div>
-            <Label htmlFor="rc_coins">Coins *</Label>
-            <Input id="rc_coins" type="number" min="0" value={form.coins_required} onChange={(e)=>setForm({ ...form, coins_required: e.target.value })} placeholder="e.g., 1000" required />
-          </div>
-          <div>
-            <Label htmlFor="rc_img">Image URL (optional)</Label>
-            <Input id="rc_img" value={form.image_url} onChange={(e)=>setForm({ ...form, image_url: e.target.value })} placeholder="https://..." />
-          </div>
-          <div className="md:col-span-4">
-            <Label htmlFor="rc_desc">Description (optional)</Label>
-            <Textarea id="rc_desc" value={form.description} onChange={(e)=>setForm({ ...form, description: e.target.value })} placeholder="Short details" />
-          </div>
-          <div>
-            <Button type="submit" disabled={adding} className="bg-green-600 hover:bg-green-700">{adding ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Adding...</>) : 'Add Item'}</Button>
-          </div>
-        </form>
-      </div>
+	const beginEdit = r => {
+		setEditingId(r.id);
+		setShowNewReward(true);
+		setRewardForm({
+			reward_type: r.reward_type || 'coins',
+			reward_value: r.reward_value || '',
+			coins_required: (r.coins_required ?? '').toString(),
+			is_active: !!r.is_active,
+		});
+	};
 
-      <div className="bg-card text-card-foreground border border-border rounded-2xl p-4 shadow-lg">
-        <h3 className="font-semibold text-foreground mb-3">Catalog Items</h3>
-        {loading ? (
-          <div className="py-8 text-center text-muted-foreground"><Loader2 className="inline-block h-6 w-6 animate-spin text-indigo-500 mr-2"/> Loading...</div>
-        ) : items.length === 0 ? (
-          <div className="py-8 text-center text-muted-foreground">No items</div>
-        ) : (
-          <div className="space-y-2">
-            {items.map((it) => (
-              <div key={it.id} className="p-3 rounded-xl bg-card/80 border border-border flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <Input defaultValue={it.title} onBlur={(e)=>{ const v=e.target.value.trim(); if (v && v !== it.title) saveInline(it.id, { title: v }); }} className="flex-1" />
-                    <Input type="number" min="0" defaultValue={it.coins_required} onBlur={(e)=>{ const n=parseInt(e.target.value,10); if (!isNaN(n) && n !== it.coins_required) saveInline(it.id, { coins_required: n }); }} className="w-32" />
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1 truncate">{it.description}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="text-xs text-foreground/80 flex items-center gap-1">
-                    <input type="checkbox" defaultChecked={!!it.is_active} onChange={(e)=>saveInline(it.id, { is_active: e.target.checked })} /> Active
-                  </label>
-                  <Button size="sm" variant="outline" className="text-red-600 border-red-300" onClick={()=>removeItem(it.id)}><Trash2 className="w-4 h-4"/></Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+	// Reject flow removed as well.
+
+	return (
+		<div className="space-y-6">
+			<p className="text-xs text-slate-500">Redemptions auto-approved hain. Neeche sirf Rewards Catalog manage karna hai.</p>
+
+			{/* Rewards Catalog Management */}
+			<div className="pt-10 border-t border-slate-700 space-y-4">
+				<div className="flex items-center gap-3 flex-wrap">
+					<h2 className="font-semibold text-lg">Rewards Catalog</h2>
+					<Button size="sm" onClick={()=> { setShowNewReward(s=>!s); if(!showNewReward){ resetRewardForm(); setEditingId(null);} }}>{showNewReward? 'Close':'New Reward'}</Button>
+					<Button size="sm" variant="outline" onClick={loadRewards} disabled={rewardsLoading}>{rewardsLoading? <Loader2 className="w-4 h-4 animate-spin"/>:'Refresh'}</Button>
+				</div>
+				{showNewReward && (
+					<form onSubmit={saveReward} className="space-y-3 bg-slate-800/40 border border-slate-700 rounded-lg p-4 max-w-3xl">
+						<div className="grid md:grid-cols-3 gap-4">
+							<div>
+								<Label>Type</Label>
+								<div className="flex gap-2 flex-wrap mt-1">
+									{['coins','cash','voucher','other'].map(k=> (
+										<button type="button" key={k} onClick={()=> setRewardForm(f=>({...f,reward_type:k}))} className={`px-2 py-1 rounded text-xs border ${rewardForm.reward_type===k? 'bg-indigo-600 text-white border-indigo-600':'border-slate-600 text-slate-300 hover:text-white'}`}>{k}</button>
+									))}
+								</div>
+							</div>
+							<div>
+								<Label>Value</Label>
+								<Input value={rewardForm.reward_value} onChange={e=> setRewardForm(f=>({...f,reward_value:e.target.value}))} placeholder="e.g. 100 / AMAZON100 / ₹100" />
+							</div>
+							<div>
+								<Label>Coins Required</Label>
+								<Input type="number" value={rewardForm.coins_required} onChange={e=> setRewardForm(f=>({...f,coins_required:e.target.value}))} placeholder="coins needed" />
+							</div>
+							<div className="flex items-center gap-2">
+								<input id="is_active" type="checkbox" checked={!!rewardForm.is_active} onChange={e=> setRewardForm(f=>({...f,is_active:e.target.checked}))} />
+								<label htmlFor="is_active" className="text-sm">Active</label>
+							</div>
+						</div>
+						<div className="flex gap-2">
+							<Button type="submit" disabled={savingReward}>{savingReward? <><Loader2 className="w-4 h-4 mr-1 animate-spin"/>Saving</> : (editingId? 'Update':'Create')}</Button>
+							<Button type="button" variant="outline" onClick={()=> { resetRewardForm(); setEditingId(null); }}>{editingId? 'Cancel Edit':'Reset'}</Button>
+						</div>
+					</form>
+				)}
+				<div className="overflow-x-auto rounded-lg border border-slate-700">
+					<table className="min-w-full text-sm">
+						<thead className="bg-slate-800/60 text-slate-300">
+							<tr>
+								<th className="p-2 text-left">Type</th>
+								<th className="p-2 text-left">Value</th>
+								<th className="p-2 text-left">Coins Required</th>
+								<th className="p-2 text-left">Active</th>
+								<th className="p-2 text-left">Actions</th>
+							</tr>
+						</thead>
+						<tbody>
+							{rewards.map(r=> (
+								<tr key={r.id} className="border-t border-slate-700 hover:bg-slate-800/40">
+									<td className="p-2 capitalize">{r.reward_type}</td>
+									<td className="p-2 max-w-[260px] truncate" title={r.reward_value}>{r.reward_value}</td>
+									<td className="p-2">{r.coins_required ?? '—'}</td>
+									<td className="p-2">{r.is_active? <span className="text-green-500">Yes</span>: <span className="text-slate-500">No</span>}</td>
+									<td className="p-2">
+										<div className="flex gap-2 flex-wrap">
+											<Button size="sm" variant="outline" onClick={()=> beginEdit(r)}>Edit</Button>
+											<Button size="sm" variant="outline" onClick={()=> toggleRewardActive(r)}>{r.is_active? 'Deactivate':'Activate'}</Button>
+										</div>
+									</td>
+								</tr>
+							))}
+							{!rewards.length && !rewardsLoading && (
+								<tr><td colSpan={8} className="p-4 text-center text-slate-500">No rewards.</td></tr>
+							)}
+							{rewardsLoading && (
+								<tr><td colSpan={8} className="p-6 text-center text-slate-500"><Loader2 className="w-5 h-5 animate-spin inline mr-2"/>Loading rewards...</td></tr>
+							)}
+						</tbody>
+					</table>
+				</div>
+				<p className="text-xs text-slate-500">Catalog: inactive rewards are hidden from users.</p>
+			</div>
+		</div>
+	);
+}
+
+// ---------------- Notifications Panel ----------------
+function NotificationsPanel() {
+	const { toast } = useToast();
+	const [title, setTitle] = React.useState('');
+	const [message, setMessage] = React.useState('');
+	const [segment, setSegment] = React.useState('all'); // future: category or quiz specific
+	const [sending, setSending] = React.useState(false);
+	const [list, setList] = React.useState([]);
+	const [loading, setLoading] = React.useState(false);
+
+	const load = React.useCallback(async () => {
+		if (!supabase) return; setLoading(true);
+		const { data, error } = await supabase.from('notifications').select('id,title,message,type,segment,created_at').order('created_at', { ascending:false }).limit(100);
+		if (error) toast({ title:'Fetch failed', description:error.message, variant:'destructive'}); else setList(data||[]);
+		setLoading(false);
+	}, [toast]);
+
+	React.useEffect(()=>{ load(); },[load]);
+
+	const send = async e => {
+		e.preventDefault();
+		if (!title.trim() || !message.trim()) { toast({ title:'Missing fields', variant:'destructive'}); return; }
+		if (!supabase) { toast({ title:'No backend client', variant:'destructive'}); return; }
+		setSending(true);
+		try {
+			// Use edge function (assumes URL pattern: /functions/v1/send-notifications)
+			const { data: { session } } = await supabase.auth.getSession();
+			const token = session?.access_token;
+			const res = await fetch('/functions/v1/send-notifications', {
+				method:'POST',
+				headers: { 'Content-Type':'application/json', ...(token? { Authorization:`Bearer ${token}` }: {}) },
+				body: JSON.stringify({ title: title.trim(), message: message.trim(), segment })
+			});
+			if (!res.ok) {
+				const text = await res.text();
+				throw new Error(text || `HTTP ${res.status}`);
+			}
+			toast({ title:'Sent', description:title.trim() });
+			setTitle(''); setMessage('');
+			load();
+		} catch (e) {
+			toast({ title:'Send failed', description:e.message, variant:'destructive'});
+		} finally { setSending(false); }
+	};
+
+	return (
+		<div className="space-y-8 max-w-3xl">
+			<form onSubmit={send} className="space-y-4 bg-slate-800/40 border border-slate-700 rounded-xl p-5">
+				<h2 className="font-semibold text-lg">Send Notification</h2>
+				<div>
+					<Label>Title</Label>
+					<Input value={title} onChange={e=> setTitle(e.target.value)} maxLength={80} placeholder="Short title" />
+					<div className="text-[10px] text-slate-500 mt-1">Max 80 chars • {title.length}/80</div>
+				</div>
+				<div>
+					<Label>Message</Label>
+					<Textarea value={message} onChange={e=> setMessage(e.target.value)} className="h-28" maxLength={280} placeholder="Body shown in push notification" />
+					<div className="text-[10px] text-slate-500 mt-1">Max 280 chars • {message.length}/280</div>
+				</div>
+				<div>
+					<Label>Segment</Label>
+					<div className="flex gap-2 mt-1">
+						{['all'].map(seg => (
+							<button type="button" key={seg} onClick={()=> setSegment(seg)} className={`px-3 py-1 rounded text-xs border ${segment===seg? 'bg-indigo-600 text-white border-indigo-600':'border-slate-600 text-slate-300 hover:text-white'}`}>{seg}</button>
+						))}
+					</div>
+				</div>
+				<div className="flex gap-2">
+					<Button type="submit" disabled={sending}>{sending? <><Loader2 className="w-4 h-4 mr-1 animate-spin"/>Sending</> : 'Send'}</Button>
+					<Button type="button" variant="outline" onClick={()=> { setTitle(''); setMessage(''); }}>Reset</Button>
+				</div>
+			</form>
+			<section>
+				<div className="flex items-center gap-3 mb-3">
+					<h2 className="font-semibold text-lg">Recent Notifications</h2>
+					<Button size="sm" variant="outline" onClick={load} disabled={loading}>{loading? <Loader2 className="w-4 h-4 animate-spin"/> : 'Refresh'}</Button>
+				</div>
+				<div className="space-y-3">
+					{list.map(n => (
+						<div key={n.id} className="border border-slate-700 rounded-lg p-3 bg-slate-800/30">
+							<div className="flex justify-between gap-4 flex-wrap">
+								<div>
+									<div className="font-medium text-sm">{n.title}</div>
+									<div className="text-xs text-slate-400 whitespace-pre-wrap max-w-xl break-words">{n.message}</div>
+								</div>
+								<div className="text-[10px] text-slate-500">{formatDateTime(n.created_at)}</div>
+							</div>
+							<div className="text-[10px] text-slate-500 mt-1">Segment: {n.segment || '—'}{n.type? ` • ${n.type}`:''}</div>
+						</div>
+					))}
+					{!list.length && !loading && <div className="text-xs text-slate-500">No notifications yet.</div>}
+				</div>
+			</section>
+		</div>
+	);
 }

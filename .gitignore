@@ -3,6 +3,8 @@ node_modules
 .env.local
 .env.*
 dist
+dist/stats.html
+coverage
 .DS_Store
 *.log
 *.sql
@@ -13,3 +15,15 @@ dist
 /.qodo/
 /.vscode/*
 !/.vscode/tasks.json
+!/.vscode/extensions.json
+
+# Supabase CLI local state (do not commit)
+/supabase/.branches/
+/supabase/.temp/
+
+# Temporary/diff artifacts (keep repo clean)
+diff_*.txt
+*.diff
+*.patch
+*tmp*
+*.orig

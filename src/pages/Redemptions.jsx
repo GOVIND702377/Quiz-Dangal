@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Link } from 'react-router-dom';
 
 export default function Redemptions() {
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, refreshUserProfile } = useAuth();
   const { toast } = useToast();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,12 +29,12 @@ export default function Redemptions() {
   const loadRedemptions = useCallback(async () => {
     if (!user || !hasSupabaseConfig || !supabase) return;
     setLoading(true);
-    const { data } = await supabase
+    const res = await supabase
       .from('redemptions')
       .select('*')
       .eq('user_id', user.id)
-      .order('requested_at', { ascending: false });
-    setRows(data || []);
+      .order('created_at', { ascending: false });
+    setRows(res.data || []);
     setLoading(false);
   }, [user]);
 
@@ -55,13 +55,13 @@ export default function Redemptions() {
         return;
       }
       setRewardsLoading(true);
-      const { data, error } = await supabase
+      const res2 = await supabase
         .from('reward_catalog')
         .select('*')
         .eq('is_active', true)
         .order('coins_required', { ascending: true })
         .order('id', { ascending: false });
-      if (error) setRewards([]); else setRewards(data || []);
+      if (res2.error) setRewards([]); else setRewards(res2.data || []);
       setRewardsLoading(false);
     }
     loadRewards();
@@ -134,7 +134,7 @@ export default function Redemptions() {
       toast({ title: 'Configuration missing', description: 'Supabase env vars are not set. Please configure .env.local', variant: 'destructive' });
       return;
     }
-    const price = Number(selectedReward.coins_required || selectedReward.coins || 0);
+  const price = Number(selectedReward.coins_required ?? selectedReward.coin_cost ?? selectedReward.coins ?? 0);
     if ((userProfile?.wallet_balance ?? 0) < price) {
       toast({ title: 'Not enough coins', description: 'Earn more coins to redeem this reward.' });
       return;
@@ -142,17 +142,20 @@ export default function Redemptions() {
     try {
       setRedeemSubmitting(true);
       const { error } = await supabase.rpc('redeem_from_catalog', {
-        p_user_id: user.id,
         p_catalog_id: selectedReward.id,
       });
       if (error) throw error;
       setRedeemStep('success');
       toast({
-        title: 'Redemption requested',
-        description: 'Your request has been recorded. You will be notified once it is processed.',
+        title: 'Reward granted',
+        description: 'Congratulations! Your reward has been issued instantly.',
       });
       // refresh history
       await loadRedemptions();
+      // refresh wallet balance immediately (ignore errors)
+      if (typeof refreshUserProfile === 'function') {
+        await refreshUserProfile(user).catch(() => { void 0; });
+      }
     } catch (e) {
       const message = e?.message || 'Please try again later';
       toast({ title: 'Something went wrong', description: message, variant: 'destructive' });
@@ -507,7 +510,7 @@ export default function Redemptions() {
                       <span className="text-sm text-slate-300">Your balance</span>
                       <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-200"><WalletIcon className="w-4 h-4" /> {walletCoins.toLocaleString()} coins</span>
                     </div>
-                    <div className="text-xs text-slate-400">Note: Actual processing and delivery may take some time after admin approval.</div>
+                    <div className="text-xs text-slate-400">Note: Redemption is instant. Your coins will be deducted immediately and the reward will be issued.</div>
                   </div>
                 </div>
 
@@ -516,7 +519,7 @@ export default function Redemptions() {
                     <div className="w-full flex gap-2 sm:justify-end">
                       <Button variant="soft" onClick={() => setRedeemOpen(false)} className="border border-white/10">Cancel</Button>
                       <Button onClick={handleConfirmRedeem} disabled={redeemSubmitting || walletCoins < Number(selectedReward.coins_required || selectedReward.coins || 0)} className="bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-600 hover:to-fuchsia-600">
-                        {redeemSubmitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Processing</>) : (<>Confirm & Request</>)}
+                        {redeemSubmitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Processing</>) : (<>Confirm & Redeem</>)}
                       </Button>
                     </div>
                   ) : (
@@ -524,8 +527,8 @@ export default function Redemptions() {
                       <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-emerald-100 flex items-start gap-3">
                         <CheckCircle2 className="w-5 h-5 text-emerald-300 mt-0.5" />
                         <div>
-                          <div className="font-semibold">Request sent successfully</div>
-                          <div className="text-xs opacity-80">We will notify you as soon as it is processed.</div>
+                          <div className="font-semibold">Redeemed successfully</div>
+                          <div className="text-xs opacity-80">Your reward has been granted immediately.</div>
                         </div>
                       </div>
                       {/* Confetti micro-animation */}

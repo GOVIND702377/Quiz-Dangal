@@ -67,12 +67,9 @@ self.addEventListener('message', (event) => {
 
 // Push Notification Event Listener
 self.addEventListener('push', function(event) {
-  console.log('[Service Worker] Push Received.');
+  // Avoid logging raw payloads in production; parse best-effort
   let raw = null;
   try { raw = event?.data || null; } catch { raw = null; }
-  if (raw) {
-    try { console.log(`[Service Worker] Push had this data: "${raw.text()}"`); } catch {}
-  }
 
   let pushData;
   try {
@@ -125,7 +122,21 @@ self.addEventListener('push', function(event) {
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
   const urlFromData = event?.notification?.data?.url;
-  const targetUrl = typeof urlFromData === 'string' && urlFromData.length > 0 ? urlFromData : '/#/';
+
+  // Sanitize target URL to same-origin relative path
+  function toSafePath(u) {
+    try {
+      if (!u || typeof u !== 'string') return '/#/';
+      const absolute = new URL(u, self.location.origin);
+      if (absolute.origin !== self.location.origin) return '/#/';
+      // Return path + search + hash to keep in-app routing
+      return absolute.pathname + absolute.search + absolute.hash;
+    } catch {
+      return '/#/';
+    }
+  }
+
+  const targetUrl = toSafePath(urlFromData);
   const action = event.action;
   event.waitUntil((async () => {
     // If an action was provided (like 'open'), we can branch logic here in future.
@@ -134,9 +145,9 @@ self.addEventListener('notificationclick', function(event) {
       // If app is already open, focus it and optionally navigate
       try {
         if ('focus' in client) await client.focus();
-        // Only navigate if a distinct URL is provided
-        if (urlFromData && client.url && !client.url.endsWith(urlFromData)) {
-          client.navigate(urlFromData).catch(()=>{});
+        // Only navigate if a distinct URL is provided and different
+        if (targetUrl && client.url && !client.url.endsWith(targetUrl)) {
+          client.navigate(targetUrl).catch(()=>{});
         }
         return;
       } catch {}

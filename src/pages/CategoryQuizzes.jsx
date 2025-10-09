@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { m } from 'framer-motion';
 import { supabase } from '@/lib/customSupabaseClient';
 import { rateLimit } from '@/lib/security';
-import { formatDateOnly, formatTimeOnly } from '@/lib/utils';
+import { formatDateOnly, formatTimeOnly, getPrizeDisplay } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { Users, Flame, MessageSquare, Brain, Clapperboard, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -43,7 +43,7 @@ const CategoryQuizzes = () => {
     try {
       const { data, error } = await supabase
         .from('quizzes')
-        .select('id,title,category,start_time,end_time,status,prize_pool,prizes')
+  .select('id,title,category,start_time,end_time,status,prize_pool,prizes,prize_type')
         .eq('category', slug)
         .order('start_time', { ascending: true });
       if (error) throw error;
@@ -237,8 +237,16 @@ const CategoryQuizzes = () => {
             const isUpcoming = st && now < st;
             const canJoin = isActive || isUpcoming;
             const secs = isUpcoming && st ? Math.max(0, Math.floor((st - now)/1000)) : (isActive && et ? Math.max(0, Math.floor((et - now)/1000)) : null);
-            const prizes = Array.isArray(q.prizes) ? q.prizes : [];
-            const p1 = prizes[0] || 0, p2 = prizes[1] || 0, p3 = prizes[2] || 0;
+                  const prizes = Array.isArray(q.prizes) ? q.prizes : [];
+                  const prizeType = q.prize_type || 'money';
+                  const p1 = prizes[0] ?? 0;
+                  const p2 = prizes[1] ?? 0;
+                  const p3 = prizes[2] ?? 0;
+                  const formatPrize = (value) => {
+                    const display = getPrizeDisplay(prizeType, value, { fallback: 0 });
+                    const iconPart = display.showIconSeparately && display.icon ? `${display.icon} ` : '';
+                    return `${iconPart}${display.formatted}`.trim();
+                  };
             const joined = counts[q.id] || 0;
             const myStatus = joinedMap[q.id];
             // unified UX: show only JOIN/JOINED; treat pre-joined as Joined in UI
@@ -286,9 +294,9 @@ const CategoryQuizzes = () => {
 
                       {/* Prize Chips (more attractive) */}
                       <div className="mt-2 flex items-center gap-2 text-xs">
-                        <span className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-amber-400/10 text-amber-200 border border-amber-500/30 shadow-sm">🥇 ₹{p1}</span>
-                        <span className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-sky-500/20 to-sky-400/10 text-sky-200 border border-sky-500/30 shadow-sm">🥈 ₹{p2}</span>
-                        <span className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-violet-500/20 to-violet-400/10 text-violet-200 border border-violet-500/30 shadow-sm">🥉 ₹{p3}</span>
+                        <span className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-amber-400/10 text-amber-200 border border-amber-500/30 shadow-sm">🥇 {formatPrize(p1)}</span>
+                        <span className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-sky-500/20 to-sky-400/10 text-sky-200 border border-sky-500/30 shadow-sm">🥈 {formatPrize(p2)}</span>
+                        <span className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-violet-500/20 to-violet-400/10 text-violet-200 border border-violet-500/30 shadow-sm">🥉 {formatPrize(p3)}</span>
                       </div>
 
                       {/* Date once + Time-only chips */}

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, Play, Loader2, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
-import { formatDateOnly, formatTimeOnly } from '@/lib/utils';
+import { formatDateOnly, formatTimeOnly, getPrizeDisplay } from '@/lib/utils';
 // Match Category status badge visuals
 function statusBadge(s) {
   const base = 'px-2 py-0.5 rounded-full text-xs font-semibold';
@@ -320,7 +320,15 @@ const MyQuizzes = () => {
                   const totalWindow = (st && et) ? Math.max(1, et.getTime() - st.getTime()) : null;
                   const progressed = isActive && totalWindow ? Math.min(100, Math.max(0, Math.round(((Date.now() - st.getTime()) / totalWindow) * 100))) : null;
                   const prizes = Array.isArray(quiz.prizes) ? quiz.prizes : [];
-                  const p1 = prizes[0] || 0, p2 = prizes[1] || 0, p3 = prizes[2] || 0;
+                  const prizeType = quiz.prize_type || 'money';
+                  const p1 = prizes[0] ?? 0;
+                  const p2 = prizes[1] ?? 0;
+                  const p3 = prizes[2] ?? 0;
+                  const formatPrize = (value) => {
+                    const display = getPrizeDisplay(prizeType, value, { fallback: 0 });
+                    const iconPart = display.showIconSeparately && display.icon ? `${display.icon} ` : '';
+                    return `${iconPart}${display.formatted}`.trim();
+                  };
                   const joined = counts[quiz.id] || 0;
                   // Removed unused local UI state placeholders (already, btnDisabled, btnLabel, btnColor) for lint cleanliness
                   return (
@@ -355,9 +363,9 @@ const MyQuizzes = () => {
 
                           {/* Prize Chips (mirror Category) */}
                           <div className="mt-2 flex items-center gap-2 text-xs">
-                            <span className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-amber-400/10 text-amber-200 border border-amber-500/30 shadow-sm">🥇 ₹{p1}</span>
-                            <span className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-sky-500/20 to-sky-400/10 text-sky-200 border border-sky-500/30 shadow-sm">🥈 ₹{p2}</span>
-                            <span className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-violet-500/20 to-violet-400/10 text-violet-200 border border-violet-500/30 shadow-sm">🥉 ₹{p3}</span>
+                            <span className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-amber-500/20 to-amber-400/10 text-amber-200 border border-amber-500/30 shadow-sm">🥇 {formatPrize(p1)}</span>
+                            <span className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-sky-500/20 to-sky-400/10 text-sky-200 border border-sky-500/30 shadow-sm">🥈 {formatPrize(p2)}</span>
+                            <span className="px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-violet-500/20 to-violet-400/10 text-violet-200 border border-violet-500/30 shadow-sm">🥉 {formatPrize(p3)}</span>
                           </div>
 
                           {/* Date + time chips */}
@@ -460,7 +468,17 @@ const MyQuizzes = () => {
                     </div>
                     <div className="bg-slate-900/60 border border-slate-700/60 rounded-lg px-2 py-1.5 text-center">
                       <div className="uppercase text-[10px] text-slate-400">Your Prize</div>
-                      <div className="font-semibold text-purple-200">₹{userRank?.rank && Array.isArray(quiz.prizes) && quiz.prizes[userRank.rank - 1] ? quiz.prizes[userRank.rank - 1] : 0}</div>
+                      {(() => {
+                        const prizeType = quiz.prize_type || 'money';
+                        const rawPrize = userRank?.rank && Array.isArray(quiz.prizes) ? quiz.prizes[userRank.rank - 1] : null;
+                        if (!userRank?.rank) {
+                          return <div className="font-semibold text-purple-200">—</div>;
+                        }
+                        const display = getPrizeDisplay(prizeType, rawPrize ?? 0, { fallback: 0 });
+                        const iconPart = display.showIconSeparately && display.icon ? `${display.icon} ` : '';
+                        const text = `${iconPart}${display.formatted}`.trim();
+                        return <div className="font-semibold text-purple-200">{text}</div>;
+                      })()}
                     </div>
                   </div>
                 ) : (
