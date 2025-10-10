@@ -118,6 +118,71 @@ html { scroll-behavior: smooth; }
 
 @keyframes fadeInUp { from { opacity:0; transform:translateY(20px);} to { opacity:1; transform:translateY(0);} }
 
+.animate-fade-up {
+  opacity: 0;
+  transform: translateY(18px);
+  animation: fadeInUp var(--fade-duration, 0.45s) cubic-bezier(0.19, 0.69, 0.29, 1) forwards;
+  animation-delay: var(--fade-delay, 0ms);
+  will-change: transform, opacity;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-fade-scale {
+  opacity: 0;
+  transform: translateY(18px) scale(0.96);
+  animation: fadeInScale var(--fade-scale-duration, 0.42s) cubic-bezier(0.22, 0.68, 0.31, 1) forwards;
+  animation-delay: var(--fade-scale-delay, 0ms);
+  will-change: transform, opacity;
+}
+
+@keyframes slideDownSoft {
+  from {
+    opacity: 0;
+    transform: translateY(-32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-down {
+  opacity: 0;
+  transform: translateY(-32px);
+  animation: slideDownSoft var(--slide-duration, 0.4s) cubic-bezier(0.19, 0.69, 0.29, 1) forwards;
+  animation-delay: var(--slide-delay, 0ms);
+  will-change: transform, opacity;
+}
+
+@keyframes fadeInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fade-left {
+  opacity: 0;
+  transform: translateX(-18px);
+  animation: fadeInLeft var(--fade-left-duration, 0.45s) cubic-bezier(0.22, 0.68, 0.31, 1) forwards;
+  animation-delay: var(--fade-left-delay, 0ms);
+  will-change: transform, opacity;
+}
+
 /* Smooth loading animations */
 .loading-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;

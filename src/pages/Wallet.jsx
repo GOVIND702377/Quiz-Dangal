@@ -5,6 +5,7 @@ import { m } from 'framer-motion';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Coins, Share2, Gift, Trophy, ArrowDownRight, ArrowUpRight, UserPlus, RefreshCcw, ShoppingBag, LogOut, Wallet as WalletIcon, Gamepad2 } from 'lucide-react';
+import SEO from '@/components/SEO';
 // useNavigate not needed; using Link for navigation
 
 const Wallet = () => {
@@ -75,6 +76,12 @@ const Wallet = () => {
 
   return (
     <div className="relative mx-auto max-w-5xl px-4 py-6">
+      <SEO
+        title="Wallet – Quiz Dangal"
+        description="View your Quiz Dangal wallet balance, recent transactions, and referral earnings."
+        canonical="https://quizdangal.com/wallet"
+        robots="noindex, nofollow"
+      />
       {/* Soft gradient mesh backdrop */}
       <div className="absolute inset-0 -z-10 opacity-70 mix-blend-screen [background-image:radial-gradient(circle_at_18%_28%,rgba(56,189,248,0.25),rgba(0,0,0,0)60%),radial-gradient(circle_at_82%_72%,rgba(192,132,252,0.22),rgba(0,0,0,0)65%),radial-gradient(circle_at_50%_50%,rgba(244,114,182,0.15),rgba(0,0,0,0)55%)]" />
   <m.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>

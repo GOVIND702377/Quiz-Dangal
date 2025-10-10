@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { STREAK_CLAIM_DELAY_MS } from '@/constants';
-import { m } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -76,12 +75,10 @@ const Header = () => {
 
   return (
     <>
-      <m.header
-        initial={{ y: -40, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.35, ease: 'easeOut' }}
-        className="sticky top-0 z-[60] px-2 pt-2"
+      <header
+        className="sticky top-0 z-[60] px-2 pt-2 animate-slide-down"
         data-mute-click-sound
+        style={{ '--slide-delay': '40ms' }}
       >
         <div className="qd-card rounded-3xl overflow-hidden">
 
@@ -152,7 +149,7 @@ const Header = () => {
           </div>
         </div>
         </div>
-  </m.header>
+      </header>
 
       <StreakModal
         open={streakModal.open}

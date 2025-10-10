@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
+import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { formatDateTime } from '@/lib/utils';
 
 // ---------------- Constants & Helpers ----------------
@@ -69,6 +70,7 @@ function parseBulk(text, { allowZeroCorrect = false } = {}) {
 // ---------------- Component ----------------
 export default function Admin() {
 	const { toast } = useToast();
+	const { userProfile, loading: authLoading } = useAuth();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const tab = searchParams.get('tab') || 'overview';
 	const setTab = t => { searchParams.set('tab', t); setSearchParams(searchParams, { replace:true }); };
@@ -84,27 +86,45 @@ export default function Admin() {
 	const [busyQuizId, setBusyQuizId] = useState(null);
 	const [showQuestions, setShowQuestions] = useState(false);
 	const opinion = form.category === 'opinion';
+	const isAdmin = userProfile?.role === 'admin';
 
 	const fetchQuizzes = useCallback(async ()=>{
+		if (!isAdmin) {
+			setLoading(false);
+			setQuizzes([]);
+			return;
+		}
 		setLoading(true);
-		if (!supabase) { setQuizzes([]); return; }
+		if (!supabase) {
+			setQuizzes([]);
+			setLoading(false);
+			return;
+		}
 		const { data, error } = await supabase.from('quizzes').select('id,title,category,prizes,prize_pool,prize_type,start_time,end_time').order('start_time', { ascending:false });
 		if (error) toast({ title:'Fetch failed', description:error.message, variant:'destructive' });
 		else setQuizzes(data||[]);
 		setLoading(false);
-	},[toast]);
+	},[toast, isAdmin]);
 
 	const fetchQuestions = useCallback(async (quizId)=>{
+		if (!isAdmin) {
+			setQuestions([]);
+			return;
+		}
 		if (!supabase) { setQuestions([]); return; }
 		const { data, error } = await supabase.from('questions').select('id,question_text,options(id,option_text,is_correct)').eq('quiz_id', quizId);
 		if (error) toast({ title:'Questions failed', description:error.message, variant:'destructive' }); else setQuestions(data||[]);
-	},[toast]);
+	},[toast, isAdmin]);
 
-	useEffect(()=>{ fetchQuizzes(); },[fetchQuizzes]);
+	useEffect(()=>{ if (authLoading) return; fetchQuizzes(); },[fetchQuizzes, authLoading]);
 
 	const handleCreate = async e => {
 		e.preventDefault();
 		try {
+			if (!isAdmin) {
+				toast({ title:'Access denied', description:'Only admins can create quizzes.', variant:'destructive' });
+				return;
+			}
 			const errs = [];
 			if (!form.category) errs.push('Select category');
 			if (!form.title.trim()) errs.push('Title required');
@@ -135,6 +155,7 @@ export default function Admin() {
 	};
 
 	const bulkInsert = async (quizId, items, mode='append') => {
+		if (!isAdmin) return { ok:false, message:'Admin access required' };
 		try {
 			if (!supabase) throw new Error('No Supabase client');
 			const { error } = await supabase.rpc('admin_bulk_upsert_questions', { p_quiz_id: quizId, p_payload: items, p_mode: mode });
@@ -151,8 +172,26 @@ export default function Admin() {
 		return { ok:true };
 	};
 
-	const deleteQuiz = async id => { if (!window.confirm('Delete this quiz?')) return; if(!supabase) return; const { error } = await supabase.from('quizzes').delete().eq('id', id); if (error) toast({ title:'Delete failed', description:error.message, variant:'destructive'}); else { toast({ title:'Deleted' }); fetchQuizzes(); } };
-	const recompute = async id => { if(!supabase) return; try { setBusyQuizId(id); const { error } = await supabase.rpc('admin_recompute_quiz_results', { p_quiz_id:id }); if (error) throw error; toast({ title:'Recomputed' }); } catch(e){ toast({ title:'Recompute failed', description:e.message, variant:'destructive'});} finally { setBusyQuizId(null);} };
+	const deleteQuiz = async id => {
+		if (!window.confirm('Delete this quiz?')) return;
+		if (!isAdmin) { toast({ title:'Access denied', description:'Only admins can delete quizzes.', variant:'destructive' }); return; }
+		if(!supabase) return;
+		const { error } = await supabase.from('quizzes').delete().eq('id', id);
+		if (error) toast({ title:'Delete failed', description:error.message, variant:'destructive'});
+		else { toast({ title:'Deleted' }); fetchQuizzes(); }
+	};
+	const recompute = async id => {
+		if (!isAdmin) { toast({ title:'Access denied', description:'Only admins can recompute results.', variant:'destructive' }); return; }
+		if(!supabase) return;
+		try {
+			setBusyQuizId(id);
+			const { error } = await supabase.rpc('admin_recompute_quiz_results', { p_quiz_id:id });
+			if (error) throw error;
+			toast({ title:'Recomputed' });
+		} catch(e){
+			toast({ title:'Recompute failed', description:e.message, variant:'destructive'});
+		} finally { setBusyQuizId(null);} 
+	};
 
 	const quizBlocks = useMemo(()=>{
 		const now = Date.now();
@@ -164,15 +203,52 @@ export default function Admin() {
 		return { active, finished };
 	},[quizzes]);
 
+	if (authLoading) {
+		return (
+			<div className="min-h-screen flex items-center justify-center">
+				<Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+			</div>
+		);
+	}
+
+	if (!isAdmin) {
+		return (
+			<div className="min-h-screen flex items-center justify-center px-4">
+				<div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-md w-full text-center shadow-sm">
+					<h2 className="text-xl font-semibold text-red-500 mb-2">Admin access required</h2>
+					<p className="text-sm text-gray-600">
+						<span>Supabase </span>
+						<code>profiles</code>
+						<span> table mein aapke record ka </span>
+						<strong>role</strong>
+						<span> field admin hona chahiye.</span>
+					</p>
+					<ul className="text-left text-sm text-gray-600 mt-4 space-y-2 list-disc list-inside">
+						<li>
+							<span>Supabase dashboard</span>
+							<span aria-hidden="true" role="presentation" className="mx-1">&rarr;</span>
+							<span>Table editor</span>
+							<span aria-hidden="true" role="presentation" className="mx-1">&rarr;</span>
+							<code>profiles</code>
+							<span>&nbsp;me role update karein.</span>
+						</li>
+						<li>Update ke baad login session refresh karein.</li>
+						<li>Dev bypass (<code>VITE_BYPASS_AUTH=1</code>) mein mock admin auto-enable hota hai.</li>
+					</ul>
+				</div>
+			</div>
+		);
+	}
+
 	return (
-		<div className="container mx-auto p-6 max-w-5xl text-slate-200">
-			<h1 className="text-2xl font-bold mb-6 text-slate-100">Admin Dashboard</h1>
+		<div className="container mx-auto p-6 max-w-5xl bg-white text-gray-900 rounded-2xl shadow-sm">
+			<h1 className="text-2xl font-bold mb-6 text-gray-900">Admin Dashboard</h1>
 			{!hasSupabaseConfig && (
-				<div className="mb-6 text-sm text-amber-400">Supabase env keys missing. Read-only UI only.</div>
+				<div className="mb-6 text-sm text-amber-600">Supabase env keys missing. Read-only UI only.</div>
 			)}
 			<div className="flex gap-2 mb-6 flex-wrap">
 				{['overview','notifications','redemptions'].map(t=> (
-					<button key={t} onClick={()=>setTab(t)} className={`px-3 py-1.5 rounded border text-sm ${t===tab? 'bg-indigo-600 text-white border-indigo-600':'bg-slate-800/40 text-slate-300 border-slate-700 hover:text-white'}`}>{t}</button>
+					<button key={t} onClick={()=>setTab(t)} className={`px-3 py-1.5 rounded border text-sm transition-colors ${t===tab? 'bg-indigo-600 text-white border-indigo-600':'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}>{t}</button>
 				))}
 			</div>
 			{tab==='overview' && (
@@ -182,14 +258,14 @@ export default function Admin() {
 					</div>
 					<AnimatePresence>
 						{showCreate && (
-							<m.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} className="bg-slate-800/40 border border-slate-700 rounded-xl p-5">
+							<m.div initial={{opacity:0,y:16}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} className="bg-gray-50 border border-gray-200 rounded-xl p-5">
 								<h2 className="font-semibold text-lg mb-4">Create Quiz</h2>
 								<form onSubmit={handleCreate} className="space-y-4">
 									<div>
 										<Label className="mb-1 block">Category</Label>
 										<div className="flex flex-wrap gap-2">
 											{categories.map(c=> (
-												<button key={c} type="button" onClick={()=>setForm(f=>({...f,category:c}))} className={`px-3 py-1 rounded-full text-xs border ${form.category===c?'bg-indigo-600 text-white border-indigo-600':'border-slate-600 text-slate-300 hover:text-white'}`}>{c}</button>
+												<button key={c} type="button" onClick={()=>setForm(f=>({...f,category:c}))} className={`px-3 py-1 rounded-full text-xs border ${form.category===c?'bg-indigo-600 text-white border-indigo-600':'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>{c}</button>
 											))}
 										</div>
 									</div>
@@ -202,7 +278,7 @@ export default function Admin() {
 											<Label>Prize Type</Label>
 											<div className="flex gap-2 mt-1">
 												{['money','coins','others'].map(pt=> (
-													<button type="button" key={pt} onClick={()=>setForm(f=>({...f,prize_type:pt}))} className={`px-2 py-1 rounded text-xs border ${form.prize_type===pt?'bg-indigo-600 text-white border-indigo-600':'border-slate-600 text-slate-300 hover:text-white'}`}>{pt}</button>
+													<button type="button" key={pt} onClick={()=>setForm(f=>({...f,prize_type:pt}))} className={`px-2 py-1 rounded text-xs border ${form.prize_type===pt?'bg-indigo-600 text-white border-indigo-600':'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>{pt}</button>
 												))}
 											</div>
 										</div>
@@ -226,17 +302,17 @@ export default function Admin() {
 										<Label>Questions Mode</Label>
 										<div className="flex gap-2 mt-1">
 											{['form','paste'].map(mo => (
-												<button key={mo} type="button" onClick={()=>setEntryMode(mo)} className={`px-3 py-1 rounded text-xs border ${entryMode===mo? 'bg-indigo-600 text-white border-indigo-600':'border-slate-600 text-slate-300 hover:text-white'}`}>{mo}</button>
+												<button key={mo} type="button" onClick={()=>setEntryMode(mo)} className={`px-3 py-1 rounded text-xs border ${entryMode===mo? 'bg-indigo-600 text-white border-indigo-600':'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>{mo}</button>
 											))}
 										</div>
 									</div>
 									{entryMode==='form' ? (
 										<div className="space-y-3">
-											<p className="text-xs text-slate-400">{opinion? 'Opinion: no correct option stored.' : 'Mark one correct option with radio.'}</p>
+											<p className="text-xs text-gray-600">{opinion? 'Opinion: no correct option stored.' : 'Mark one correct option with radio.'}</p>
 											{drafts.map((q,qi)=> (
-												<div key={qi} className="border border-slate-600 rounded p-3 space-y-2">
+												<div key={qi} className="border border-gray-200 rounded p-3 space-y-2 bg-white">
 													<div className="flex gap-2 items-center">
-														<span className="text-xs text-slate-400 w-6">Q{qi+1}</span>
+														<span className="text-xs text-gray-500 w-6">Q{qi+1}</span>
 														<Input value={q.text} onChange={e=>setDrafts(ds=>{ const arr=[...ds]; arr[qi]={...arr[qi], text:e.target.value}; return arr; })} placeholder="Question text" className="flex-1" />
 														<Button type="button" variant="outline" size="sm" className="border-red-300 text-red-500" onClick={()=> setDrafts(ds=> ds.length===1? [blankQuestion()] : ds.filter((_,i)=>i!==qi))}>Del</Button>
 													</div>
@@ -251,7 +327,7 @@ export default function Admin() {
 													))}
 													<div className="flex gap-2 items-center">
 														<Button type="button" size="sm" disabled={(q.options||[]).length>=4} onClick={()=> setDrafts(ds=>{ const arr=[...ds]; const ops=[...arr[qi].options]; if(ops.length<4) ops.push(''); arr[qi]={...arr[qi], options:ops}; return arr; })}><Plus className="w-4 h-4 mr-1"/>Option</Button>
-														<span className="text-xs text-slate-500">Max 4 options</span>
+														<span className="text-xs text-gray-500">Max 4 options</span>
 													</div>
 												</div>
 											))}
@@ -286,7 +362,7 @@ export default function Admin() {
 
 					<section>
 						<h2 className="text-lg font-semibold flex items-center gap-2 mb-3"><ListChecks className="w-5 h-5"/>All Quizzes</h2>
-						{loading ? <div className="py-8 text-center text-slate-400"><Loader2 className="w-5 h-5 animate-spin inline mr-2"/>Loading...</div> : (
+						{loading ? <div className="py-8 text-center text-gray-500"><Loader2 className="w-5 h-5 animate-spin inline mr-2"/>Loading...</div> : (
 							<div className="space-y-6">
 								<div>
 									<h3 className="font-medium mb-2">Active / Upcoming</h3>
@@ -296,24 +372,24 @@ export default function Admin() {
 											const pool = formatPrizeDisplay(prizeType, q.prize_pool, { fallback:0 });
 											const prizes = Array.isArray(q.prizes) ? q.prizes.map(p=> formatPrizeDisplay(prizeType,p,{fallback:0})).join(', ') : '';
 											return (
-												<m.div key={q.id} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="border border-slate-700 rounded-xl p-4 bg-slate-800/30">
+												<m.div key={q.id} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
 													<div className="flex justify-between gap-4 flex-wrap">
 														<div className="flex-1 min-w-[240px]">
 															<h4 className="font-semibold">{q.title}</h4>
-															<div className="text-xs text-slate-400 flex flex-wrap gap-3 mt-1">
+															<div className="text-xs text-gray-600 flex flex-wrap gap-3 mt-1">
 																<span>Category: {q.category||'—'}</span>
 																<span>Type: {prizeType}</span>
 																<span>Pool: {pool}</span>
 																<span>Prizes: {prizes}</span>
 															</div>
-															<div className="text-xs text-slate-500 mt-1">
+															<div className="text-xs text-gray-500 mt-1">
 																<span>Start: {q.start_time? formatDateTime(q.start_time):'—'}</span>
 																<span className="ml-4">End: {q.end_time? formatDateTime(q.end_time):'—'}</span>
 															</div>
 														</div>
 														<div className="flex gap-2 items-start">
 															<Button size="sm" variant="outline" onClick={()=> recompute(q.id)} disabled={busyQuizId===q.id}>{busyQuizId===q.id? <><Loader2 className="w-4 h-4 mr-1 animate-spin"/>...</> : <><RefreshCcw className="w-4 h-4 mr-1"/>Recompute</>}</Button>
-															<Link to={`/results/${q.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md border border-slate-600 hover:bg-slate-700 text-blue-400"><Eye className="w-4 h-4"/>Results</Link>
+															<Link to={`/results/${q.id}`} className="inline-flex items-center gap-1 px-3 py-1.5 text-sm rounded-md border border-gray-300 hover:bg-gray-100 text-indigo-600"><Eye className="w-4 h-4"/>Results</Link>
 															<Button size="sm" variant="outline" onClick={()=> { setSelectedQuiz(q); fetchQuestions(q.id); setShowQuestions(true); }} className="text-blue-400"><Settings className="w-4 h-4 mr-1"/>Questions</Button>
 															<Button size="sm" variant="outline" onClick={()=> deleteQuiz(q.id)} className="text-red-500"><Trash2 className="w-4 h-4"/></Button>
 														</div>
@@ -322,13 +398,13 @@ export default function Admin() {
 														{showQuestions && selectedQuiz?.id===q.id && (
 															<m.div initial={{opacity:0,height:0}} animate={{opacity:1,height:'auto'}} exit={{opacity:0,height:0}} className="mt-4 space-y-2">
 																<h5 className="font-medium flex items-center gap-2">Questions for {q.title}</h5>
-																{questions.length===0 && <div className="text-xs text-slate-400">No questions.</div>}
+																{questions.length===0 && <div className="text-xs text-gray-500">No questions.</div>}
 																{questions.map((ques,i)=>(
-																	<div key={ques.id} className="border border-slate-600 rounded p-3">
+																	<div key={ques.id} className="border border-gray-200 rounded p-3 bg-white">
 																		<div className="text-sm font-medium">Q{i+1}: {ques.question_text}</div>
 																		<div className="flex flex-wrap gap-2 mt-1">
-																			{(ques.options||[]).map(o=>(
-																				<div key={o.id} className={`px-2 py-0.5 text-xs rounded-full ${o.is_correct ? 'bg-green-600 text-white':'bg-slate-700 text-slate-300'}`}>{o.option_text}{o.is_correct && <span className="ml-1">✓</span>}</div>
+																			{(ques.options||[]).map(o=> (
+																				<div key={o.id} className={`px-2 py-0.5 text-xs rounded-full ${o.is_correct ? 'bg-green-600 text-white':'bg-gray-200 text-gray-700'}`}>{o.option_text}{o.is_correct && <span className="ml-1">✓</span>}</div>
 																			))}
 																		</div>
 																	</div>
@@ -349,9 +425,9 @@ export default function Admin() {
 											const pool = formatPrizeDisplay(prizeType, q.prize_pool, { fallback:0 });
 											const prizes = Array.isArray(q.prizes) ? q.prizes.map(p=> formatPrizeDisplay(prizeType,p,{fallback:0})).join(', ') : '';
 											return (
-												<m.div key={q.id} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="border border-slate-700 rounded-xl p-4 bg-slate-800/30">
+												<m.div key={q.id} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
 													<h4 className="font-semibold">{q.title}</h4>
-													<div className="text-xs text-slate-400 flex flex-wrap gap-3 mt-1">
+													<div className="text-xs text-gray-600 flex flex-wrap gap-3 mt-1">
 														<span>Category: {q.category||'—'}</span>
 														<span>Type: {prizeType}</span>
 														<span>Pool: {pool}</span>
@@ -446,23 +522,23 @@ function RedemptionsPanel() {
 
 	return (
 		<div className="space-y-6">
-			<p className="text-xs text-slate-500">Redemptions auto-approved hain. Neeche sirf Rewards Catalog manage karna hai.</p>
+			<p className="text-xs text-gray-500">Redemptions auto-approved hain. Neeche sirf Rewards Catalog manage karna hai.</p>
 
 			{/* Rewards Catalog Management */}
-			<div className="pt-10 border-t border-slate-700 space-y-4">
+			<div className="pt-10 border-t border-gray-200 space-y-4">
 				<div className="flex items-center gap-3 flex-wrap">
 					<h2 className="font-semibold text-lg">Rewards Catalog</h2>
 					<Button size="sm" onClick={()=> { setShowNewReward(s=>!s); if(!showNewReward){ resetRewardForm(); setEditingId(null);} }}>{showNewReward? 'Close':'New Reward'}</Button>
 					<Button size="sm" variant="outline" onClick={loadRewards} disabled={rewardsLoading}>{rewardsLoading? <Loader2 className="w-4 h-4 animate-spin"/>:'Refresh'}</Button>
 				</div>
 				{showNewReward && (
-					<form onSubmit={saveReward} className="space-y-3 bg-slate-800/40 border border-slate-700 rounded-lg p-4 max-w-3xl">
+					<form onSubmit={saveReward} className="space-y-3 bg-gray-50 border border-gray-200 rounded-lg p-4 max-w-3xl">
 						<div className="grid md:grid-cols-3 gap-4">
 							<div>
 								<Label>Type</Label>
 								<div className="flex gap-2 flex-wrap mt-1">
 									{['coins','cash','voucher','other'].map(k=> (
-										<button type="button" key={k} onClick={()=> setRewardForm(f=>({...f,reward_type:k}))} className={`px-2 py-1 rounded text-xs border ${rewardForm.reward_type===k? 'bg-indigo-600 text-white border-indigo-600':'border-slate-600 text-slate-300 hover:text-white'}`}>{k}</button>
+										<button type="button" key={k} onClick={()=> setRewardForm(f=>({...f,reward_type:k}))} className={`px-2 py-1 rounded text-xs border ${rewardForm.reward_type===k? 'bg-indigo-600 text-white border-indigo-600':'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>{k}</button>
 									))}
 								</div>
 							</div>
@@ -485,9 +561,9 @@ function RedemptionsPanel() {
 						</div>
 					</form>
 				)}
-				<div className="overflow-x-auto rounded-lg border border-slate-700">
+				<div className="overflow-x-auto rounded-lg border border-gray-200">
 					<table className="min-w-full text-sm">
-						<thead className="bg-slate-800/60 text-slate-300">
+						<thead className="bg-gray-100 text-gray-700">
 							<tr>
 								<th className="p-2 text-left">Type</th>
 								<th className="p-2 text-left">Value</th>
@@ -498,11 +574,11 @@ function RedemptionsPanel() {
 						</thead>
 						<tbody>
 							{rewards.map(r=> (
-								<tr key={r.id} className="border-t border-slate-700 hover:bg-slate-800/40">
+								<tr key={r.id} className="border-t border-gray-200 hover:bg-gray-100">
 									<td className="p-2 capitalize">{r.reward_type}</td>
 									<td className="p-2 max-w-[260px] truncate" title={r.reward_value}>{r.reward_value}</td>
 									<td className="p-2">{r.coins_required ?? '—'}</td>
-									<td className="p-2">{r.is_active? <span className="text-green-500">Yes</span>: <span className="text-slate-500">No</span>}</td>
+									<td className="p-2">{r.is_active? <span className="text-green-500">Yes</span>: <span className="text-gray-500">No</span>}</td>
 									<td className="p-2">
 										<div className="flex gap-2 flex-wrap">
 											<Button size="sm" variant="outline" onClick={()=> beginEdit(r)}>Edit</Button>
@@ -511,16 +587,16 @@ function RedemptionsPanel() {
 									</td>
 								</tr>
 							))}
-							{!rewards.length && !rewardsLoading && (
-								<tr><td colSpan={8} className="p-4 text-center text-slate-500">No rewards.</td></tr>
-							)}
-							{rewardsLoading && (
-								<tr><td colSpan={8} className="p-6 text-center text-slate-500"><Loader2 className="w-5 h-5 animate-spin inline mr-2"/>Loading rewards...</td></tr>
-							)}
+								{!rewards.length && !rewardsLoading && (
+									<tr><td colSpan={8} className="p-4 text-center text-gray-500">No rewards.</td></tr>
+								)}
+								{rewardsLoading && (
+									<tr><td colSpan={8} className="p-6 text-center text-gray-500"><Loader2 className="w-5 h-5 animate-spin inline mr-2"/>Loading rewards...</td></tr>
+								)}
 						</tbody>
 					</table>
 				</div>
-				<p className="text-xs text-slate-500">Catalog: inactive rewards are hidden from users.</p>
+				<p className="text-xs text-gray-500">Catalog: inactive rewards are hidden from users.</p>
 			</div>
 		</div>
 	);
@@ -573,23 +649,23 @@ function NotificationsPanel() {
 
 	return (
 		<div className="space-y-8 max-w-3xl">
-			<form onSubmit={send} className="space-y-4 bg-slate-800/40 border border-slate-700 rounded-xl p-5">
+			<form onSubmit={send} className="space-y-4 bg-gray-50 border border-gray-200 rounded-xl p-5">
 				<h2 className="font-semibold text-lg">Send Notification</h2>
 				<div>
 					<Label>Title</Label>
 					<Input value={title} onChange={e=> setTitle(e.target.value)} maxLength={80} placeholder="Short title" />
-					<div className="text-[10px] text-slate-500 mt-1">Max 80 chars • {title.length}/80</div>
+					<div className="text-[10px] text-gray-500 mt-1">Max 80 chars • {title.length}/80</div>
 				</div>
 				<div>
 					<Label>Message</Label>
 					<Textarea value={message} onChange={e=> setMessage(e.target.value)} className="h-28" maxLength={280} placeholder="Body shown in push notification" />
-					<div className="text-[10px] text-slate-500 mt-1">Max 280 chars • {message.length}/280</div>
+					<div className="text-[10px] text-gray-500 mt-1">Max 280 chars • {message.length}/280</div>
 				</div>
 				<div>
 					<Label>Segment</Label>
 					<div className="flex gap-2 mt-1">
 						{['all'].map(seg => (
-							<button type="button" key={seg} onClick={()=> setSegment(seg)} className={`px-3 py-1 rounded text-xs border ${segment===seg? 'bg-indigo-600 text-white border-indigo-600':'border-slate-600 text-slate-300 hover:text-white'}`}>{seg}</button>
+							<button type="button" key={seg} onClick={()=> setSegment(seg)} className={`px-3 py-1 rounded text-xs border ${segment===seg? 'bg-indigo-600 text-white border-indigo-600':'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>{seg}</button>
 						))}
 					</div>
 				</div>
@@ -605,18 +681,18 @@ function NotificationsPanel() {
 				</div>
 				<div className="space-y-3">
 					{list.map(n => (
-						<div key={n.id} className="border border-slate-700 rounded-lg p-3 bg-slate-800/30">
+						<div key={n.id} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
 							<div className="flex justify-between gap-4 flex-wrap">
 								<div>
 									<div className="font-medium text-sm">{n.title}</div>
-									<div className="text-xs text-slate-400 whitespace-pre-wrap max-w-xl break-words">{n.message}</div>
+									<div className="text-xs text-gray-600 whitespace-pre-wrap max-w-xl break-words">{n.message}</div>
 								</div>
-								<div className="text-[10px] text-slate-500">{formatDateTime(n.created_at)}</div>
+								<div className="text-[10px] text-gray-500">{formatDateTime(n.created_at)}</div>
 							</div>
-							<div className="text-[10px] text-slate-500 mt-1">Segment: {n.segment || '—'}{n.type? ` • ${n.type}`:''}</div>
+							<div className="text-[10px] text-gray-500 mt-1">Segment: {n.segment || '—'}{n.type? ` • ${n.type}`:''}</div>
 						</div>
 					))}
-					{!list.length && !loading && <div className="text-xs text-slate-500">No notifications yet.</div>}
+					{!list.length && !loading && <div className="text-xs text-gray-500">No notifications yet.</div>}
 				</div>
 			</section>
 		</div>

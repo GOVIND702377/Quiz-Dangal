@@ -5,6 +5,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
+import { loadReferralCode, clearReferralCode, normalizeReferralCode } from '@/lib/referralStorage';
 
 const AuthContext = createContext();
 
@@ -49,6 +50,11 @@ function AuthProviderInner({ children }) {
             });
         } catch {
             // storage might be unavailable (Safari private mode etc.)
+        }
+        try {
+            clearReferralCode();
+        } catch {
+            // ignore inability to clear referral storage
         }
         try {
             sessionStorage.clear();
@@ -164,8 +170,14 @@ function AuthProviderInner({ children }) {
         if (initProfileRef.current) return;
         initProfileRef.current = true;
 
-        const params = new URLSearchParams(window.location.search);
-        const refParam = params.get('ref');
+    const params = new URLSearchParams(window.location.search);
+    const refParam = normalizeReferralCode(params.get('ref'));
+    const storedReferral = loadReferralCode();
+    const metadataReferral = normalizeReferralCode(user?.user_metadata?.pending_referral_code || '');
+
+    const candidates = [refParam, storedReferral, metadataReferral].filter(Boolean);
+    const normalizedUserId = normalizeReferralCode(user?.id || '');
+    const chosenReferral = candidates.find((code) => code && code !== normalizedUserId) || '';
 
         // Only include safe defaults so we don't overwrite user's existing data on refresh
         const payload = {
@@ -183,13 +195,16 @@ function AuthProviderInner({ children }) {
                 // Process referral once via SECURITY DEFINER function to avoid RLS trigger issues
                 const refFlag = `qd_referral_processed_${user.id}`;
                 const alreadyProcessed = (() => { try { return sessionStorage.getItem(refFlag) === '1'; } catch { return false; } })();
-                if (!alreadyProcessed && refParam && refParam !== user.id) {
+                if (!alreadyProcessed && chosenReferral) {
                     try {
                         await supabase.rpc('handle_referral_bonus', {
                             referred_user_uuid: user.id,
-                            referrer_code: refParam,
+                            referrer_code: chosenReferral,
                         });
                         try { sessionStorage.setItem(refFlag, '1'); } catch (e3) { /* sessionStorage blocked */ }
+                        if (chosenReferral === storedReferral) {
+                            clearReferralCode();
+                        }
                     } catch {
                         // ignore referral errors so profile init continues
                     }
@@ -222,8 +237,22 @@ function AuthProviderInner({ children }) {
     }, [userProfile, user]);
 
     // SIGN UP FUNCTION (EMAIL)
-    const signUp = async (email, password) => {
-        return await supabase.auth.signUp({ email, password });
+    const signUp = async (email, password, { referralCode, options } = {}) => {
+        const supabaseOptions = { ...(options || {}) };
+        const normalizedReferral = normalizeReferralCode(referralCode);
+        if (normalizedReferral) {
+            supabaseOptions.data = {
+                ...(supabaseOptions.data || {}),
+                pending_referral_code: normalizedReferral,
+            };
+        }
+
+        const payload = { email, password };
+        if (Object.keys(supabaseOptions).length > 0) {
+            payload.options = supabaseOptions;
+        }
+
+        return await supabase.auth.signUp(payload);
     };
 
     // SIGN IN FUNCTION (EMAIL)

@@ -8,6 +8,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
+import { normalizeReferralCode, saveReferralCode, loadReferralCode } from '@/lib/referralStorage';
 
 const Login = () => {
   const { toast } = useToast();
@@ -41,6 +42,25 @@ const Login = () => {
     }
   }, [location.search, navigate, toast]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const queryReferral = params.get('ref');
+    if (queryReferral) {
+      const normalized = normalizeReferralCode(queryReferral);
+      if (normalized) {
+        if (normalizeReferralCode(referralCode) !== normalized) {
+          setReferralCode(normalized);
+        }
+        saveReferralCode(normalized);
+      }
+      return;
+    }
+    const stored = loadReferralCode();
+    if (stored && normalizeReferralCode(referralCode) !== stored) {
+      setReferralCode(stored);
+    }
+  }, [location.search, referralCode]);
+
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true);
     try {
@@ -65,7 +85,10 @@ const Login = () => {
     setEmailSent(false);
 
     if (isSignUp) {
-  const { error } = await signUp(email, password);
+      const normalizedReferral = referralCode ? saveReferralCode(referralCode) : '';
+      const { error } = await signUp(email, password, {
+        referralCode: normalizedReferral || undefined,
+      });
       if (error) {
         toast({
           title: "Sign Up Failed",
@@ -234,7 +257,7 @@ const Login = () => {
           {isSignUp && (
             <div>
               <Label htmlFor="referral" className="text-slate-200">Referral Code (optional)</Label>
-              <Input id="referral" type="text" value={referralCode} onChange={(e) => setReferralCode(e.target.value.trim())} placeholder="Enter referral code" className="bg-white text-black placeholder-slate-500 border-slate-300" />
+              <Input id="referral" type="text" value={referralCode} onChange={(e) => setReferralCode(normalizeReferralCode(e.target.value))} placeholder="Enter referral code" className="bg-white text-black placeholder-slate-500 border-slate-300 uppercase tracking-wide" />
             </div>
           )}
           <Button type="submit" disabled={isLoading || isGoogleLoading} variant="brand" className="w-full font-semibold py-3 rounded-lg shadow-lg">

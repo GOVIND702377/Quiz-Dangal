@@ -3,6 +3,7 @@ import SEO from '@/components/SEO';
 import { Gift, Users, Coins, Share2, Copy, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { normalizeReferralCode, saveReferralCode } from '@/lib/referralStorage';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { getSignedAvatarUrls } from '@/lib/avatar';
@@ -14,7 +15,12 @@ const ReferEarn = () => {
   const [copied, setCopied] = useState(''); // 'code' | 'link' | ''
   const [loading, setLoading] = useState(true);
 
-  const referralCode = userProfile?.referral_code || '';
+  const fallbackCode = (() => {
+    if (userProfile?.referral_code) return userProfile.referral_code;
+    if (user?.id) return user.id.replace(/-/g, '').slice(0, 8).toUpperCase();
+    return '';
+  })();
+  const referralCode = normalizeReferralCode(userProfile?.referral_code || fallbackCode);
   const referralLink = `https://quizdangal.com/?ref=${referralCode}`;
   const shareCaption = `Yo! 🤩 Ab dimaag se paisa banao 💸
 Join Quiz Dangal – jaha brains = fame ✨
@@ -69,9 +75,9 @@ ${referralLink}`;
           }
         }
 
-        const total = history.length;
-        const earnings = history.reduce((sum, r) => sum + (r.coins_awarded || 0), 0) || 0;
-        setReferralStats({ total, earnings });
+  const total = history.length;
+  const earnings = history.reduce((sum, r) => sum + (r.coins_awarded || 0), 0) || 0;
+  setReferralStats({ total, earnings });
         setReferralHistory(history);
       } catch (e) {
         if (!mounted) return;
@@ -159,12 +165,28 @@ ${referralLink}`;
   } catch (e) { /* poster generation fail */ }
   };
 
+  useEffect(() => {
+    if (referralCode) {
+      saveReferralCode(referralCode);
+    }
+  }, [referralCode]);
+
+  useEffect(() => {
+    if (userProfile) {
+      setReferralStats((prev) => ({
+        total: Math.max(Number(userProfile.referral_count ?? 0), prev.total || 0),
+        earnings: prev.earnings,
+      }));
+    }
+  }, [userProfile]);
+
   return (
     <>
       <SEO
         title="Refer & Earn – Quiz Dangal | Invite Friends, Get Coins"
         description="Share your unique referral link on Quiz Dangal and earn bonus coins when friends join and play opinion-based quizzes."
   canonical="https://quizdangal.com/refer"
+        robots="noindex, nofollow"
         keywords={[
           'refer and earn','quizdangal refer','invite friends quiz app','earn coins by referral','quiz app referral India'
         ]}

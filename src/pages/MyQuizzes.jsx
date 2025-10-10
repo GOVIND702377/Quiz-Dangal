@@ -6,6 +6,7 @@ import { Clock, Play, Loader2, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 import { formatDateOnly, formatTimeOnly, getPrizeDisplay } from '@/lib/utils';
+import SEO from '@/components/SEO';
 // Match Category status badge visuals
 function statusBadge(s) {
   const base = 'px-2 py-0.5 rounded-full text-xs font-semibold';
@@ -302,6 +303,12 @@ const MyQuizzes = () => {
 
   return (
   <div className="min-h-screen overflow-x-hidden">
+      <SEO
+        title="My Quizzes – Quiz Dangal"
+        description="Track the quizzes you have joined, monitor live rounds, and revisit completed contests on Quiz Dangal."
+        canonical="https://quizdangal.com/my-quizzes"
+        robots="noindex, nofollow"
+      />
       <div className="container mx-auto px-4 py-4">
   <m.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden">
           <h1 className="text-2xl font-bold heading-gradient text-shadow mb-4 text-center">My Quizzes</h1>

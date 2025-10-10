@@ -6,8 +6,9 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import Footer from '@/components/Footer';
 import Header from '@/components/Header';
+import ProfileUpdateModal from '@/components/ProfileUpdateModal';
 // OnboardingFlow removed (unused)
-import { lazy, Suspense, useEffect, useMemo } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { prefetch } from '@/lib/prefetch';
 import PWAInstallButton from '@/components/PWAInstallButton';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -218,6 +219,28 @@ function RouteFocusWrapper({ children }) {
 }
 
 const MainLayout = () => {
+  const { userProfile, loading: authLoading, hasSupabaseConfig } = useAuth();
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+
+  const requiresProfileCompletion = useMemo(() => {
+    const username = (userProfile?.username || '').trim();
+    const mobileRaw = ((userProfile?.mobile_number ?? '') + '').trim();
+    const usernameOk = /^[a-zA-Z0-9_]{3,}$/.test(username);
+    const mobileOk = /^[6-9]\d{9}$/.test(mobileRaw);
+    const completionFlag = userProfile?.is_profile_complete === true;
+    return !(usernameOk && mobileOk && completionFlag);
+  }, [userProfile]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!hasSupabaseConfig) return;
+    if (requiresProfileCompletion) {
+      setProfileModalOpen(true);
+    } else {
+      setProfileModalOpen(false);
+    }
+  }, [authLoading, hasSupabaseConfig, requiresProfileCompletion]);
+
   // Detect if current path is home to tailor layout spacing/overflow (BrowserRouter)
   const isHome = typeof window !== 'undefined' && window.location && window.location.pathname === '/';
   useEffect(() => {
@@ -276,6 +299,13 @@ const MainLayout = () => {
   <Footer />
   <PWAInstallButton />
   <NotificationPermissionPrompt />
+  {hasSupabaseConfig && (
+    <ProfileUpdateModal
+      isOpen={profileModalOpen}
+      onClose={() => setProfileModalOpen(false)}
+      isFirstTime={requiresProfileCompletion}
+    />
+  )}
   {/* OnboardingFlow removed */}
     </>
   );

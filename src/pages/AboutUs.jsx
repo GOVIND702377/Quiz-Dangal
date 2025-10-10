@@ -1,6 +1,6 @@
 import React from 'react';
 // Removed framer-motion for lighter public page
-import { Helmet } from 'react-helmet-async';
+import SEO from '@/components/SEO';
 import { Target, Users, Trophy, Shield, CheckCircle, Star } from 'lucide-react';
 import { getBrandGradient, getBrandText } from '@/lib/brand';
 
@@ -38,10 +38,17 @@ const AboutUs = () => {
   return (
   <div className="min-h-screen text-slate-100">
       <div className="container mx-auto px-4 py-6 space-y-8">
-      <Helmet>
-  <title>About Us – Quiz Dangal</title>
-  <meta name="description" content="Quiz Dangal – India’s most exciting quiz and rewards platform where knowledge meets entertainment." />
-      </Helmet>
+      <SEO
+        title="About Us – Quiz Dangal"
+        description="Quiz Dangal – India’s most exciting quiz and rewards platform where knowledge meets entertainment."
+        canonical="https://quizdangal.com/about-us"
+        keywords={[
+          'about quiz dangal',
+          'quiz dangal team',
+          'quiz app india',
+          'play quiz win rewards'
+        ]}
+      />
 
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-4">About Us – Quiz Dangal</h1>

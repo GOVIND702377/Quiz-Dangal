@@ -20,10 +20,19 @@ export default function SEO({
   image = 'https://quizdangal.com/refer-earn-poster.png?v=1',
   type = 'website',
   keywords = [],
+  lang = 'en-IN',
+  alternateLocales = ['en_US'],
+  twitterHandle = '@quizdangal',
+  jsonLd = [],
 }) {
   const keywordsContent = Array.isArray(keywords) && keywords.length
     ? keywords.join(', ')
     : undefined;
+
+  const normalizedLang = typeof lang === 'string' && lang ? lang : 'en-IN';
+  const ogLocale = normalizedLang.replace('-', '_');
+  const alternateHrefLang = normalizedLang.toLowerCase();
+  const jsonLdBlocks = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
 
   return (
     <Helmet>
@@ -32,10 +41,25 @@ export default function SEO({
       {keywordsContent && <meta name="keywords" content={keywordsContent} />}
       {canonical && <link rel="canonical" href={canonical} />}
       {robots && <meta name="robots" content={robots} />}
+      {robots && <meta name="googlebot" content={robots} />}
+
+      {canonical && (
+        <>
+          <link rel="alternate" hrefLang="x-default" href={canonical} />
+          <link rel="alternate" hrefLang={alternateHrefLang} href={canonical} />
+        </>
+      )}
+      {canonical && alternateLocales.map((locale) => (
+        <link key={locale} rel="alternate" hrefLang={locale.toLowerCase()} href={canonical} />
+      ))}
 
       {/* Open Graph */}
       <meta property="og:type" content={type} />
       <meta property="og:site_name" content="Quiz Dangal" />
+      <meta property="og:locale" content={ogLocale} />
+      {alternateLocales.map((locale) => (
+        <meta key={locale} property="og:locale:alternate" content={String(locale).replace('-', '_')} />
+      ))}
       <meta property="og:title" content={title} />
       {description && <meta property="og:description" content={description} />}
       {canonical && <meta property="og:url" content={canonical} />} 
@@ -50,6 +74,15 @@ export default function SEO({
       <meta name="twitter:title" content={title} />
       {description && <meta name="twitter:description" content={description} />}
       {image && <meta name="twitter:image" content={image} />}
+      {twitterHandle && <meta name="twitter:site" content={twitterHandle} />}
+
+      {jsonLdBlocks.map((block, index) => (
+        <script // eslint-disable-line react/no-danger
+          key={index}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(block) }}
+        />
+      ))}
     </Helmet>
   );
 }

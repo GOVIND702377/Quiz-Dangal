@@ -1,7 +1,6 @@
 // Clean rebuilt Home.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import SEO from '@/components/SEO';
-import { m } from 'framer-motion';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
@@ -44,16 +43,14 @@ const Tile = ({ tile, quizzes, index, navigateTo }) => {
   // removed palettes array
   // Always show PLAY instead of SOON/other states (as requested)
   const label = 'PLAY';
+  const animationDelay = `${index * 80}ms`;
   return (
-  <m.button
+    <button
       type="button"
-      initial={{ opacity: 0, scale: 0.96 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.25, delay: index * 0.06 }}
       // Click sound handled globally via SoundProvider pointerdown listener
       onClick={() => navigateTo(tile.slug)}
-      className={`neon-card ${variants[index % variants.length]} group aspect-square w-full rounded-xl focus:outline-none will-change-transform transform-gpu transition-transform hover:scale-[1.02] hover:shadow-xl relative`}
-      style={{ borderRadius: '0.75rem' }}
+      className={`neon-card ${variants[index % variants.length]} group aspect-square w-full rounded-xl focus:outline-none transform-gpu transition-transform hover:scale-[1.02] hover:shadow-xl relative animate-fade-scale`}
+      style={{ borderRadius: '0.75rem', '--fade-scale-delay': animationDelay }}
       aria-label={`${tile.title} - Play`}
     >
       {/* Removed count badge per request */}
@@ -66,7 +63,7 @@ const Tile = ({ tile, quizzes, index, navigateTo }) => {
           <span className="play-pill group-hover:shadow-lg group-hover:brightness-110">{label}</span>
         </div>
       </div>
-  </m.button>
+    </button>
   );
 };
 
@@ -94,7 +91,34 @@ const Home = () => {
     finally { setLoading(false); }
   }, [toast]);
 
-  useEffect(() => { fetchQuizzesAndCounts(); const i = setInterval(fetchQuizzesAndCounts, 60000); return () => clearInterval(i); }, [fetchQuizzesAndCounts]);
+  useEffect(() => {
+    let cancelled = false;
+    let idleId = null;
+    let timeoutId = null;
+    let intervalId = null;
+
+    const kickoff = async () => {
+      if (cancelled) return;
+      await fetchQuizzesAndCounts();
+      if (cancelled) return;
+      intervalId = window.setInterval(fetchQuizzesAndCounts, 60000);
+    };
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(kickoff, { timeout: 1200 });
+    } else {
+      timeoutId = window.setTimeout(kickoff, 120);
+    }
+
+    return () => {
+      cancelled = true;
+      if (intervalId) clearInterval(intervalId);
+      if (timeoutId) clearTimeout(timeoutId);
+      if (idleId !== null && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleId);
+      }
+    };
+  }, [fetchQuizzesAndCounts]);
 
   // Daily login claim handled in Header; avoid duplicate RPC here
 
@@ -147,15 +171,14 @@ const Home = () => {
         keywords={[
           'Quiz Dangal','quizdangal','quiz app','play quiz and win','opinion quiz','daily quiz India','refer and earn quiz','win rewards','leaderboards','online quiz contest'
         ]}
+        alternateLocales={['hi_IN', 'en_US']}
       />
       <div className="relative z-10 h-full flex items-center justify-center px-4 mt-1 sm:mt-2 mb-6">
         <div className="w-full max-w-[420px]">
           {/* Intro header above categories */}
-          <m.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.25 }}
-            className="text-center mb-4"
+          <div
+            className="text-center mb-4 animate-fade-up"
+            style={{ '--fade-delay': '60ms' }}
           >
             <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-200 via-fuchsia-200 to-pink-200 bg-clip-text text-transparent">
               Brain games, real gains. Ready to shine?
@@ -164,7 +187,7 @@ const Home = () => {
               Compete, earn, repeat — where winners never chill out.
             </p>
             <div className="mx-auto mt-2 h-[2px] w-24 rounded-full bg-gradient-to-r from-indigo-400/60 via-fuchsia-400/60 to-pink-400/60" />
-          </m.div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             {loading
               ? Array.from({ length: 4 }).map((_, i) => (
@@ -184,7 +207,7 @@ const Home = () => {
           </div>
         </div>
       </div>
-      <StreakModal open={streakModal.open} day={streakModal.day} coins={streakModal.coins} onClose={() => setStreakModal(s => ({ ...s, open: false }))} />
+  <StreakModal open={streakModal.open} day={streakModal.day} coins={streakModal.coins} onClose={() => setStreakModal(s => ({ ...s, open: false }))} />
       {/* Category modal removed in favor of page navigation */}
     </div>
   );

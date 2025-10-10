@@ -18,6 +18,7 @@ Key goals of the unified file:
 5. List quizzes: active/upcoming vs finished.
 6. Send push notifications to user base (via Edge Function `send-notifications`).
 7. Moderate redemptions (approve / reject with reason) invoking SQL functions `approve_redemption` & `reject_redemption`.
+8. Track refer & earn metrics: profile counters (`referral_count`, `played_quizzes`, `quiz_won`) now auto-sync via triggers, so admin exports and dashboards always reflect the latest numbers without manual backfills. Referral bonuses now credit both `total_coins` and `wallet_balance`, and a migration keeps historic balances aligned with `total_coins - total_spent`.
 
 ## Key Files
 - `src/pages/Admin.jsx` – Single source of truth (contains former AdminClean implementation).
@@ -92,6 +93,12 @@ Automation (no admin action)
 - External scheduler: run `scripts/auto-push.mjs` every minute with env:
 	- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET` (also set same `CRON_SECRET` in Edge Function env).
 	- Script calls Edge `send-notifications` in `mode: 'cron'` with `X-Cron-Secret` for auth and uses `participants:<quiz_id>` targeting.
+
+Quiz finalization cron
+
+- Supabase cron job `finalize-due-quizzes` should execute `SELECT public.run_finalize_due_quizzes(100);` every minute.
+- The `20251009173000_fix_finalize_due_quizzes.sql` migration refreshes `public.finalize_due_quizzes`, ensuring it checks `end_time` and marks quizzes `completed` after computing results and awarding coins.
+- If quizzes stay stuck, run the RPC manually from the SQL editor to surface errors; the function now logs failures via `RAISE NOTICE` so you can review the Postgres logs for specifics.
 ```
 Extensibility: Add new segment types (e.g. category, winners) by extending both function's filtering logic and UI segment buttons.
 

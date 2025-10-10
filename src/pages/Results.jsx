@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Trophy, Users, ArrowLeft, Share2, Sparkles } from 'lucide-react';
+import { normalizeReferralCode, saveReferralCode } from '@/lib/referralStorage';
 
 const Results = () => {
   const { id: quizId } = useParams();
@@ -273,7 +274,17 @@ const Results = () => {
 
       // Footer with QR
   const footerY = y; const footerH = Math.max(footerMin, Math.min(280, H - PAD - footerY)); roundRect(boxX, footerY, boxW, footerH, 24); ctx.fillStyle='rgba(12,10,36,0.9)'; ctx.fill(); ctx.lineWidth=2; ctx.strokeStyle='rgba(79,70,229,0.45)'; ctx.stroke();
-  const refCode = (userProfile?.referral_code) || ((user?.id || '').replace(/-/g,'').slice(0,8)).toUpperCase(); const siteBase=(import.meta.env.VITE_PUBLIC_SITE_URL || 'https://www.quizdangal.com').replace(/\/$/,''); const referralUrl = `${siteBase}/?ref=${encodeURIComponent(refCode)}`;
+  const fallbackRef = (() => {
+    if (userProfile?.referral_code) return userProfile.referral_code;
+    if (user?.id) return user.id.replace(/-/g, '').slice(0, 8).toUpperCase();
+    return '';
+  })();
+  const refCode = normalizeReferralCode(fallbackRef);
+  const siteBase = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://www.quizdangal.com').replace(/\/$/, '');
+  const referralUrl = `${siteBase}/?ref=${encodeURIComponent(refCode)}`;
+  if (refCode) {
+    saveReferralCode(refCode);
+  }
   const qrSize = Math.min(220, footerH - 72); const cardW = qrSize + 32; const cardH = qrSize + 40; const cardX = boxX + boxW - cardW - 36; const cardY = footerY + Math.max(24, Math.round((footerH - cardH)/2)); roundRect(cardX, cardY, cardW, cardH, 18); ctx.fillStyle='#ffffff'; ctx.fill(); try { const { default: QRCode } = await import('qrcode'); const qrCanvas=document.createElement('canvas'); await QRCode.toCanvas(qrCanvas, referralUrl, { width: qrSize, margin: 1, color: { dark:'#000000', light:'#ffffff' } }); ctx.drawImage(qrCanvas, cardX+16, cardY+16, qrSize, qrSize); } catch { /* QR generation failed: leave blank */ }
   const leftX = boxX + 36; const maxLeft = (cardX - 24) - leftX; ctx.fillStyle='rgba(255,255,255,0.96)'; setFont('900',48); ctx.fillText(trimToWidth('🧠 Play & Win', maxLeft), leftX, footerY + 36);
   ctx.fillStyle='rgba(203,213,225,0.98)'; setFont('800',36); ctx.fillText(trimToWidth('🌐 www.quizdangal.com', maxLeft), leftX, footerY + 36 + 54);

@@ -43,8 +43,9 @@ export default function Landing() {
         keywords={[
           'Quiz Dangal','quizdangal','quiz','india quiz','indiaquiz','moneyquiz','play and win','play & win','opinion quiz','gk quiz','sports quiz','movies quiz','daily quiz India','refer and earn quiz app','online quiz contest','win rewards'
         ]}
+        alternateLocales={['hi_IN', 'en_US']}
+        jsonLd={[faqs]}
       />
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqs) }} />
 
       <div className="min-h-[80vh] flex items-center justify-center px-4">
         <div className="max-w-4xl w-full text-center text-slate-100">

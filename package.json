@@ -20,6 +20,7 @@
     "sql:run": "node ./scripts/sql-run.mjs",
     "sql:repl": "node ./scripts/sql-repl.mjs",
     "inspect:schema": "node ./scripts/inspect-schema.mjs",
+  "generate:sitemap": "node ./scripts/generate-sitemap.mjs",
     "preview": "vite preview",
     "preview:lan": "vite preview --host --port 5173",
     "predeploy": "npm run build",
