@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, Play, Loader2, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
-import { formatDateOnly, formatTimeOnly, getPrizeDisplay, shouldAllowClientCompute } from '@/lib/utils';
+import { formatDateOnly, formatTimeOnly, getPrizeDisplay, shouldAllowClientCompute, safeComputeResultsIfDue } from '@/lib/utils';
 import SEO from '@/components/SEO';
 import { useToast } from '@/components/ui/use-toast';
 // Match Category status badge visuals
@@ -115,13 +115,13 @@ const MyQuizzes = () => {
       .filter(row => row.end_time && new Date(row.end_time).getTime() <= now && (!Array.isArray(row.leaderboard) || row.leaderboard.length === 0))
   // tick state hata diya (countdown UI reactivity sufficient without forced re-render)
 
-    const allowClientCompute = shouldAllowClientCompute({ defaultValue: true }) || userProfile?.role === 'admin';
+  const allowClientCompute = shouldAllowClientCompute({ defaultValue: true }) || userProfile?.role === 'admin';
 
     if (allowClientCompute && needsCompute.length) {
       try {
-        // Call compute_results_if_due for each quiz id that has ended but lacks a leaderboard
+        // Safely attempt compute only if enabled and RPC exists; suppress 404 noise
         await Promise.allSettled(
-          needsCompute.map(row => supabase.rpc('compute_results_if_due', { p_quiz_id: row.id }))
+          needsCompute.map(row => safeComputeResultsIfDue(supabase, row.id))
         );
         // refetch latest view data after compute
   const { data: data2 } = await supabase.from('my_quizzes_view').select('*');

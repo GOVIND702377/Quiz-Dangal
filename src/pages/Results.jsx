@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { m } from 'framer-motion';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 import { getSignedAvatarUrls } from '@/lib/avatar';
-import { getPrizeDisplay, shouldAllowClientCompute } from '@/lib/utils';
+import { getPrizeDisplay, shouldAllowClientCompute, safeComputeResultsIfDue } from '@/lib/utils';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -91,7 +91,7 @@ const Results = () => {
           // If end time has passed but results row is missing, try JIT compute
           if (diff <= 0 && allowClientCompute) {
             try {
-              await supabase.rpc('compute_results_if_due', { p_quiz_id: quizId });
+              await safeComputeResultsIfDue(supabase, quizId, { throttleMs: 150 });
               // Brief delay and refetch
               await new Promise(r => setTimeout(r, 400));
               const { data: rr2 } = await supabase
@@ -282,9 +282,8 @@ const Results = () => {
       // Results box
       const boxX=PAD, boxW=W-PAD*2, lineLeft=boxX+56; const boxTopPad=48, boxBotPad=40;
       const rankText = userRank?.rank ? `#${userRank.rank} Rank!` : 'Results Live!';
-      const prizeDisplay = getPrizeDisplay(prizeType, userPrizeVal, { fallback: 0 });
-  const prizeIconText = prizeDisplay.showIconSeparately && prizeDisplay.icon ? `${prizeDisplay.icon} ` : '';
-  const prizeText = `👑 Prize: ${prizeDisplay.formatted}`;
+    const prizeDisplay = getPrizeDisplay(prizeType, userPrizeVal, { fallback: 0 });
+    const prizeText = `👑 Prize: ${prizeDisplay.formatted}`;
       const scoreText = typeof userRank?.score === 'number' ? `☑️ Score: ${userRank.score}` : '';
       const rankSize=fitFontSize(rankText, boxW-100, '900', 112, 80);
       const prizeSize=fitFontSize(prizeText, boxW-100, '900', 48, 32);

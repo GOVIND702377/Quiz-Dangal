@@ -4,6 +4,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { isDocumentHidden } from '@/lib/visibility';
+import { safeComputeResultsIfDue } from '@/lib/utils';
 import { QUIZ_ENGAGEMENT_POLL_INTERVAL_MS, QUIZ_COMPLETION_REDIRECT_DELAY_MS } from '@/constants';
 
 /**
@@ -247,7 +248,7 @@ export function useQuizEngine(quizId, navigate) {
     const navigateToResults = () => {
       (async () => {
         try {
-          await supabase.rpc('compute_results_if_due', { p_quiz_id: quizId });
+          await safeComputeResultsIfDue(supabase, quizId);
         } catch {
           /* ignore */
         }
@@ -341,7 +342,7 @@ export function useQuizEngine(quizId, navigate) {
       if (error) throw error;
       toast({ title: 'Quiz Completed!', description: 'Your answers have been submitted. Results will be announced soon!' });
       setQuizState('completed');
-      try { await supabase.rpc('compute_results_if_due', { p_quiz_id: quizId }); } catch { /* ignore */ }
+  try { await safeComputeResultsIfDue(supabase, quizId); } catch { /* ignore */ }
       navigate(`/results/${quizId}`);
     } catch (error) {
       console.error('Error submitting quiz:', error);

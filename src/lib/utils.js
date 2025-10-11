@@ -204,3 +204,39 @@ export function getPrizeDisplay(prizeType, amount, options = {}) {
 export function describePrizeType(prizeType) {
 	return getPrizeTypeMeta(prizeType).label;
 }
+
+// Safely trigger server-side results computation if the RPC exists and is enabled via env.
+// Returns true if a compute call was attempted, false otherwise.
+export async function safeComputeResultsIfDue(supabase, quizId, opts = {}) {
+	try {
+		const enabledVal = String(import.meta.env.VITE_ENABLE_CLIENT_COMPUTE ?? '0').toLowerCase();
+		const enabled = enabledVal === '1' || enabledVal === 'true' || enabledVal === 'yes';
+		if (!enabled) return false;
+		if (!supabase || !quizId) return false;
+		const key = `qd_compute_done_${quizId}`;
+		try {
+			if (sessionStorage.getItem(key) === '1') return false;
+		} catch { /* ignore sessionStorage issues */ }
+
+		const { throttleMs = 0 } = opts;
+		if (throttleMs > 0) {
+			await new Promise((r) => setTimeout(r, throttleMs));
+		}
+
+		const { error } = await supabase.rpc('compute_results_if_due', { p_quiz_id: quizId });
+		if (error) {
+			// If RPC is not found or not exposed, suppress console noise
+			const msg = String(error.message || '').toLowerCase();
+			const notFound = msg.includes('404') || msg.includes('not found') || msg.includes('function') && msg.includes('does not exist');
+			if (!notFound && import.meta.env.DEV) {
+				// Only log non-404 errors in dev
+				console.debug('safeComputeResultsIfDue error', error);
+			}
+			return false;
+		}
+		try { sessionStorage.setItem(key, '1'); } catch { /* ignore */ }
+		return true;
+	} catch {
+		return false;
+	}
+}
