@@ -12,8 +12,16 @@ comment on table public.quiz_results is 'Materialized per-quiz leaderboard';
 
 -- RLS: allow read to authenticated users; insert/update via RPC only
 alter table public.quiz_results enable row level security;
-create policy if not exists quiz_results_read on public.quiz_results
-  for select to authenticated using (true);
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'quiz_results' and policyname = 'quiz_results_read'
+  ) then
+    create policy quiz_results_read on public.quiz_results
+      for select to authenticated using (true);
+  end if;
+end $$;
 
 -- 2) compute_results_if_due
 create or replace function public.compute_results_if_due(p_quiz_id uuid)
@@ -136,10 +144,26 @@ create table if not exists public.redemptions (
 
 -- Enable RLS and add user-scoped read policies for these tables
 alter table if exists public.transactions enable row level security;
-create policy if not exists transactions_read_own on public.transactions for select to authenticated using (user_id = auth.uid());
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'transactions' and policyname = 'transactions_read_own'
+  ) then
+    create policy transactions_read_own on public.transactions for select to authenticated using (user_id = auth.uid());
+  end if;
+end $$;
 
 alter table if exists public.redemptions enable row level security;
-create policy if not exists redemptions_read_own on public.redemptions for select to authenticated using (user_id = auth.uid());
+do $$
+begin
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public' and tablename = 'redemptions' and policyname = 'redemptions_read_own'
+  ) then
+    create policy redemptions_read_own on public.redemptions for select to authenticated using (user_id = auth.uid());
+  end if;
+end $$;
 
 create or replace function public.redeem_from_catalog(p_user_id uuid, p_reward_id bigint)
 returns table(success boolean, new_balance int)
