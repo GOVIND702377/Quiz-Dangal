@@ -257,7 +257,9 @@ function AuthProviderInner({ children }) {
 
     // SIGN IN FUNCTION (EMAIL)
     const signIn = async (email, password) => {
-        return await supabase.auth.signInWithPassword({ email, password });
+        const e = (email || '').trim();
+        const p = (password || '').trim();
+        return await supabase.auth.signInWithPassword({ email: e, password: p });
     };
 
     const value = {

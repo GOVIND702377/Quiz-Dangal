@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { m } from 'framer-motion';
-import { supabase } from '@/lib/customSupabaseClient';
+import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 import { getSignedAvatarUrls } from '@/lib/avatar';
-import { getPrizeDisplay } from '@/lib/utils';
+import { getPrizeDisplay, shouldAllowClientCompute } from '@/lib/utils';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -24,7 +24,9 @@ const Results = () => {
   const [timeLeftMs, setTimeLeftMs] = useState(null);
   const [didRefetchAfterCountdown, setDidRefetchAfterCountdown] = useState(false);
   const [posterBlob, setPosterBlob] = useState(null); // cache composed poster for quick share
+  const [participantsCount, setParticipantsCount] = useState(0);
   // no ShareSheet dialog anymore; direct share only
+  const isAdmin = userProfile?.role === 'admin';
 
   // Simple motion variants for smoother entrance
   const itemVariants = {
@@ -32,25 +34,26 @@ const Results = () => {
     show: { opacity: 1, y: 0, transition: { duration: 0.2 } },
   };
 
-  useEffect(() => {
-    fetchResults();
-  // fetchResults stable by identity across quizId change
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quizId]);
-
-  const fetchResults = async () => {
+  const fetchResults = useCallback(async () => {
+    if (!hasSupabaseConfig || !supabase) {
+      setErrorMessage('Results are unavailable right now.');
+      setLoading(false);
+      return;
+    }
     try {
       setErrorMessage('');
       // Load quiz meta (title, prizes)
-      const { data: quizData } = await supabase
+      const { data: quizData, error: quizError } = await supabase
         .from('quizzes')
         .select('*')
         .eq('id', quizId)
         .single();
+      if (quizError) throw quizError;
       setQuiz(quizData || null);
 
-      // Check participation unless admin; admins can view all results
-      if (userProfile?.role !== 'admin') {
+      // Participation check (non-blocking): we still show public results if available
+      let amParticipant = false;
+      if (user?.id) {
         try {
           const { data: meRow } = await supabase
             .from('quiz_participants')
@@ -58,18 +61,15 @@ const Results = () => {
             .eq('quiz_id', quizId)
             .eq('user_id', user?.id)
             .maybeSingle();
-          const amIn = !!meRow;
-          if (!amIn) {
-            setErrorMessage('You did not participate in this quiz. Results are visible only to participants.');
-            setLoading(false);
-            return;
-          }
+          amParticipant = !!meRow;
         } catch {
-          // Ignore participant check failure (treat as not participant but don't block overall results attempt)
+          amParticipant = false;
         }
       }
 
-      // Load leaderboard from quiz_results (RLS-safe, shows only to participants)
+      const allowClientCompute = isAdmin || amParticipant || shouldAllowClientCompute({ defaultValue: true });
+
+      // Load leaderboard from quiz_results (RLS-safe)
       const { data: resRow, error: resErr } = await supabase
         .from('quiz_results')
         .select('leaderboard')
@@ -77,7 +77,7 @@ const Results = () => {
         .maybeSingle();
       if (resErr) throw resErr;
 
-      const leaderboard = Array.isArray(resRow?.leaderboard) ? resRow.leaderboard : [];
+      let leaderboard = Array.isArray(resRow?.leaderboard) ? resRow.leaderboard : [];
 
       // If results aren't published yet
       if (!resRow || leaderboard.length === 0) {
@@ -89,11 +89,11 @@ const Results = () => {
           setTimeLeftMs(diff > 0 ? diff : 0);
 
           // If end time has passed but results row is missing, try JIT compute
-          if (diff <= 0) {
+          if (diff <= 0 && allowClientCompute) {
             try {
               await supabase.rpc('compute_results_if_due', { p_quiz_id: quizId });
               // Brief delay and refetch
-              await new Promise(r => setTimeout(r, 500));
+              await new Promise(r => setTimeout(r, 400));
               const { data: rr2 } = await supabase
                 .from('quiz_results')
                 .select('leaderboard')
@@ -101,32 +101,32 @@ const Results = () => {
                 .maybeSingle();
               const lb2 = Array.isArray(rr2?.leaderboard) ? rr2.leaderboard : [];
               if (lb2.length > 0) {
-                const normalized2 = lb2
-                  .map((entry, idx) => ({
-                    id: `${quizId}-${entry.user_id}`,
-                    user_id: entry.user_id,
-                    score: Number(entry.score) || 0,
-                    rank: Number(entry.rank) || idx + 1,
-                    profiles: { username: entry.display_name?.startsWith('@') ? entry.display_name.slice(1) : undefined, full_name: entry.display_name, avatar_url: undefined },
-                  }))
-                  .sort((a, b) => b.score - a.score);
-                setResults(normalized2);
-                setLoading(false);
-                return;
+                leaderboard = lb2;
               }
-            } catch {
-              // Ignore JIT compute failure; results may appear later
+            } catch (computeError) {
+              if (import.meta.env.DEV) {
+                console.debug('compute_results_if_due failed; continuing with original data', computeError);
+              }
             }
+            // End time passed: treat as published even if leaderboard empty
+            // Do not return; continue to render Results with empty list
+          } else if (diff > 0) {
+            // Before end: show waiting UI
+            return;
           }
         } else {
           setTimeLeftMs(null);
+          // No end_time meta; treat as unpublished and show waiting UI
+          return;
         }
-        return;
+        // Past end: continue and render Results with empty list
+      } else {
+        setTimeLeftMs(null);
       }
 
       // Normalize structure to what UI expects: rank, score, profiles
       // leaderboard items: { user_id, display_name, score, rank }
-      const normalized = leaderboard
+      const normalized = (Array.isArray(leaderboard) ? leaderboard : [])
         .map((entry, idx) => ({
           id: `${quizId}-${entry.user_id}`,
           user_id: entry.user_id,
@@ -141,6 +141,18 @@ const Results = () => {
         .sort((a, b) => b.score - a.score);
 
       setResults(normalized);
+      if (normalized.length > 0 && didRefetchAfterCountdown) {
+        setDidRefetchAfterCountdown(false);
+      }
+
+      // Fetch participants count for header via engagement RPC (non-blocking)
+      try {
+        const { data: ec } = await supabase.rpc('get_engagement_counts', { p_quiz_id: quizId });
+        const rec = Array.isArray(ec) ? ec[0] : ec;
+        const joined = Number(rec?.joined ?? 0);
+        const pre = Number(rec?.pre_joined ?? 0);
+        setParticipantsCount(joined + pre);
+      } catch { /* ignore */ }
 
       // Enrich top entries with avatar/username from profiles (non-blocking)
       try {
@@ -176,6 +188,9 @@ const Results = () => {
       // Find user's rank
       const me = normalized.find(p => p.user_id === user?.id);
       if (me) setUserRank(me);
+      if (!amParticipant) {
+        // If viewer is not a participant, still allow viewing. Do not set error.
+      }
 
     } catch (error) {
       console.error('Error fetching results:', error);
@@ -183,12 +198,31 @@ const Results = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [quizId, user?.id, isAdmin, didRefetchAfterCountdown]);
+
+  useEffect(() => {
+    fetchResults();
+  }, [fetchResults]);
 
   const handleRetry = () => {
     setLoading(true);
     setErrorMessage('');
     fetchResults();
+  };
+
+  const handleAdminRecompute = async () => {
+    if (!isAdmin) return;
+    try {
+      setLoading(true);
+      await supabase.rpc('admin_recompute_quiz_results', { p_quiz_id: quizId });
+      await new Promise(r => setTimeout(r, 600));
+      await fetchResults();
+      toast({ title: 'Recompute triggered', description: 'Results recomputed.' });
+    } catch (e) {
+      toast({ title: 'Recompute failed', description: e?.message || 'Could not recompute.', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Prepare poster in the background once results are available
@@ -323,8 +357,33 @@ const Results = () => {
     tick();
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quiz?.end_time, results.length]);
+  }, [quiz?.end_time, results.length, didRefetchAfterCountdown, fetchResults]);
+
+  useEffect(() => {
+    if (results.length > 0) return;
+    if (!hasSupabaseConfig || !supabase) return;
+    if (!quizId) return;
+    if (typeof window === 'undefined') return;
+
+    const channel = supabase
+      .channel(`quiz-results-${quizId}`, { config: { broadcast: { ack: false } } })
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'quiz_results', filter: `quiz_id=eq.${quizId}` },
+        () => {
+          fetchResults();
+        },
+      )
+      .subscribe();
+
+    return () => {
+      try {
+        supabase.removeChannel(channel);
+      } catch {
+        /* ignore */
+      }
+    };
+  }, [quizId, results.length, fetchResults]);
 
   const formatTimeParts = (ms) => {
     const total = Math.max(0, Math.floor((ms ?? 0) / 1000));
@@ -431,7 +490,7 @@ const Results = () => {
     );
   }
 
-  if (!loading && results.length === 0) {
+  if (!loading && (timeLeftMs ?? 0) > 0 && results.length === 0) {
     return (
       <div className="min-h-screen p-4 flex items-center justify-center">
         <div className="qd-card rounded-2xl p-6 shadow-lg text-center max-w-md w-full text-slate-100">
@@ -471,6 +530,11 @@ const Results = () => {
             <Button variant="brand" onClick={handleRetry}>Refresh</Button>
             <Button variant="white" onClick={() => navigate('/my-quizzes')}>Back to My Quizzes</Button>
             <Button variant="white" onClick={() => navigate('/')}>Go Home</Button>
+            {isAdmin && (
+              <Button variant="destructive" onClick={handleAdminRecompute} title="Admin only">
+                Force Recompute
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -494,7 +558,7 @@ const Results = () => {
             <div>
               <div className="flex items-center gap-2 text-slate-300 text-xs">
                 <Users className="w-3.5 h-3.5" />
-                <span>{results?.length || 0} participants</span>
+                <span>{participantsCount || results?.length || 0} participants</span>
               </div>
               <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-amber-300" /> Results
@@ -556,6 +620,11 @@ const Results = () => {
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
           <div className="text-sm font-semibold text-white mb-2 flex items-center gap-2"><Trophy className="w-4 h-4 text-amber-300" />Leaderboard</div>
           <div className="space-y-2">
+            {results.length === 0 && (
+              <div className="p-3 rounded-lg bg-slate-900/70 border border-slate-700/60 text-slate-300 text-sm">
+                No participants or no valid answers. Results are finalized.
+              </div>
+            )}
             {results.map((participant, index) => {
               const prizeVal = (participant.rank && Array.isArray(quiz?.prizes) && quiz.prizes[participant.rank - 1]) ? quiz.prizes[participant.rank - 1] : 0;
               const prizeDisplay = getPrizeDisplay(prizeType, prizeVal, { fallback: 0 });

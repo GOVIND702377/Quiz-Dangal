@@ -92,6 +92,11 @@ export function useQuizEngine(quizId, navigate) {
   }, [flushRetryQueue]);
 
   const totalJoined = (engagement.joined || 0) + (engagement.pre_joined || 0);
+  // Display rule: when active, show only actually joined (joined+completed); when upcoming, show interested (pre+joined)
+  const displayJoined = (() => {
+    if (quizState === 'active') return engagement.joined || 0;
+    return totalJoined;
+  })();
 
   const loadQuestions = useCallback(async () => {
     const { data: questionsData, error: questionsError } = await supabase
@@ -220,7 +225,7 @@ export function useQuizEngine(quizId, navigate) {
     run();
   }, [quiz, quizState, user, joined, participantStatus, quizId, loadQuestions, questions.length, toast]);
 
-  // Auto-submit on finish
+  // Auto-submit on finish (if the user answered anything)
   useEffect(() => {
     if (quizState === 'finished' && Object.keys(answers).length > 0 && !submitting) {
       handleSubmit();
@@ -228,6 +233,44 @@ export function useQuizEngine(quizId, navigate) {
   // Only react to quizState transitions; answers/submitting handled internally by handleSubmit side effects
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizState]);
+
+  // After finish/completion: trigger compute and navigate to Results immediately
+  useEffect(() => {
+    if (redirectTimeoutRef.current) {
+      clearTimeout(redirectTimeoutRef.current);
+      redirectTimeoutRef.current = null;
+    }
+
+    if (!quiz?.end_time) return;
+    if (!(quizState === 'finished' || quizState === 'completed')) return;
+
+    const navigateToResults = () => {
+      (async () => {
+        try {
+          await supabase.rpc('compute_results_if_due', { p_quiz_id: quizId });
+        } catch {
+          /* ignore */
+        }
+        navigate(`/results/${quizId}`);
+      })();
+    };
+
+    if (QUIZ_COMPLETION_REDIRECT_DELAY_MS > 0) {
+      redirectTimeoutRef.current = setTimeout(() => {
+        redirectTimeoutRef.current = null;
+        navigateToResults();
+      }, QUIZ_COMPLETION_REDIRECT_DELAY_MS);
+    } else {
+      navigateToResults();
+    }
+
+    return () => {
+      if (redirectTimeoutRef.current) {
+        clearTimeout(redirectTimeoutRef.current);
+        redirectTimeoutRef.current = null;
+      }
+    };
+  }, [quiz?.end_time, quizId, quizState, navigate]);
 
   const handleJoinOrPrejoin = useCallback(async () => {
     if (!quiz) return;
@@ -298,7 +341,8 @@ export function useQuizEngine(quizId, navigate) {
       if (error) throw error;
       toast({ title: 'Quiz Completed!', description: 'Your answers have been submitted. Results will be announced soon!' });
       setQuizState('completed');
-      redirectTimeoutRef.current = setTimeout(() => navigate('/my-quizzes'), QUIZ_COMPLETION_REDIRECT_DELAY_MS);
+      try { await supabase.rpc('compute_results_if_due', { p_quiz_id: quizId }); } catch { /* ignore */ }
+      navigate(`/results/${quizId}`);
     } catch (error) {
       console.error('Error submitting quiz:', error);
       toast({ title: 'Submission Failed', description: 'Could not submit your answers. Please try again.', variant: 'destructive' });
@@ -315,7 +359,7 @@ export function useQuizEngine(quizId, navigate) {
 
   return {
     // state
-    quiz, questions, currentQuestionIndex, answers, quizState, timeLeft, submitting, engagement, joined, participantStatus, totalJoined,
+    quiz, questions, currentQuestionIndex, answers, quizState, timeLeft, submitting, engagement, joined, participantStatus, totalJoined, displayJoined,
     // setters
     setCurrentQuestionIndex,
     // actions

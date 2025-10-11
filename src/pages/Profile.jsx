@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "../lib/customSupabaseClient";
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from "@/components/ui/button";
-import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Share2, Sparkles, Coins, Trophy, Users, Gamepad2 } from 'lucide-react';
+import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Share2, Sparkles, Coins } from 'lucide-react';
 import ProfileUpdateModal from '@/components/ProfileUpdateModal';
 import SEO from '@/components/SEO';
 
@@ -192,9 +192,7 @@ export default function Profile() {
     { label: 'Refer & Earn', href: '/refer', icon: Share2 },
   ];
 
-  const playedQuizzes = Number(profile?.played_quizzes ?? 0);
-  const quizWins = Number(profile?.quiz_won ?? 0);
-  const referralCount = Number(profile?.referral_count ?? 0);
+  // Counters removed from UI as requested; backend maintains these fields
 
   return (
     <div className="relative overflow-x-hidden">
@@ -292,37 +290,7 @@ export default function Profile() {
 
         {/* Push Notifications controls removed per requirement. Notifications will be prompted during Join Quiz flow. */}
 
-        <div className="qd-card rounded-3xl p-4 shadow-xl">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-indigo-900/30 border border-indigo-600/30">
-              <span className="w-10 h-10 rounded-xl bg-indigo-800/50 flex items-center justify-center text-indigo-200 shadow-inner">
-                <Gamepad2 className="w-5 h-5" />
-              </span>
-              <div>
-                <div className="text-sm text-indigo-200/80">Quizzes Played</div>
-                <div className="text-lg font-semibold text-white">{playedQuizzes.toLocaleString()}</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-emerald-900/25 border border-emerald-600/30">
-              <span className="w-10 h-10 rounded-xl bg-emerald-800/40 flex items-center justify-center text-emerald-200 shadow-inner">
-                <Trophy className="w-5 h-5" />
-              </span>
-              <div>
-                <div className="text-sm text-emerald-200/80">Quizzes Won</div>
-                <div className="text-lg font-semibold text-white">{quizWins.toLocaleString()}</div>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-cyan-900/25 border border-cyan-600/30">
-              <span className="w-10 h-10 rounded-xl bg-cyan-800/40 flex items-center justify-center text-cyan-200 shadow-inner">
-                <Users className="w-5 h-5" />
-              </span>
-              <div>
-                <div className="text-sm text-cyan-200/80">Friends Referred</div>
-                <div className="text-lg font-semibold text-white">{referralCount.toLocaleString()}</div>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Stats cards removed per requirement: Quizzes Played, Quizzes Won, Friends Referred */}
 
   <div className="qd-card rounded-3xl p-3 shadow-xl">
           <div className="flex flex-col gap-3">

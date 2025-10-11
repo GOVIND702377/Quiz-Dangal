@@ -99,28 +99,11 @@ function InitNotifications() {
 }
 
 function App() {
-  const { user: authUser, loading, isRecoveryFlow } = useAuth();
+  const { user: authUser, isRecoveryFlow } = useAuth();
   // We only need focus management once layout is rendered; apply inside Router tree via helper component
-  const isBot = useMemo(() => {
-    try {
-      if (typeof navigator === 'undefined' || !navigator.userAgent) return false;
-      const ua = navigator.userAgent.toLowerCase();
-      return /bot|crawl|slurp|spider|mediapartners|google|bing|duckduckgo|baiduspider|yandex|facebookexternalhit|linkedinbot|twitterbot/.test(ua);
-    } catch (e) {
-      return false; /* UA parse failed */
-    }
-  }, []);
+  // Removed unused isBot detection to keep lint clean
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" role="status" aria-live="polite" aria-label="Loading application">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600" aria-hidden="true"></div>
-          <div className="text-indigo-600 font-medium animate-pulse">Loading Quiz Dangal...</div>
-        </div>
-      </div>
-    );
-  }
+  // Don't block initial paint for logged-out users; render routes immediately
 
   return (
     <ErrorBoundary>
@@ -148,7 +131,8 @@ function App() {
             ) : !authUser ? (
               <>
                 {/* Public pages accessible without login and without Header/Footer */}
-                <Route path="/" element={isBot ? <Landing /> : <Navigate to="/login" replace />} />
+                {/* Always show Landing publicly for better first-load UX and indexing */}
+                <Route path="/" element={<Landing />} />
                 {policyRoutes}
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/login" element={<Login />} />
@@ -223,23 +207,32 @@ const MainLayout = () => {
   const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   const requiresProfileCompletion = useMemo(() => {
+    // If profile hasn't loaded yet, don't show the modal to avoid flicker
+    if (!userProfile) return false;
     const username = (userProfile?.username || '').trim();
     const mobileRaw = ((userProfile?.mobile_number ?? '') + '').trim();
     const usernameOk = /^[a-zA-Z0-9_]{3,}$/.test(username);
     const mobileOk = /^[6-9]\d{9}$/.test(mobileRaw);
     const completionFlag = userProfile?.is_profile_complete === true;
-    return !(usernameOk && mobileOk && completionFlag);
+    // Show modal only when truly incomplete: either explicit flag false with missing fields,
+    // or brand new user without valid username/mobile yet. If an older user already
+    // has both fields valid, do NOT block even if flag was never set previously.
+    if (completionFlag) return false;
+    if (usernameOk && mobileOk) return false;
+    return true;
   }, [userProfile]);
 
   useEffect(() => {
     if (authLoading) return;
     if (!hasSupabaseConfig) return;
+    // Wait until a profile object is available to decide, prevents 1s flicker on initial load
+    if (!userProfile) return;
     if (requiresProfileCompletion) {
       setProfileModalOpen(true);
     } else {
       setProfileModalOpen(false);
     }
-  }, [authLoading, hasSupabaseConfig, requiresProfileCompletion]);
+  }, [authLoading, hasSupabaseConfig, requiresProfileCompletion, userProfile]);
 
   // Detect if current path is home to tailor layout spacing/overflow (BrowserRouter)
   const isHome = typeof window !== 'undefined' && window.location && window.location.pathname === '/';

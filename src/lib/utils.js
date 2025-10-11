@@ -75,6 +75,24 @@ export function prefetchRoute(path) {
 	} catch (e) { /* prefetch route failed – non critical */ }
 }
 
+const truthyClientComputeFlags = new Set(['1', 'true', 'yes', 'on', 'auto', 'enabled']);
+const falsyClientComputeFlags = new Set(['0', 'false', 'no', 'off', 'disabled']);
+
+export function shouldAllowClientCompute(options = {}) {
+	const { defaultValue = true } = options || {};
+	try {
+		const raw = import.meta?.env?.VITE_ALLOW_CLIENT_COMPUTE;
+		if (raw === undefined || raw === null) return defaultValue;
+		const normalized = String(raw).trim().toLowerCase();
+		if (!normalized) return defaultValue;
+		if (truthyClientComputeFlags.has(normalized)) return true;
+		if (falsyClientComputeFlags.has(normalized)) return false;
+		return defaultValue;
+	} catch {
+		return defaultValue;
+	}
+}
+
 // For HTML <input type="datetime-local"> value attribute (local time, YYYY-MM-DDTHH:mm)
 export function toDatetimeLocalValue(value) {
 	if (!value) return '';

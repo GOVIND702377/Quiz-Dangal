@@ -89,6 +89,13 @@ serve(async (req) => {
       (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE") || "")
     );
 
+    if (!HAS_VAPID) {
+      return new Response(
+        JSON.stringify({ error: "Push notifications are not configured (missing VAPID keys)." }),
+        { status: 503, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } }
+      );
+    }
+
     // Verify admin role from profiles table
     if (!isCronMode) {
       const { data: profile, error: profErr } = await supabaseAdmin
@@ -153,8 +160,7 @@ serve(async (req) => {
       );
     }
 
-    const sendPromises = HAS_VAPID && webpush
-      ? subscriptions.map(async (sub) => {
+    const sendPromises = subscriptions.map(async (sub) => {
           const endpoint = sub?.subscription_object?.endpoint as string | undefined;
           try {
             await webpush.sendNotification(sub.subscription_object, notificationPayload);
@@ -175,10 +181,9 @@ serve(async (req) => {
               }
             }
           }
-        })
-      : [];
+        });
 
-  await Promise.all(sendPromises);
+    await Promise.all(sendPromises);
 
     // Log this broadcast once for admin activity view
     // Log this push once for admin activity view (label by mode)

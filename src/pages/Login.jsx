@@ -27,6 +27,8 @@ const Login = () => {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [referralCode, setReferralCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [signInHint, setSignInHint] = useState(null); // { type: 'unconfirmed'|'invalid', message }
+  const [resendLoading, setResendLoading] = useState(false);
 
   // Show a success toast if redirected from reset-password and switch to Sign In mode
   useEffect(() => {
@@ -83,6 +85,7 @@ const Login = () => {
     e.preventDefault();
   setIsLoading(true);
     setEmailSent(false);
+    setSignInHint(null);
 
     if (isSignUp) {
       const normalizedReferral = referralCode ? saveReferralCode(referralCode) : '';
@@ -103,16 +106,54 @@ const Login = () => {
         });
       }
     } else {
-  const { error } = await signIn(email, password);
+      const cleanEmail = (email || '').trim();
+      const cleanPassword = (password || '').trim();
+      if (!cleanEmail || !cleanPassword) {
+        toast({ title: 'Missing credentials', description: 'Please enter email and password.', variant: 'destructive' });
+        setIsLoading(false);
+        return;
+      }
+      // Basic client validation to reduce round-trips
+      const emailOk = /.+@.+\..+/.test(cleanEmail);
+      if (!emailOk) {
+        toast({ title: 'Invalid email', description: 'Please enter a valid email address.', variant: 'destructive' });
+        setIsLoading(false);
+        return;
+      }
+      if (cleanPassword.length < 6) {
+        toast({ title: 'Weak password', description: 'Password must be at least 6 characters.', variant: 'destructive' });
+        setIsLoading(false);
+        return;
+      }
+      const { error } = await signIn(cleanEmail, cleanPassword);
       if (error) {
-        toast({
-          title: "Sign In Failed",
-          description: error.message,
-          variant: "destructive"
-        });
+        const msg = (error.message || '').toLowerCase();
+        const isUnconfirmed = msg.includes('confirm') || msg.includes('not confirmed');
+        if (isUnconfirmed) {
+          setSignInHint({ type: 'unconfirmed', message: 'Your email is not confirmed. Please confirm your email or resend the confirmation link.' });
+          toast({ title: 'Email not confirmed', description: 'We can resend the confirmation link to your inbox.', variant: 'destructive' });
+        } else {
+          setSignInHint({ type: 'invalid', message: 'Invalid credentials. Please check your email and password.' });
+          toast({ title: 'Sign In Failed', description: error.message, variant: 'destructive' });
+        }
       }
     }
     setIsLoading(false);
+  };
+
+  const resendConfirmation = async () => {
+    const cleanEmail = (email || '').trim();
+    if (!cleanEmail) return;
+    setResendLoading(true);
+    try {
+      const { error } = await supabase.auth.resend({ type: 'signup', email: cleanEmail });
+      if (error) throw error;
+      toast({ title: 'Confirmation sent', description: `Check your inbox (${cleanEmail}) for the confirmation link.` });
+    } catch (e) {
+      toast({ title: 'Resend failed', description: e.message || 'Please try again later.', variant: 'destructive' });
+    } finally {
+      setResendLoading(false);
+    }
   };
 
   const LoginHead = () => (
@@ -263,6 +304,14 @@ const Login = () => {
           <Button type="submit" disabled={isLoading || isGoogleLoading} variant="brand" className="w-full font-semibold py-3 rounded-lg shadow-lg">
             {isLoading ? 'Processing...' : (isSignUp ? 'Sign Up' : 'Sign In')}
           </Button>
+          {!isSignUp && signInHint?.type === 'unconfirmed' && (
+            <div className="mt-2 text-center">
+              <p className="text-xs text-amber-200/90 mb-2">{signInHint.message}</p>
+              <Button type="button" onClick={resendConfirmation} disabled={resendLoading} variant="outline" size="sm" className="border-amber-400/40 text-amber-200">
+                {resendLoading ? 'Sending…' : 'Resend Confirmation Email'}
+              </Button>
+            </div>
+          )}
   </form>
 
 

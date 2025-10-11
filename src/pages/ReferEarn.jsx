@@ -34,6 +34,37 @@ Don’t scroll, hustle smartly 💯
 Referral Link:
 ${referralLink}`;
 
+    const faqSchema = {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: [
+        {
+          '@type': 'Question',
+          name: 'Refer & Earn ka bonus kab milta hai?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Jaise hi aapka refer kiya hua friend sign up karke eligible quizzes complete karta hai, dono ko bonus coins milte hain. System fraud detection ke saath automatic credit karta hai.'
+          }
+        },
+        {
+          '@type': 'Question',
+          name: 'Referral code kaise share karein?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Profile section me aapka code milta hai. Link ya code WhatsApp, Telegram ya kisi bhi social app par share karein. Friends ko invite caption bhi isi page par diya gaya hai.'
+          }
+        },
+        {
+          '@type': 'Question',
+          name: 'Kya ek user multiple referral codes use kar sakta hai?',
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: 'Nahi, har user sign-up ke waqt sirf ek referral code use kar sakta hai. Yeh rule spam ko rokne aur fair play ensure karne ke liye hai.'
+          }
+        }
+      ]
+    };
+
   useEffect(() => {
     let mounted = true;
     const load = async () => {
@@ -185,11 +216,18 @@ ${referralLink}`;
       <SEO
         title="Refer & Earn – Quiz Dangal | Invite Friends, Get Coins"
         description="Share your unique referral link on Quiz Dangal and earn bonus coins when friends join and play opinion-based quizzes."
-  canonical="https://quizdangal.com/refer"
-        robots="noindex, nofollow"
+        canonical="https://quizdangal.com/refer"
+        robots="index, follow"
+        image="https://quizdangal.com/refer-earn-poster.png?v=1"
+        imageAlt="Quiz Dangal Refer and Earn poster"
         keywords={[
-          'refer and earn','quizdangal refer','invite friends quiz app','earn coins by referral','quiz app referral India'
+          'refer and earn',
+          'quizdangal refer',
+          'invite friends quiz app',
+          'earn coins by referral',
+          'quiz app referral India'
         ]}
+        jsonLd={[faqSchema]}
       />
       {/* existing page content */}
     <div className="min-h-screen">

@@ -11,7 +11,7 @@ const Quiz = () => {
   const navigate = useNavigate();
   const {
   quiz, questions, currentQuestionIndex, answers, quizState, timeLeft, submitting,
-  joined, participantStatus, totalJoined,
+  joined, participantStatus, totalJoined, displayJoined,
     handleJoinOrPrejoin, handleAnswerSelect, handleSubmit,
     formatTime,
   } = useQuizEngine(quizId, navigate);
@@ -94,7 +94,7 @@ const Quiz = () => {
           <div className="flex items-center justify-center gap-4 text-sm text-gray-300">
             <div className="flex items-center">
               <Users className="h-4 w-4 mr-1" />
-              {totalJoined} joined
+              {displayJoined} joined
             </div>
           </div>
           <PrizeChips />

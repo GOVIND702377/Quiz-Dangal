@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Clock, Play, Loader2, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
-import { formatDateOnly, formatTimeOnly, getPrizeDisplay } from '@/lib/utils';
+import { formatDateOnly, formatTimeOnly, getPrizeDisplay, shouldAllowClientCompute } from '@/lib/utils';
 import SEO from '@/components/SEO';
+import { useToast } from '@/components/ui/use-toast';
 // Match Category status badge visuals
 function statusBadge(s) {
   const base = 'px-2 py-0.5 rounded-full text-xs font-semibold';
@@ -79,7 +80,8 @@ const GoldTrophy = ({ size = 72, centered = false, fitParent = false }) => {
 
 const MyQuizzes = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
+  const { toast } = useToast();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   // tick state hata diya (countdown UI reactivity sufficient without forced re-render)
@@ -90,6 +92,7 @@ const MyQuizzes = () => {
 
   const fetchMyQuizzes = useCallback(async () => {
     if (!user) return;
+    if (!hasSupabaseConfig || !supabase) { setQuizzes([]); return; }
     try {
       // **FIX**: अब हम सीधे 'my_quizzes_view' से डेटा लाएंगे।
       // RLS अपने आप सही डेटा फ़िल्टर कर देगा।
@@ -110,11 +113,16 @@ const MyQuizzes = () => {
     const now = Date.now();
     const needsCompute = (combinedData || [])
       .filter(row => row.end_time && new Date(row.end_time).getTime() <= now && (!Array.isArray(row.leaderboard) || row.leaderboard.length === 0))
-      .map(row => row.id);
+  // tick state hata diya (countdown UI reactivity sufficient without forced re-render)
 
-    if (needsCompute.length) {
+    const allowClientCompute = shouldAllowClientCompute({ defaultValue: true }) || userProfile?.role === 'admin';
+
+    if (allowClientCompute && needsCompute.length) {
       try {
-        await Promise.allSettled(needsCompute.map(id => supabase.rpc('compute_results_if_due', { p_quiz_id: id })));
+        // Call compute_results_if_due for each quiz id that has ended but lacks a leaderboard
+        await Promise.allSettled(
+          needsCompute.map(row => supabase.rpc('compute_results_if_due', { p_quiz_id: row.id }))
+        );
         // refetch latest view data after compute
   const { data: data2 } = await supabase.from('my_quizzes_view').select('*');
         const combined2 = (data2 || []).map(s => ({ ...s }));
@@ -122,6 +130,11 @@ const MyQuizzes = () => {
         return;
       } catch (e) {
         // even if compute fails, fall back to original data
+        if (import.meta.env.DEV) {
+          // Log only in development to keep production console clean
+          // This also satisfies ESLint no-empty rule
+          console.debug('compute_results_if_due failed; continuing with original data', e);
+        }
       }
     }
 
@@ -129,16 +142,51 @@ const MyQuizzes = () => {
     } catch (err) {
       console.error(err);
     }
-  }, [user]);
+  }, [user, userProfile?.role]);
 
   useEffect(() => {
     // Auto-ask once on My Quizzes page (in addition to join-based prompt)
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission().catch(() => {});
     }
-    // Create realtime channel only when Supabase is configured and user is present (reduces WS churn)
+
+    if (!user) {
+      setLoading(false);
+      setQuizzes([]);
+      setCounts({});
+      return;
+    }
+
+    // Create realtime channel only when allowed and conditions are healthy
+    const enableRealtime = (() => {
+      try {
+        const v = String(import.meta.env.VITE_ENABLE_REALTIME ?? '1').toLowerCase();
+        return v === '1' || v === 'true' || v === 'yes';
+      } catch { return true; }
+    })();
+
+    const shouldUseRealtime = () => {
+      try {
+        if (!enableRealtime) return false;
+        if (!hasSupabaseConfig || !supabase || !user) return false;
+        if (typeof window === 'undefined') return false;
+        if (!window.isSecureContext) return false; // required by many browsers for stable WS in PWAs
+        if (!('WebSocket' in window)) return false;
+        if (navigator && navigator.onLine === false) return false;
+        // Avoid starting WS when tab is hidden to reduce transient closures
+        if (document && document.visibilityState === 'hidden') return false;
+        // If connection info indicates data saver or 2g, skip
+        const conn = (navigator && (navigator.connection || navigator.mozConnection || navigator.webkitConnection)) || null;
+        if (conn) {
+          if (conn.saveData) return false;
+          if (typeof conn.effectiveType === 'string' && /(^|\b)2g(\b|$)/i.test(conn.effectiveType)) return false;
+        }
+        return true;
+      } catch { return true; }
+    };
+
     let resultsChannel = null;
-    if (hasSupabaseConfig && supabase && user) {
+    if (shouldUseRealtime()) {
       try {
         resultsChannel = supabase
           .channel('quiz-results-channel', { config: { broadcast: { ack: true } } })
@@ -162,45 +210,74 @@ const MyQuizzes = () => {
             }
           )
           .subscribe((status) => {
-            // Helpful debug: observe WS lifecycle instead of a cryptic browser error
             if (status === 'SUBSCRIBED') {
               // connected
             } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
-              // We still have polling fallback every 2 minutes; no hard failure for UI
-              // console.debug('Realtime status:', status); // keep silent in prod
+              // polling fallback below handles refresh
             }
           });
+        setTimeout(() => {
+          try {
+            if (resultsChannel && resultsChannel.state !== 'joined') {
+              supabase.removeChannel(resultsChannel);
+            }
+          } catch (e) {
+            if (import.meta.env.DEV) {
+              console.debug('Cleanup: removeChannel failed (ignored)', e);
+            }
+          }
+        }, 5000);
       } catch {
         // ignore realtime setup errors; polling below will still refresh data
       }
     }
-    
-    // **FIX**: Loading state को सही ढंग से मैनेज करने के लिए एक async IIFE का उपयोग करें।
+
     const initialFetch = async () => {
       setLoading(true);
-      await fetchMyQuizzes();
-      setLoading(false);
-    }
+      try {
+        await fetchMyQuizzes();
+      } finally {
+        setLoading(false);
+      }
+    };
     initialFetch();
 
     const interval = setInterval(fetchMyQuizzes, 120000); // Poll every 2 minutes (realtime will push sooner)
 
-    // live ticking every second when there are upcoming/active items
-  // NOTE: per-second forced re-render removed for performance; DOM already reflects real-time via Date.now() checks on interaction
-
     return () => {
       try {
         if (resultsChannel) supabase.removeChannel(resultsChannel);
-  } catch (e) { /* load quizzes fail */ }
+      } catch (e) { /* load quizzes fail */ }
       clearInterval(interval);
-  // removed tick interval cleanup (no tick now)
     };
   }, [user, fetchMyQuizzes]);
+
+  useEffect(() => {
+    let tickId = null;
+    try {
+      const now = Date.now();
+      const hasLive = (quizzes || []).some(q => {
+        const st = q.start_time ? new Date(q.start_time).getTime() : 0;
+        const et = q.end_time ? new Date(q.end_time).getTime() : 0;
+        return (st && now < st) || (st && et && now >= st && now < et);
+      });
+      if (hasLive) {
+        tickId = setInterval(() => {
+          setCounts(c => ({ ...c }));
+        }, 1000);
+      }
+    } catch { /* ignore */ }
+
+    return () => {
+      if (tickId) clearInterval(tickId);
+    };
+  }, [quizzes]);
 
   // Fetch engagement counts for visible (non-finished) quizzes, same as Category
   useEffect(() => {
     const run = async () => {
       try {
+        if (!hasSupabaseConfig || !supabase) { setCounts({}); return; }
         const now = Date.now();
         const ids = (quizzes || [])
           .filter(q => q.end_time && now < new Date(q.end_time).getTime())
@@ -433,8 +510,10 @@ const MyQuizzes = () => {
           {finished.map((quiz, index) => {
             const now = new Date();
             const endTime = new Date(quiz.end_time);
-            const isResultOut = now >= endTime && quiz.leaderboard;
-            const userRank = isResultOut ? quiz.leaderboard.find(p => p.user_id === user.id) : null;
+            const board = Array.isArray(quiz.leaderboard) ? quiz.leaderboard : [];
+            const isResultOut = now >= endTime && board.length > 0;
+            const isPastEnd = now >= endTime;
+            const userRank = isResultOut ? board.find(p => p.user_id === (user?.id)) : null;
             
             return(
               <m.div key={quiz.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.06 }}
@@ -452,8 +531,8 @@ const MyQuizzes = () => {
                     <h3 className="text-base sm:text-lg font-semibold text-white truncate pr-3">{quiz.title}</h3>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <div className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${isResultOut ? 'bg-emerald-900/25 text-emerald-200 border-emerald-500/30' : 'bg-amber-900/25 text-amber-200 border-amber-500/30'}`}>
-                      {isResultOut ? 'Completed' : 'Awaiting Results'}
+                    <div className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${isPastEnd ? 'bg-emerald-900/25 text-emerald-200 border-emerald-500/30' : 'bg-amber-900/25 text-amber-200 border-amber-500/30'}`}>
+                      {isPastEnd ? 'Completed' : 'Awaiting Results'}
                     </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); navigate(`/results/${quiz.id}`); }}
@@ -476,7 +555,7 @@ const MyQuizzes = () => {
                     <div className="bg-slate-900/60 border border-slate-700/60 rounded-lg px-2 py-1.5 text-center">
                       <div className="uppercase text-[10px] text-slate-400">Your Prize</div>
                       {(() => {
-                        const prizeType = quiz.prize_type || 'money';
+                        const prizeType = (quiz.prize_type && String(quiz.prize_type).trim()) ? quiz.prize_type : 'money';
                         const rawPrize = userRank?.rank && Array.isArray(quiz.prizes) ? quiz.prizes[userRank.rank - 1] : null;
                         if (!userRank?.rank) {
                           return <div className="font-semibold text-purple-200">—</div>;
@@ -489,9 +568,32 @@ const MyQuizzes = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="mt-3 flex items-center gap-2 text-xs text-slate-300">
+                  <div className="mt-3 flex items-center gap-3 text-xs text-slate-300">
                     <Clock className="h-4 w-4 text-slate-400" />
-                    <span>Results will be declared at {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    {isPastEnd ? (
+                      <span className="flex-1">Finalized. No participants or valid answers.</span>
+                    ) : (
+                      <span className="flex-1">Results will be declared at {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    )}
+                    {userProfile?.role === 'admin' && hasSupabaseConfig && supabase && !isPastEnd && (
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          try {
+                            const { error } = await supabase.rpc('admin_recompute_quiz_results', { p_quiz_id: quiz.id });
+                            if (error) throw error;
+                            toast({ title: 'Recompute triggered', description: 'Results recompute requested.' });
+                            await fetchMyQuizzes();
+                          } catch (err) {
+                            toast({ title: 'Recompute failed', description: err?.message || 'Could not recompute.', variant: 'destructive' });
+                          }
+                        }}
+                        className="px-2 py-1 rounded-md border border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-200 hover:bg-fuchsia-500/20 transition"
+                        title="Admin only"
+                      >
+                        Recompute
+                      </button>
+                    )}
                   </div>
                 )}
               </m.div>

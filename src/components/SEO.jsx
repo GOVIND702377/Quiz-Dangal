@@ -18,6 +18,7 @@ export default function SEO({
   canonical = 'https://quizdangal.com/',
   robots = 'index, follow',
   image = 'https://quizdangal.com/refer-earn-poster.png?v=1',
+  imageAlt = 'Quiz Dangal poster',
   type = 'website',
   keywords = [],
   lang = 'en-IN',
@@ -63,8 +64,9 @@ export default function SEO({
       <meta property="og:title" content={title} />
       {description && <meta property="og:description" content={description} />}
       {canonical && <meta property="og:url" content={canonical} />} 
-      {image && <meta property="og:image" content={image} />} 
-      {image && <meta property="og:image:secure_url" content={image} />} 
+  {image && <meta property="og:image" content={image} />} 
+  {image && <meta property="og:image:secure_url" content={image} />} 
+  {image && imageAlt && <meta property="og:image:alt" content={imageAlt} />}
       <meta property="og:image:type" content="image/png" />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
@@ -74,6 +76,7 @@ export default function SEO({
       <meta name="twitter:title" content={title} />
       {description && <meta name="twitter:description" content={description} />}
       {image && <meta name="twitter:image" content={image} />}
+  {image && imageAlt && <meta name="twitter:image:alt" content={imageAlt} />}
       {twitterHandle && <meta name="twitter:site" content={twitterHandle} />}
 
       {jsonLdBlocks.map((block, index) => (
