@@ -6,5 +6,5 @@ Disallow: /reset-password
 Disallow: /profile
 Disallow: /wallet
 Disallow: /rewards
-Disallow: /refer
+Disallow: /my-quizzes
 Sitemap: https://quizdangal.com/sitemap.xml
