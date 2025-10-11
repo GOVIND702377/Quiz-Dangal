@@ -238,14 +238,14 @@ const CategoryQuizzes = () => {
             const canJoin = isActive || isUpcoming;
             const secs = isUpcoming && st ? Math.max(0, Math.floor((st - now)/1000)) : (isActive && et ? Math.max(0, Math.floor((et - now)/1000)) : null);
                   const prizes = Array.isArray(q.prizes) ? q.prizes : [];
-                  const prizeType = q.prize_type || 'money';
+                  const prizeType = q.prize_type || 'coins';
                   const p1 = prizes[0] ?? 0;
                   const p2 = prizes[1] ?? 0;
                   const p3 = prizes[2] ?? 0;
                   const formatPrize = (value) => {
                     const display = getPrizeDisplay(prizeType, value, { fallback: 0 });
-                    const iconPart = display.showIconSeparately && display.icon ? `${display.icon} ` : '';
-                    return `${iconPart}${display.formatted}`.trim();
+                    // Plain text only, no coin icon
+                    return display.formatted;
                   };
             const joined = counts[q.id] || 0;
             const myStatus = joinedMap[q.id];

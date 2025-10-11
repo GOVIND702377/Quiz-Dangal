@@ -404,14 +404,14 @@ const MyQuizzes = () => {
                   const totalWindow = (st && et) ? Math.max(1, et.getTime() - st.getTime()) : null;
                   const progressed = isActive && totalWindow ? Math.min(100, Math.max(0, Math.round(((Date.now() - st.getTime()) / totalWindow) * 100))) : null;
                   const prizes = Array.isArray(quiz.prizes) ? quiz.prizes : [];
-                  const prizeType = quiz.prize_type || 'money';
+                  const prizeType = quiz.prize_type || 'coins';
                   const p1 = prizes[0] ?? 0;
                   const p2 = prizes[1] ?? 0;
                   const p3 = prizes[2] ?? 0;
                   const formatPrize = (value) => {
                     const display = getPrizeDisplay(prizeType, value, { fallback: 0 });
-                    const iconPart = display.showIconSeparately && display.icon ? `${display.icon} ` : '';
-                    return `${iconPart}${display.formatted}`.trim();
+                    // UI decision: do not show separate coin icon; plain text only
+                    return display.formatted;
                   };
                   const joined = counts[quiz.id] || 0;
                   // Removed unused local UI state placeholders (already, btnDisabled, btnLabel, btnColor) for lint cleanliness
@@ -555,14 +555,14 @@ const MyQuizzes = () => {
                     <div className="bg-slate-900/60 border border-slate-700/60 rounded-lg px-2 py-1.5 text-center">
                       <div className="uppercase text-[10px] text-slate-400">Your Prize</div>
                       {(() => {
-                        const prizeType = (quiz.prize_type && String(quiz.prize_type).trim()) ? quiz.prize_type : 'money';
+                        const prizeType = (quiz.prize_type && String(quiz.prize_type).trim()) ? quiz.prize_type : 'coins';
                         const rawPrize = userRank?.rank && Array.isArray(quiz.prizes) ? quiz.prizes[userRank.rank - 1] : null;
                         if (!userRank?.rank) {
                           return <div className="font-semibold text-purple-200">—</div>;
                         }
                         const display = getPrizeDisplay(prizeType, rawPrize ?? 0, { fallback: 0 });
-                        const iconPart = display.showIconSeparately && display.icon ? `${display.icon} ` : '';
-                        const text = `${iconPart}${display.formatted}`.trim();
+                        // UI decision: no separate icon, show plain text like "251 coins"
+                        const text = display.formatted;
                         return <div className="font-semibold text-purple-200">{text}</div>;
                       })()}
                     </div>

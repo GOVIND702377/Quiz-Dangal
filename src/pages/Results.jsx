@@ -244,7 +244,7 @@ const Results = () => {
 
   // Removed static background poster; we render a clean gradient background only.
 
-  const prizeType = quiz?.prize_type || 'money';
+  const prizeType = quiz?.prize_type || 'coins';
   const userPrizeVal = (userRank?.rank && Array.isArray(quiz?.prizes) && quiz.prizes[userRank.rank - 1]) ? quiz.prizes[userRank.rank - 1] : 0;
   const userPrizeDisplay = getPrizeDisplay(prizeType, userPrizeVal, { fallback: 0 });
 
@@ -284,7 +284,7 @@ const Results = () => {
       const rankText = userRank?.rank ? `#${userRank.rank} Rank!` : 'Results Live!';
       const prizeDisplay = getPrizeDisplay(prizeType, userPrizeVal, { fallback: 0 });
   const prizeIconText = prizeDisplay.showIconSeparately && prizeDisplay.icon ? `${prizeDisplay.icon} ` : '';
-  const prizeText = `👑 Prize: ${prizeIconText}${prizeDisplay.formatted}`;
+  const prizeText = `👑 Prize: ${prizeDisplay.formatted}`;
       const scoreText = typeof userRank?.score === 'number' ? `☑️ Score: ${userRank.score}` : '';
       const rankSize=fitFontSize(rankText, boxW-100, '900', 112, 80);
       const prizeSize=fitFontSize(prizeText, boxW-100, '900', 48, 32);
@@ -641,7 +641,6 @@ const Results = () => {
               <div className="min-w-[68px]">
                 <div className="text-[11px] text-slate-400">Prize</div>
                 <div className="text-sm font-bold text-purple-300 flex items-center justify-end gap-1">
-                  {userPrizeDisplay.showIconSeparately && userPrizeDisplay.icon && <span aria-hidden="true">{userPrizeDisplay.icon}</span>}
                   <span>{userPrizeDisplay.formatted}</span>
                 </div>
               </div>
@@ -654,10 +653,9 @@ const Results = () => {
           <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 mb-4 overflow-x-auto whitespace-nowrap">
             {quiz.prizes.map((amount, idx) => {
               const prizeDisplay = getPrizeDisplay(prizeType, amount, { fallback: 0 });
-              const iconPart = prizeDisplay.showIconSeparately && prizeDisplay.icon ? `${prizeDisplay.icon} ` : '';
               return (
                 <span key={idx} className={`inline-block mr-2 mb-2 px-2.5 py-1 rounded-lg text-xs font-semibold border ${idx===0 ? 'bg-amber-500/10 text-amber-200 border-amber-500/30' : idx===1 ? 'bg-sky-500/10 text-sky-200 border-sky-500/30' : idx===2 ? 'bg-violet-500/10 text-violet-200 border-violet-500/30' : 'bg-slate-800/60 text-slate-200 border-slate-700'}`}>
-                  {(idx===0 ? '🥇 1st' : idx===1 ? '🥈 2nd' : idx===2 ? '🥉 3rd' : `#${idx+1}`)} • {`${iconPart}${prizeDisplay.formatted}`.trim()}
+                  {(idx===0 ? '🥇 1st' : idx===1 ? '🥈 2nd' : idx===2 ? '🥉 3rd' : `#${idx+1}`)} • {prizeDisplay.formatted}
                 </span>
               );
             })}
@@ -704,7 +702,6 @@ const Results = () => {
                     </div>
                     <div className="text-right min-w-[64px]">
                       <p className="text-sm font-bold text-purple-300 leading-none flex items-center justify-end gap-1">
-                        {prizeDisplay.showIconSeparately && prizeDisplay.icon && <span aria-hidden="true">{prizeDisplay.icon}</span>}
                         <span>{prizeDisplay.formatted}</span>
                       </p>
                       <p className="text-[10px] text-slate-400 leading-none">Prize</p>

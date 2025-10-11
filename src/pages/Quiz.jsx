@@ -47,14 +47,14 @@ const Quiz = () => {
 
   const PrizeChips = () => {
     const prizes = Array.isArray(quiz.prizes) ? quiz.prizes : [];
-    const prizeType = quiz.prize_type || 'money';
+  const prizeType = quiz.prize_type || 'coins';
     const p1 = prizes[0] ?? 0;
     const p2 = prizes[1] ?? 0;
     const p3 = prizes[2] ?? 0;
     const formatPrize = (value) => {
-      const display = getPrizeDisplay(prizeType, value, { fallback: 0 });
-      const iconPart = display.showIconSeparately && display.icon ? `${display.icon} ` : '';
-      return `${iconPart}${display.formatted}`.trim();
+  const display = getPrizeDisplay(prizeType, value, { fallback: 0 });
+  // Plain text only, no coin icon before amount
+  return display.formatted;
     };
     return (
       <div className="mt-2 flex items-center gap-2 text-xs">
