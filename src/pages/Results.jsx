@@ -365,20 +365,68 @@ const Results = () => {
     if (!quizId) return;
     if (typeof window === 'undefined') return;
 
-    const channel = supabase
-      .channel(`quiz-results-${quizId}`, { config: { broadcast: { ack: false } } })
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'quiz_results', filter: `quiz_id=eq.${quizId}` },
-        () => {
-          fetchResults();
-        },
-      )
-      .subscribe();
+    // Realtime enable flag (can be disabled via env)
+    const enableRealtime = (() => {
+      try {
+        const v = String(import.meta.env.VITE_ENABLE_REALTIME ?? '1').toLowerCase();
+        return v === '1' || v === 'true' || v === 'yes';
+      } catch { return true; }
+    })();
+
+    const shouldUseRealtime = () => {
+      try {
+        if (!enableRealtime) return false;
+        if (!hasSupabaseConfig || !supabase || !quizId) return false;
+        if (typeof window === 'undefined') return false;
+        if (!('WebSocket' in window)) return false;
+        if (navigator && navigator.onLine === false) return false;
+        // Avoid WS on hidden tabs to reduce transient closures
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+        // Heuristic: on insecure contexts some browsers can be stricter
+        if (typeof window !== 'undefined' && window.isSecureContext === false) return false;
+        const conn = (navigator && (navigator.connection || navigator.mozConnection || navigator.webkitConnection)) || null;
+        if (conn) {
+          if (conn.saveData) return false;
+          if (typeof conn.effectiveType === 'string' && /(^|\b)2g(\b|$)/i.test(conn.effectiveType)) return false;
+        }
+        return true;
+      } catch { return true; }
+    };
+
+    if (!shouldUseRealtime()) {
+      return; // rely on polling/fetchResults from other effects
+    }
+
+    let channel = null;
+    try {
+      channel = supabase
+        .channel(`quiz-results-${quizId}`, { config: { broadcast: { ack: false } } })
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'quiz_results', filter: `quiz_id=eq.${quizId}` },
+          () => {
+            fetchResults();
+          },
+        )
+        .subscribe((status) => {
+          // No-op; status values: 'SUBSCRIBED' | 'TIMED_OUT' | 'CHANNEL_ERROR' | 'CLOSED'
+        });
+
+      // If the channel didn't join promptly, clean it up to avoid noisy console errors
+      setTimeout(() => {
+        try {
+          if (channel && channel.state !== 'joined') {
+            supabase.removeChannel(channel);
+          }
+        } catch { /* ignore */ }
+      }, 5000);
+    } catch {
+      // ignore realtime setup errors; fetch fallback will cover
+    }
 
     return () => {
       try {
-        supabase.removeChannel(channel);
+        if (channel) supabase.removeChannel(channel);
       } catch {
         /* ignore */
       }
