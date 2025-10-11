@@ -99,11 +99,29 @@ function InitNotifications() {
 }
 
 function App() {
-  const { user: authUser, isRecoveryFlow } = useAuth();
+  const { user: authUser, loading, isRecoveryFlow } = useAuth();
   // We only need focus management once layout is rendered; apply inside Router tree via helper component
-  // Removed unused isBot detection to keep lint clean
 
-  // Don't block initial paint for logged-out users; render routes immediately
+  const isBot = useMemo(() => {
+    try {
+      if (typeof navigator === 'undefined' || !navigator.userAgent) return false;
+      const ua = navigator.userAgent.toLowerCase();
+      return /bot|crawl|slurp|spider|mediapartners|google|bing|duckduckgo|baiduspider|yandex|facebookexternalhit|linkedinbot|twitterbot/.test(ua);
+    } catch (err) {
+      return false;
+    }
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" role="status" aria-live="polite" aria-label="Loading application">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-indigo-200 border-t-indigo-600" aria-hidden="true"></div>
+          <div className="text-indigo-600 font-medium animate-pulse">Loading Quiz Dangal...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ErrorBoundary>
@@ -131,9 +149,10 @@ function App() {
             ) : !authUser ? (
               <>
                 {/* Public pages accessible without login and without Header/Footer */}
-                {/* Always show Landing publicly for better first-load UX and indexing */}
-                <Route path="/" element={<Landing />} />
+                {/* Serve landing to crawlers but redirect real users to login */}
+                <Route path="/" element={isBot ? <Landing /> : <Navigate to="/login" replace />} />
                 {policyRoutes}
+                <Route path="/landing" element={<Landing />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
@@ -164,7 +183,17 @@ function App() {
 }
 
 function AdminRoute({ children }) {
-  const { userProfile, loading } = useAuth();
+  const { userProfile, user, loading } = useAuth();
+  const adminEmails = useMemo(() => {
+    try {
+      const raw = String(import.meta.env.VITE_ADMIN_EMAILS || '').trim();
+      if (!raw) return new Set();
+      return new Set(raw.split(/[,\s]+/).map((email) => email.trim().toLowerCase()).filter(Boolean));
+    } catch {
+      return new Set();
+    }
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -172,18 +201,28 @@ function AdminRoute({ children }) {
       </div>
     );
   }
-  if (!userProfile || userProfile.role !== 'admin') {
+  const role = String(userProfile?.role || '').trim().toLowerCase();
+  const email = String(user?.email || '').trim().toLowerCase();
+  const metadataRole = String(user?.app_metadata?.role || '').trim().toLowerCase();
+  const isAdmin = role === 'admin' || metadataRole === 'admin' || (email && adminEmails.has(email));
+
+  if (!isAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="qd-card rounded-2xl max-w-md w-full p-6 text-center">
           <h2 className="text-xl font-semibold text-red-400 mb-2">Admin access required</h2>
           <p className="text-sm text-white/70">
-            Local or staging par admin panel kholne ke liye aapke Supabase <code>profiles</code> record ka <strong>role</strong> field <code>&apos;admin&apos;</code> hona zaroori hai.
+            Admin panel kholne ke liye aapke Supabase <code>profiles</code> record ka <strong>role</strong> field <code>&apos;admin&apos;</code> hona zaroori hai.
           </p>
           <ul className="text-left text-sm text-white/65 mt-4 space-y-2 list-disc list-inside">
             <li>Supabase dashboard &rarr; Table editor &rarr; <code>profiles</code> me login user ka <code>role</code> update karein.</li>
             <li>Changes apply hone ke baad dobara login karein ya session refresh karein.</li>
             <li>Agar dev bypass (<code>VITE_BYPASS_AUTH=1</code>) use kar rahe hain to mock admin profile already enable hai.</li>
+            {adminEmails.size > 0 && (
+              <li>
+                Whitelisted admin emails: {[...adminEmails].join(', ')}
+              </li>
+            )}
           </ul>
         </div>
       </div>
