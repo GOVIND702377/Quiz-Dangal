@@ -5,7 +5,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { rateLimit } from '@/lib/security';
 import { formatDateOnly, formatTimeOnly, getPrizeDisplay } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
-import { Users, Flame, MessageSquare, Brain, Clapperboard, Clock, Trophy } from 'lucide-react';
+import { Users, MessageSquare, Brain, Clapperboard, Clock, Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 

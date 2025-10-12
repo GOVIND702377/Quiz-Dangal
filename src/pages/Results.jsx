@@ -407,7 +407,7 @@ const Results = () => {
             fetchResults();
           },
         )
-        .subscribe((status) => {
+        .subscribe(() => {
           // No-op; status values: 'SUBSCRIBED' | 'TIMED_OUT' | 'CHANNEL_ERROR' | 'CLOSED'
         });
 

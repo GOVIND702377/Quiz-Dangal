@@ -57,7 +57,7 @@ export default function Redemptions() {
     } finally {
       setLoading(false);
     }
-  }, [user, hasSupabaseConfig, supabase]);
+  }, [user]);
 
   useEffect(() => {
     if (!user || !hasSupabaseConfig || !supabase) {
@@ -69,7 +69,7 @@ export default function Redemptions() {
     run();
     const interval = setInterval(run, 15000);
     return () => { clearInterval(interval); };
-  }, [user, hasSupabaseConfig, supabase, loadRedemptions]);
+  }, [user, loadRedemptions]);
 
   // Load available rewards from backend catalog (reward_catalog)
   useEffect(() => {
@@ -318,8 +318,7 @@ export default function Redemptions() {
               const price = Number(rw.coins_required ?? rw.coin_cost ?? rw.coins ?? 0);
               const rewardValue = getRawRewardValue(rw);
               const affordable = walletCoins >= price;
-              const createdAt = rw.created_at ? new Date(rw.created_at).getTime() : 0;
-              const isNew = createdAt && Date.now() - createdAt <= 1000 * 60 * 60 * 24 * 14;
+              // const createdAt = rw.created_at ? new Date(rw.created_at).getTime() : 0; // not used currently
               const pct = price > 0 ? Math.max(0, Math.min(100, Math.floor((walletCoins / price) * 100))) : 0;
               return (
                 <m.div 
@@ -568,7 +567,7 @@ export default function Redemptions() {
                       </div>
                       <div className="text-xs text-slate-400 text-center sm:text-left">
                         {canAfford ? (
-                          <span>After redeem, you'll have <span className="text-indigo-200 font-semibold">{coinsLeft.toLocaleString()}</span> coins left.</span>
+                          <span>After redeem, you&apos;ll have <span className="text-indigo-200 font-semibold">{coinsLeft.toLocaleString()}</span> coins left.</span>
                         ) : (
                           <span>You are short by <span className="text-rose-200 font-semibold">{Math.max(0, price - walletCoins).toLocaleString()}</span> coins.</span>
                         )}
