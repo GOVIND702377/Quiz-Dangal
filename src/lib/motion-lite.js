@@ -129,7 +129,7 @@ export function AnimatePresence(props) {
     return React.createElement(Component, { children, ...rest });
   }
 
-  return <>{children}</>;
+  return React.createElement(React.Fragment, null, children);
 }
 
 export function warmMotion() {
