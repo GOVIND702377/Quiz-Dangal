@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { m } from 'framer-motion';
 // removed Button import; using Link for consistency across actions
@@ -24,7 +24,11 @@ const Wallet = () => {
 
   useEffect(() => {
     const fetchTransactions = async () => {
-      if (!user) return;
+      if (!user) {
+        setTransactions([]);
+        setLoading(false);
+        return;
+      }
       try {
         const { data, error } = await supabase
           .from('transactions')
@@ -48,15 +52,17 @@ const Wallet = () => {
   }, [user, allowedTypes]);
 
   const walletBalance = Number(userProfile?.wallet_balance || 0);
-  const [prevBalance, setPrevBalance] = useState(walletBalance);
+  const prevBalanceRef = useRef(walletBalance);
   useEffect(() => {
-    if (walletBalance > prevBalance) {
+    const prev = prevBalanceRef.current;
+    if (walletBalance > prev) {
       setBouncing(true);
       const t = setTimeout(() => setBouncing(false), 600);
+      prevBalanceRef.current = walletBalance;
       return () => clearTimeout(t);
     }
-    setPrevBalance(walletBalance);
-  }, [walletBalance, prevBalance]);
+    prevBalanceRef.current = walletBalance;
+  }, [walletBalance]);
 
   const formatCoins = (n) => Number(n || 0).toLocaleString();
 

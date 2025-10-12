@@ -14,7 +14,13 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { formatDateTime } from '@/lib/utils';
 
 // ---------------- Constants & Helpers ----------------
-const categories = ['opinion', 'general', 'sports', 'movies'];
+const categoryOptions = [
+	{ value: 'opinion', label: 'Opinion' },
+	{ value: 'gk', label: 'General Knowledge' },
+	{ value: 'sports', label: 'Sports' },
+	{ value: 'movies', label: 'Movies' },
+];
+const getCategoryLabel = (value) => categoryOptions.find(option => option.value === value)?.label || value;
 const blankQuestion = () => ({ text: '', options: ['', '', ''], correctIndex: 0 });
 
 function formatPrizeDisplay(type, amount, { fallback = 0 } = {}) {
@@ -264,8 +270,15 @@ export default function Admin() {
 									<div>
 										<Label className="mb-1 block">Category</Label>
 										<div className="flex flex-wrap gap-2">
-											{categories.map(c=> (
-												<button key={c} type="button" onClick={()=>setForm(f=>({...f,category:c}))} className={`px-3 py-1 rounded-full text-xs border ${form.category===c?'bg-indigo-600 text-white border-indigo-600':'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>{c}</button>
+											{categoryOptions.map(({ value, label }) => (
+												<button
+													key={value}
+													type="button"
+													onClick={()=>setForm(f=>({...f,category:value}))}
+													className={`px-3 py-1 rounded-full text-xs border ${form.category===value?'bg-indigo-600 text-white border-indigo-600':'border-gray-300 text-gray-600 hover:bg-gray-100'}`}
+												>
+													{label}
+												</button>
 											))}
 										</div>
 									</div>
@@ -377,7 +390,7 @@ export default function Admin() {
 														<div className="flex-1 min-w-[240px]">
 															<h4 className="font-semibold">{q.title}</h4>
 															<div className="text-xs text-gray-600 flex flex-wrap gap-3 mt-1">
-																<span>Category: {q.category||'—'}</span>
+																<span>Category: {getCategoryLabel(q.category)||'—'}</span>
 																<span>Type: {prizeType}</span>
 																<span>Pool: {pool}</span>
 																<span>Prizes: {prizes}</span>
@@ -428,7 +441,7 @@ export default function Admin() {
 												<m.div key={q.id} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} className="border border-gray-200 rounded-xl p-4 bg-gray-50">
 													<h4 className="font-semibold">{q.title}</h4>
 													<div className="text-xs text-gray-600 flex flex-wrap gap-3 mt-1">
-														<span>Category: {q.category||'—'}</span>
+														<span>Category: {getCategoryLabel(q.category)||'—'}</span>
 														<span>Type: {prizeType}</span>
 														<span>Pool: {pool}</span>
 														<span>Prizes: {prizes}</span>

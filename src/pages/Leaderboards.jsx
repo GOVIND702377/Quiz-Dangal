@@ -28,6 +28,7 @@ export default function Leaderboards() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
   const loadLeaderboard = useCallback(async (p) => {
     setLoading(true);
@@ -237,8 +238,8 @@ export default function Leaderboards() {
             )}
           </div>
         ) : (
-          <m.div layout className="flex flex-col gap-3">
-    {filteredRows.map((r, i) => {
+      <m.div layout className="flex flex-col gap-3">
+    {(showAll ? filteredRows : filteredRows.slice(0, 5)).map((r, i) => {
               const rank = r.rank || i + 1;
               const highlight = myRank === rank;
               const top3 = rank <= 3; // removed unused top10 variable
@@ -276,7 +277,29 @@ export default function Leaderboards() {
                 </m.div>
               );
             })}
-            <div className="flex justify-end text-[11px] uppercase tracking-wide text-indigo-400/70 mt-2 items-center">Showing {filteredRows.length} of {rows.length}<ChevronRight className="w-3 h-3 ml-1" /></div>
+            {filteredRows.length > 5 && (
+              <div className="mt-2 flex justify-center">
+                {!showAll ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAll(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-200 text-xs hover:bg-slate-800 shadow-sm"
+                    aria-label="Show more ranks"
+                  >
+                    Show more <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowAll(false)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-200 text-xs hover:bg-slate-800 shadow-sm"
+                    aria-label="Show less ranks"
+                  >
+                    Show less
+                  </button>
+                )}
+              </div>
+            )}
           </m.div>
         )}
       </div>

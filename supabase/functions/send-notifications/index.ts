@@ -4,8 +4,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 // Defer web-push import to request time to avoid startup errors on preflight
 let webpush: any | null = null;
 
-const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY");
-const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY");
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE") || "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("VITE_SUPABASE_ANON_KEY") || "";
+const CRON_SECRET = Deno.env.get("CRON_SECRET") || "";
+
+const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY") || Deno.env.get("VITE_VAPID_PUBLIC_KEY");
+const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") || Deno.env.get("VITE_VAPID_PRIVATE_KEY");
 // Support both CONTACT_EMAIL and legacy VAPID_CONTACT_EMAIL env names
 const VAPID_CONTACT =
   Deno.env.get("CONTACT_EMAIL") ||
@@ -51,22 +56,37 @@ serve(async (req) => {
     return new Response("Method Not Allowed", { status: 405, headers: { ...makeCorsHeaders(req) } });
   }
   try {
-  const { message, title, type, url, segment, quizId, mode } = await req.json();
+    const { message, title, type, url, segment, quizId, mode } = await req.json();
+
+    const missingCoreConfig: string[] = [];
+    if (!SUPABASE_URL) missingCoreConfig.push('SUPABASE_URL');
+    if (!SUPABASE_SERVICE_ROLE) missingCoreConfig.push('SUPABASE_SERVICE_ROLE_KEY');
+    if (!HAS_VAPID) missingCoreConfig.push('VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY');
+    if (!SUPABASE_ANON_KEY && mode !== 'cron') missingCoreConfig.push('SUPABASE_ANON_KEY');
+
+    if (missingCoreConfig.length > 0) {
+      const detail = `Missing required environment variables: ${missingCoreConfig.join(', ')}`;
+      console.error(detail);
+      const status = missingCoreConfig.includes('VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY') ? 503 : 500;
+      return new Response(
+        JSON.stringify({ error: detail }),
+        { status, headers: { 'Content-Type': 'application/json', ...makeCorsHeaders(req) } }
+      );
+    }
 
     // Two modes:
     //  - user: default; requires Authorization of an admin user
     //  - cron: requires X-Cron-Secret header matching env CRON_SECRET; skips user admin check
     const cronSecretHeader = req.headers.get('X-Cron-Secret') || req.headers.get('x-cron-secret');
-    const cronSecretEnv = Deno.env.get('CRON_SECRET');
-    const isCronMode = mode === 'cron' && cronSecretEnv && cronSecretHeader && cronSecretHeader === cronSecretEnv;
+    const isCronMode = mode === 'cron' && CRON_SECRET && cronSecretHeader && cronSecretHeader === CRON_SECRET;
 
     let user: { id: string } | null = null;
     if (!isCronMode) {
       // Authenticate caller and ensure they are admin
       const authHeader = req.headers.get('Authorization');
       const supabaseUserClient = createClient(
-        Deno.env.get("SUPABASE_URL") ?? "",
-        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        SUPABASE_URL,
+        SUPABASE_ANON_KEY,
         { global: { headers: { Authorization: authHeader ?? '' } } }
       );
       const userResp = await supabaseUserClient.auth.getUser();
@@ -84,17 +104,9 @@ serve(async (req) => {
     }
 
     const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      // Support both SUPABASE_SERVICE_ROLE_KEY and SUPABASE_SERVICE_ROLE
-      (Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE") || "")
+      SUPABASE_URL,
+      SUPABASE_SERVICE_ROLE
     );
-
-    if (!HAS_VAPID) {
-      return new Response(
-        JSON.stringify({ error: "Push notifications are not configured (missing VAPID keys)." }),
-        { status: 503, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } }
-      );
-    }
 
     // Verify admin role from profiles table
     if (!isCronMode) {

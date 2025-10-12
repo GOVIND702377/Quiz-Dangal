@@ -7,9 +7,10 @@ dist/stats.html
 coverage
 .DS_Store
 *.log
-# Allow SQL migrations under supabase/migrations
+# Allow only project SQL under supabase/migrations and supabase/sql
 *.sql
 !supabase/migrations/*.sql
+!supabase/sql/*.sql
 *.sqlite
 *.db
 *.db-wal

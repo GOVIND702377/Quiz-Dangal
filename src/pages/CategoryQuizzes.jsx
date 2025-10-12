@@ -5,7 +5,7 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { rateLimit } from '@/lib/security';
 import { formatDateOnly, formatTimeOnly, getPrizeDisplay } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
-import { Users, Flame, MessageSquare, Brain, Clapperboard, Clock } from 'lucide-react';
+import { Users, Flame, MessageSquare, Brain, Clapperboard, Clock, Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 
@@ -21,7 +21,7 @@ function categoryMeta(slug = '') {
   const s = String(slug || '').toLowerCase();
   if (s.includes('opinion')) return { title: 'Opinion Quizzes', emoji: '💬', Icon: MessageSquare, from: 'from-indigo-600/30', to: 'to-fuchsia-600/30', ring: 'ring-fuchsia-500/30' };
   if (s.includes('gk')) return { title: 'GK Quizzes', emoji: '🧠', Icon: Brain, from: 'from-emerald-600/30', to: 'to-teal-600/30', ring: 'ring-emerald-500/30' };
-  if (s.includes('sport')) return { title: 'Sports Quizzes', emoji: '🔥', Icon: Flame, from: 'from-orange-600/30', to: 'to-red-600/30', ring: 'ring-orange-500/30' };
+  if (s.includes('sport')) return { title: 'Sports Quizzes', emoji: '🏆', Icon: Trophy, from: 'from-orange-600/30', to: 'to-red-600/30', ring: 'ring-orange-500/30' };
   if (s.includes('movie')) return { title: 'Movie Quizzes', emoji: '🎬', Icon: Clapperboard, from: 'from-violet-600/30', to: 'to-indigo-600/30', ring: 'ring-violet-500/30' };
   return { title: `${slug} Quizzes`, emoji: '⭐', Icon: MessageSquare, from: 'from-sky-600/30', to: 'to-indigo-600/30', ring: 'ring-sky-500/30' };
 }

@@ -28,6 +28,19 @@ async function callSendNotifications(payload: Record<string, unknown>) {
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('', { status: 204 });
   try {
+    const missingConfig: string[] = [];
+    if (!SUPABASE_URL) missingConfig.push('SUPABASE_URL');
+    if (!SERVICE_ROLE) missingConfig.push('SUPABASE_SERVICE_ROLE_KEY');
+    if (!SUPABASE_ANON_KEY) missingConfig.push('SUPABASE_ANON_KEY');
+    if (missingConfig.length) {
+      const detail = `Missing required environment variables: ${missingConfig.join(', ')}`;
+      console.error(detail);
+      return new Response(
+        JSON.stringify({ error: detail }),
+        { status: 500, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Optional protection: require CRON_SECRET on public call to avoid accidental manual trigger
     const headerSecret = req.headers.get('X-Cron-Secret') || req.headers.get('x-cron-secret') || '';
     if (CRON_SECRET) {

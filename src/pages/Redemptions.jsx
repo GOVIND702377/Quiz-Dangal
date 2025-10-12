@@ -25,26 +25,51 @@ export default function Redemptions() {
   const [historyQuery] = useState(''); // removed setter (unused)
   const [historySort] = useState('newest'); // removed setter (unused)
   
+  // Use backend reward_value exactly as provided (no extra suffix/prefix)
+  const getRawRewardValue = useCallback((rw) => {
+    if (!rw) return '';
+    const v = rw.reward_value ?? rw.value ?? rw.amount ?? '';
+    return (v === null || v === undefined) ? '' : String(v).trim();
+  }, []);
 
   const loadRedemptions = useCallback(async () => {
-    if (!user || !hasSupabaseConfig || !supabase) return;
+    if (!user || !hasSupabaseConfig || !supabase) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    const res = await supabase
-      .from('redemptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
-    setRows(res.data || []);
-    setLoading(false);
-  }, [user]);
+    try {
+      const { data, error } = await supabase
+        .from('redemptions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('requested_at', { ascending: false });
+      if (error) {
+        console.error('Failed to fetch redemptions history', error);
+        setRows([]);
+        return;
+      }
+      setRows(data || []);
+    } catch (err) {
+      console.error('Unexpected error while fetching redemptions history', err);
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, hasSupabaseConfig, supabase]);
 
   useEffect(() => {
-    if (!user || !hasSupabaseConfig || !supabase) return;
+    if (!user || !hasSupabaseConfig || !supabase) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
     const run = async () => { await loadRedemptions(); };
     run();
     const interval = setInterval(run, 15000);
     return () => { clearInterval(interval); };
-  }, [user, loadRedemptions]);
+  }, [user, hasSupabaseConfig, supabase, loadRedemptions]);
 
   // Load available rewards from backend catalog (reward_catalog)
   useEffect(() => {
@@ -288,68 +313,81 @@ export default function Redemptions() {
         ) : (filteredRewards?.length || 0) === 0 ? (
           <div className="text-center py-8 text-slate-300">No rewards found. Try a different search or filter.</div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {filteredRewards.map((rw) => {
-              const price = Number(rw.coins_required || rw.coins || 0);
+              const price = Number(rw.coins_required ?? rw.coin_cost ?? rw.coins ?? 0);
+              const rewardValue = getRawRewardValue(rw);
               const affordable = walletCoins >= price;
               const createdAt = rw.created_at ? new Date(rw.created_at).getTime() : 0;
               const isNew = createdAt && Date.now() - createdAt <= 1000 * 60 * 60 * 24 * 14;
+              const pct = price > 0 ? Math.max(0, Math.min(100, Math.floor((walletCoins / price) * 100))) : 0;
               return (
-                <m.div key={rw.id} className="group rounded-2xl p-[1px] bg-gradient-to-br from-indigo-500/30 via-fuchsia-500/20 to-violet-500/30 shadow-lg relative overflow-hidden" whileHover={{ y: -2, scale: 1.005 }} transition={{ type: 'spring', stiffness: 260, damping: 20 }}>
-                  {/* subtle conic shine on hover */}
-                  <m.div
-                    className="pointer-events-none absolute -inset-20 opacity-0 group-hover:opacity-40 bg-[conic-gradient(from_200deg_at_50%_50%,rgba(99,102,241,0.15),rgba(217,70,239,0.12),rgba(236,72,153,0.1),transparent_60%)]"
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 18, ease: 'linear' }}
-                  />
-                  <div className="relative rounded-2xl p-3 bg-slate-900/60 border border-white/10 transition duration-200 group-hover:border-indigo-400/50 group-hover:bg-slate-900/50">
-                    <div className="relative rounded-xl bg-white/5 border border-white/10 h-28 overflow-hidden">
+                <m.div 
+                  key={rw.id} 
+                  className="group relative rounded-2xl p-3.5 bg-white/[0.05] border border-white/10 shadow-lg backdrop-blur-xl overflow-hidden"
+                  whileHover={{ y: -3, scale: 1.01 }} 
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                >
+                  {/* Gift box with premium frame */}
+                  <div className="relative rounded-xl p-[2px] bg-gradient-to-br from-indigo-500/30 via-fuchsia-500/20 to-violet-500/30">
+                    <div className="relative rounded-[10px] h-32 overflow-hidden bg-black/25">
                       {rw.image_url ? (
                         <img
                           src={rw.image_url}
                           alt={rw.title || 'Reward'}
-                          className="h-full w-full object-cover"
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                           onError={(e)=>{ e.currentTarget.style.display='none'; }}
                         />
                       ) : (
-                        <div className="h-full w-full grid place-items-center">
-                          <Gift className="w-7 h-7 text-white/80" />
+                        <div className="absolute inset-0 grid place-items-center">
+                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 ring-2 ring-white/20 shadow-lg grid place-items-center">
+                            <Gift className="w-8 h-8 text-white/95" />
+                          </div>
                         </div>
                       )}
-                      {/* coin price badge */}
-                      <div className="absolute top-2 right-2 inline-flex items-center gap-1.5 rounded-full px-2 py-1 bg-black/55 backdrop-blur border border-white/10 text-[11px] font-semibold text-indigo-100 shadow">
-                        <Coins className="w-3.5 h-3.5" /> {price.toLocaleString()}
+                      {/* soft shine */}
+                      <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(500px_120px_at_20%_-20%,rgba(255,255,255,0.18),transparent),radial-gradient(500px_120px_at_80%_120%,rgba(255,255,255,0.12),transparent)]" />
+                      {/* removed top-left badges/labels inside gift box for a cleaner look */}
+                    </div>
+                  </div>
+                  {/* Value below the gift box */}
+                  <div className="mt-3 text-center">
+                    {rewardValue && (
+                      <div className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 bg-white/10 border border-white/15 backdrop-blur-sm shadow-sm" title={rewardValue}>
+                        <Sparkles className="w-4 h-4 text-fuchsia-200" />
+                        <span className="text-white font-bold text-base sm:text-lg tracking-tight">{rewardValue}</span>
                       </div>
-                      {isNew && (
-                        <div className="absolute left-0 top-2 rounded-r-full px-2 py-0.5 bg-fuchsia-500/80 text-[10px] font-bold text-white tracking-wide shadow">NEW</div>
-                      )}
+                    )}
+                    {rw.title && (
+                      <div className="text-sm font-semibold text-slate-200/90 truncate mt-1">{rw.title}</div>
+                    )}
+                    <div className="mt-2 text-xs text-indigo-200/90 font-medium">
+                      Requires <span className="font-bold text-indigo-100">{price.toLocaleString()}</span> coins
                     </div>
-                    <div className="mt-2">
-                      <div className="text-sm font-semibold text-slate-100 truncate">{rw.title || rw.reward_type}</div>
-                      {rw.description ? (
-                        <div className="text-[12px] text-slate-300/80 line-clamp-2 min-h-[28px]">{rw.description}</div>
-                      ) : (
-                        <div className="h-[28px]" />
-                      )}
-                      <button
-                        type="button"
-                        disabled={!affordable}
-                        className={`mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition focus:outline-none focus:ring-2 focus:ring-indigo-400/40 ${
-                          affordable
-                            ? 'bg-gradient-to-r from-indigo-600/85 to-fuchsia-600/85 text-white border-white/10 hover:from-indigo-600 hover:to-fuchsia-600 shadow-md hover:shadow-lg active:scale-[0.99]'
-                            : 'bg-white/5 text-slate-300/70 border-white/10 cursor-not-allowed'
-                        }`}
-                        onClick={() => onRedeemClick(rw)}
-                        title={affordable ? 'Redeem reward' : 'Not enough coins'}
-                      >
-                        Redeem <ArrowRight className="w-4 h-4" />
-                      </button>
-                      {!affordable && (
-                        <div className="mt-1 text-[10px] text-slate-400/80">
-                          Not enough coins. <Link to="/refer" className="text-indigo-300 hover:underline">Earn more</Link>
-                        </div>
-                      )}
+                  </div>
+                  <div className="mt-3">
+                    <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500" style={{ width: `${pct}%` }} />
                     </div>
+                    <button
+                      type="button"
+                      disabled={!affordable}
+                      className={`mt-3 w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition focus:outline-none focus:ring-2 focus:ring-indigo-400/40 ${
+                        affordable
+                          ? 'bg-gradient-to-r from-indigo-600/85 to-fuchsia-600/85 text-white border-white/10 hover:from-indigo-600 hover:to-fuchsia-600 shadow-md hover:shadow-lg active:scale-[0.99]'
+                          : 'bg-white/5 text-slate-300/70 border-white/10 cursor-not-allowed'
+                      }`}
+                      onClick={() => onRedeemClick(rw)}
+                      title={affordable ? 'Redeem reward' : 'Not enough coins'}
+                    >
+                      Redeem <ArrowRight className="w-4 h-4" />
+                    </button>
+                    {!affordable && (
+                      <div className="mt-1.5 text-center text-[10px] text-slate-400/90">
+                        Need <span className="text-rose-200 font-semibold">{Math.max(0, price - walletCoins).toLocaleString()}</span> more coins.{' '}
+                        <Link to="/refer" className="text-indigo-300 hover:underline">Earn</Link>
+                      </div>
+                    )}
                   </div>
                 </m.div>
               );
@@ -419,25 +457,24 @@ export default function Redemptions() {
               const badge = statusBadge(r.status);
               const BadgeIcon = badge.icon;
               return (
-                <m.div key={r.id} className={`p-3 rounded-xl bg-indigo-900/30 border border-indigo-700/40 hover:border-indigo-400/50 transition hover:shadow-lg ${badge.rowAccent}`} whileHover={{ y: -2 }}>
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="relative w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-violet-500 to-fuchsia-500 ring-2 ring-white/20">
+                <m.div key={r.id} className={`p-3 sm:p-3.5 rounded-xl bg-indigo-900/30 border border-indigo-700/40 hover:border-indigo-400/50 transition hover:shadow-lg ${badge.rowAccent}`} whileHover={{ y: -2 }}>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3">
+                    <div className="flex items-start sm:items-center gap-3 min-w-0">
+                      <div className="relative w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-violet-500 to-fuchsia-500 ring-2 ring-white/20 flex-shrink-0">
                         <Gift className="w-5 h-5 text-white" />
                       </div>
                       <div className="min-w-0">
-                        <p className="font-semibold text-slate-100 truncate">
-                          {r.reward_type}: {r.reward_value}
-                        </p>
-                        <p className="text-[11px] text-slate-400/80 font-mono truncate">
+                        {/* reward value only */}
+                        <div className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 bg-white/5 border border-white/10 backdrop-blur-sm shadow-sm">
+                          <Sparkles className="w-3.5 h-3.5 text-fuchsia-200" />
+                          <span className="text-slate-100 font-semibold text-sm truncate max-w-[200px] sm:max-w-[280px]">{r.reward_value}</span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-slate-400/80 font-mono truncate">
                           {r.requested_at ? new Date(r.requested_at).toLocaleString() : ''}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-sm font-bold text-indigo-200 whitespace-nowrap">
-                        {Number(r.coins_required || 0).toLocaleString()} <span className="text-[10px] uppercase text-slate-400/80">coins</span>
-                      </div>
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-semibold ${badge.className} shadow`}> 
                         <BadgeIcon className="w-3.5 h-3.5" /> {badge.label}
                       </span>
@@ -467,101 +504,128 @@ export default function Redemptions() {
 
   {/* Redeem Preview Dialog */}
       <Dialog open={redeemOpen} onOpenChange={setRedeemOpen}>
-        <DialogContent className="bg-slate-900/95 border-white/10 text-slate-100 sm:rounded-2xl p-0 overflow-hidden">
+        <DialogContent className="bg-slate-900/95 border-white/10 text-slate-100 rounded-xl sm:rounded-2xl p-0 overflow-hidden w-[min(94vw,600px)] sm:max-w-xl md:max-w-2xl max-h-[86svh]">
           {selectedReward && (
-            <div className="relative">
-              <div className="relative h-28 bg-gradient-to-r from-indigo-600/30 via-fuchsia-600/20 to-pink-600/30">
-                <div className="absolute inset-0 bg-[radial-gradient(800px_200px_at_10%_-50%,rgba(99,102,241,0.35),transparent),radial-gradient(700px_200px_at_90%_130%,rgba(217,70,239,0.35),transparent)]" />
-              </div>
-              <div className="p-5">
-                <DialogHeader>
-                  <DialogTitle className="text-xl flex items-center gap-2">
-                    <PartyPopper className="w-5 h-5 text-fuchsia-300" /> Redeem Reward
-                  </DialogTitle>
-                  <DialogDescription className="text-slate-300">
-                    Review the details below and confirm your redemption.
-                  </DialogDescription>
-                </DialogHeader>
+            <div className="p-4 sm:p-6 md:p-7">
+              <DialogHeader className="text-center">
+                <DialogTitle className="text-xl sm:text-2xl flex items-center gap-2 justify-center font-extrabold">
+                  <PartyPopper className="w-6 h-6 text-fuchsia-300" /> Redeem Reward
+                </DialogTitle>
+                <DialogDescription className="text-slate-300 text-sm sm:text-base mt-1 md:mt-1 text-center">
+                  Confirm your redemption below.
+                </DialogDescription>
+              </DialogHeader>
 
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="sm:col-span-1">
-                    <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
-                      <div className="h-28 bg-black/30 grid place-items-center">
-                        {selectedReward.image_url ? (
-                          <img src={selectedReward.image_url} alt={selectedReward.title || 'Reward'} className="h-full w-full object-cover" onError={(e)=>{ e.currentTarget.style.display='none'; }} loading="lazy" decoding="async" />
-                        ) : (
-                          <Gift className="w-7 h-7 text-white/80" />
-                        )}
-                      </div>
-                      <div className="p-3">
-                        <div className="text-sm font-semibold truncate">{selectedReward.title || selectedReward.reward_type}</div>
-                        {selectedReward.description && (
-                          <div className="text-xs text-slate-300/80 line-clamp-2 mt-0.5">{selectedReward.description}</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="sm:col-span-2 grid gap-3 content-start">
-                    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-                      <span className="text-sm text-slate-300">Price</span>
-                      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-fuchsia-200"><Coins className="w-4 h-4" /> {Number(selectedReward.coins_required || selectedReward.coins || 0).toLocaleString()} coins</span>
-                    </div>
-                    <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
-                      <span className="text-sm text-slate-300">Your balance</span>
-                      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-200"><WalletIcon className="w-4 h-4" /> {walletCoins.toLocaleString()} coins</span>
-                    </div>
-                    <div className="text-xs text-slate-400">Note: Redemption is instant. Your coins will be deducted immediately and the reward will be issued.</div>
-                  </div>
-                </div>
-
-                <DialogFooter className="mt-5">
-                  {redeemStep === 'confirm' ? (
-                    <div className="w-full flex gap-2 sm:justify-end">
-                      <Button variant="soft" onClick={() => setRedeemOpen(false)} className="border border-white/10">Cancel</Button>
-                      <Button onClick={handleConfirmRedeem} disabled={redeemSubmitting || walletCoins < Number(selectedReward.coins_required || selectedReward.coins || 0)} className="bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-600 hover:to-fuchsia-600">
-                        {redeemSubmitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Processing</>) : (<>Confirm & Redeem</>)}
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="w-full">
-                      <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-emerald-100 flex items-start gap-3">
-                        <CheckCircle2 className="w-5 h-5 text-emerald-300 mt-0.5" />
-                        <div>
-                          <div className="font-semibold">Redeemed successfully</div>
-                          <div className="text-xs opacity-80">Your reward has been granted immediately.</div>
+              {(() => {
+                const price = Number(selectedReward.coins_required ?? selectedReward.coin_cost ?? selectedReward.coins ?? 0);
+                const valueStr = getRawRewardValue(selectedReward);
+                const canAfford = walletCoins >= price;
+                const coinsLeft = Math.max(0, walletCoins - price);
+                return (
+                  <div className="mt-4 md:mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 items-center">
+                    <div className="sm:col-span-1 flex items-center justify-center">
+                      {/* Premium framed box like cards (rectangular), mirrors main grid */}
+                      <div className="relative w-full max-w-[220px] md:max-w-[260px] rounded-2xl p-[2px] bg-gradient-to-br from-indigo-500/30 via-fuchsia-500/20 to-violet-500/30 shadow-lg">
+                        <div className="relative rounded-2xl bg-slate-900/80 backdrop-blur-lg p-3 text-center overflow-hidden">
+                          {/* gift image area - rectangular like cards */}
+                          <div className="relative rounded-[10px] h-32 md:h-36 overflow-hidden bg-black/25">
+                            {selectedReward.image_url ? (
+                              <img src={selectedReward.image_url} alt={selectedReward.title || 'Reward'} className="h-full w-full object-cover" onError={(e)=>{ e.currentTarget.style.display='none'; }} loading="lazy" decoding="async" />
+                            ) : (
+                              <div className="absolute inset-0 grid place-items-center">
+                                <div className="w-20 h-20 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 ring-2 ring-white/20 shadow-lg grid place-items-center">
+                                  <Gift className="w-10 h-10 md:w-8 md:h-8 text-white/95" />
+                                </div>
+                              </div>
+                            )}
+                            {/* soft shine */}
+                            <div className="pointer-events-none absolute inset-0 opacity-10 bg-[radial-gradient(500px_120px_at_20%_-20%,rgba(255,255,255,0.18),transparent),radial-gradient(500px_120px_at_80%_120%,rgba(255,255,255,0.12),transparent)]" />
+                          </div>
+                          <div className="mt-3">
+                            {selectedReward.title && (
+                              <div className="text-base font-bold text-white truncate">{selectedReward.title}</div>
+                            )}
+                            {valueStr && (
+                              <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 bg-white/10 border border-white/15 backdrop-blur-sm shadow-sm">
+                                <Sparkles className="w-4 h-4 text-fuchsia-200" />
+                                <span className="text-white font-bold text-base tracking-tight">{valueStr}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      {/* Confetti micro-animation */}
-                      <AnimatePresence>
-                        <m.div
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="relative h-0"
-                        >
-                          {[...Array(10)].map((_, i) => (
-                            <m.span
-                              key={i}
-                              className="absolute inline-block w-2 h-2 rounded-sm"
-                              style={{
-                                left: `${10 + i * 8}%`,
-                                top: -8,
-                                background: ['#a78bfa','#f472b6','#60a5fa','#34d399','#f59e0b'][i % 5],
-                              }}
-                              initial={{ y: -10, rotate: 0, opacity: 0 }}
-                              animate={{ y: 40 + Math.random() * 20, rotate: 120 + Math.random() * 180, opacity: 1 }}
-                              transition={{ duration: 0.9, delay: i * 0.04, ease: 'ease-out' }}
-                            />
-                          ))}
-                        </m.div>
-                      </AnimatePresence>
-                      <div className="mt-4 flex justify-end">
-                        <Button onClick={() => setRedeemOpen(false)} variant="brand">Close</Button>
+                    </div>
+                    <div className="sm:col-span-2 grid gap-3 content-start md:-mt-2">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+                          <div className="text-[11px] text-slate-400">Coins required</div>
+                          <div className="text-sm font-semibold text-fuchsia-200 inline-flex items-center gap-1.5"><Coins className="w-4 h-4" />{price.toLocaleString()}</div>
+                        </div>
+                        <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
+                          <div className="text-[11px] text-slate-400">Your balance</div>
+                          <div className="text-sm font-semibold text-indigo-200 inline-flex items-center gap-1.5"><WalletIcon className="w-4 h-4" />{walletCoins.toLocaleString()}</div>
+                        </div>
+                      </div>
+                      <div className="text-xs text-slate-400 text-center sm:text-left">
+                        {canAfford ? (
+                          <span>After redeem, you'll have <span className="text-indigo-200 font-semibold">{coinsLeft.toLocaleString()}</span> coins left.</span>
+                        ) : (
+                          <span>You are short by <span className="text-rose-200 font-semibold">{Math.max(0, price - walletCoins).toLocaleString()}</span> coins.</span>
+                        )}
                       </div>
                     </div>
-                  )}
-                </DialogFooter>
-              </div>
+                  </div>
+                );
+              })()}
+
+              <DialogFooter className="mt-6">
+                {redeemStep === 'confirm' ? (
+                  <div className="w-full">
+                    {(() => { const price = Number(selectedReward.coins_required ?? selectedReward.coin_cost ?? selectedReward.coins ?? 0); return (
+                    <Button onClick={handleConfirmRedeem} disabled={redeemSubmitting || walletCoins < price} className="w-full bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-600 hover:to-fuchsia-600 text-base py-3 h-12">
+                      {redeemSubmitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Processing</>) : (<>Confirm & Redeem for {price.toLocaleString()} coins</>)}
+                    </Button>
+                    ); })()}
+                  </div>
+                ) : (
+                  <div className="w-full">
+                    <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-emerald-100 flex items-start gap-3">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-300 mt-0.5" />
+                      <div>
+                        <div className="font-semibold">Redeemed successfully</div>
+                        <div className="text-xs opacity-80">Your reward has been granted immediately.</div>
+                      </div>
+                    </div>
+                    {/* Confetti micro-animation */}
+                    <AnimatePresence>
+                      <m.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="relative h-0"
+                      >
+                        {[...Array(10)].map((_, i) => (
+                          <m.span
+                            key={i}
+                            className="absolute inline-block w-2 h-2 rounded-sm"
+                            style={{
+                              left: `${10 + i * 8}%`,
+                              top: -8,
+                              background: ['#a78bfa','#f472b6','#60a5fa','#34d399','#f59e0b'][i % 5],
+                            }}
+                            initial={{ y: -10, rotate: 0, opacity: 0 }}
+                            animate={{ y: 40 + Math.random() * 20, rotate: 120 + Math.random() * 180, opacity: 1 }}
+                            transition={{ duration: 0.9, delay: i * 0.04, ease: 'easeOut' }}
+                          />
+                        ))}
+                      </m.div>
+                    </AnimatePresence>
+                    <div className="mt-4 flex justify-end">
+                      <Button onClick={() => setRedeemOpen(false)} variant="brand">Close</Button>
+                    </div>
+                  </div>
+                )}
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
