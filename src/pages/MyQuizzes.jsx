@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { m } from 'framer-motion';
+import { m } from '@/lib/motion-lite';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Clock, Play, Loader2, Users } from 'lucide-react';

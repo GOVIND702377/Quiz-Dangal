@@ -1,7 +1,7 @@
 // Unified Admin panel (merged from former AdminClean). Single source of truth.
 // Keep this file focused and under control; add new panels as separate components if it grows.
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { m, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from '@/lib/motion-lite';
 import { Plus, Trash2, RefreshCcw, ListChecks, Loader2, Eye, Settings } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Button } from '@/components/ui/button';

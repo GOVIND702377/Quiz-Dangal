@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "../lib/customSupabaseClient";
+import { supabase } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from "@/components/ui/button";
-import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Share2, Sparkles, Coins } from 'lucide-react';
+import { Loader2, Crown, Camera, LogOut, ChevronRight, Info, Mail, FileText, Shield, Share2, Sparkles, Coins, Copy, Check, Users } from 'lucide-react';
 import ProfileUpdateModal from '@/components/ProfileUpdateModal';
 import SEO from '@/components/SEO';
+import { getSignedAvatarUrl } from '@/lib/avatar';
 
 export default function Profile() {
   const { signOut } = useAuth();
@@ -18,6 +19,9 @@ export default function Profile() {
   const [showLevelInfo, setShowLevelInfo] = useState(false);
   const [derivedLevel, setDerivedLevel] = useState(0);
   const [derivedNext, setDerivedNext] = useState({ nextLevel: 1, nextReq: 50, have: 0, remaining: 50, currReq: 0 });
+  const [referrerProfile, setReferrerProfile] = useState(null);
+  const [referrerAvatar, setReferrerAvatar] = useState('');
+  const [copiedCode, setCopiedCode] = useState(false);
 
   // Local thresholds (1..100) -> coins required (cumulative)
   const LEVEL_THRESHOLDS = useMemo(() => ([
@@ -68,16 +72,34 @@ export default function Profile() {
       if (u) {
         const { data, error } = await supabase
           .from('profiles')
-          .select('*')
+          .select('id, email, username, full_name, avatar_url, total_coins, wallet_balance, referral_code, referred_by, referral_count, mobile_number, is_profile_complete, level')
           .eq('id', u.id)
           .single();
         if (error) throw error;
         setProfile(data);
+        setReferrerProfile(null);
+        setReferrerAvatar('');
         // Derive level/progress locally (works even if DB migration not applied yet)
         const coins = Number(data?.total_coins || 0);
         const lvl = calcLevelFromCoins(coins);
         setDerivedLevel(lvl);
         setDerivedNext(computeNextInfo(coins, lvl));
+        if (data?.referred_by) {
+          try {
+            const { data: refProfiles, error: refErr } = await supabase
+              .rpc('profiles_public_by_ids', { p_ids: [data.referred_by] });
+            if (!refErr && Array.isArray(refProfiles) && refProfiles.length > 0) {
+              const ref = refProfiles[0];
+              setReferrerProfile(ref);
+              if (ref?.avatar_url) {
+                const signed = await getSignedAvatarUrl(ref.avatar_url);
+                if (signed) setReferrerAvatar(signed);
+              }
+            }
+          } catch (refFetchErr) {
+            console.warn('Referrer lookup failed:', refFetchErr);
+          }
+        }
         if (data?.avatar_url) {
           if (data.avatar_url.includes('://')) {
             setAvatarUrl(data.avatar_url);
@@ -98,10 +120,14 @@ export default function Profile() {
       } else {
         setProfile(null);
         setAvatarUrl('');
+        setReferrerProfile(null);
+        setReferrerAvatar('');
       }
     } catch (e) {
       setProfile(null);
       setAvatarUrl('');
+      setReferrerProfile(null);
+      setReferrerAvatar('');
     } finally {
       setLoading(false);
     }
@@ -160,6 +186,37 @@ export default function Profile() {
     const pos = Math.max(0, Math.min(span, have - currReq));
     return Math.round((pos / span) * 100);
   };
+
+  const copyReferralCode = useCallback(async () => {
+    const code = String(profile?.referral_code || '').trim();
+    if (!code) return;
+    const fallbackCopy = () => {
+      if (typeof document === 'undefined') return;
+      const ta = document.createElement('textarea');
+      ta.value = code;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    };
+    try {
+      if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        fallbackCopy();
+      }
+      setCopiedCode(true);
+    } catch (err) {
+      try {
+        fallbackCopy();
+        setCopiedCode(true);
+      } catch (fallbackErr) {
+        console.warn('Referral code copy failed:', fallbackErr);
+      }
+    }
+    setTimeout(() => setCopiedCode(false), 1800);
+  }, [profile?.referral_code]);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -289,6 +346,66 @@ export default function Profile() {
         
 
         {/* Push Notifications controls removed per requirement. Notifications will be prompted during Join Quiz flow. */}
+
+          {profile && (
+            <div className="qd-card rounded-3xl p-4 shadow-xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-100">
+                    <Users className="w-4 h-4 text-cyan-300" />
+                    <span>Referral Summary</span>
+                  </div>
+                  <p className="text-xs text-slate-400">Invite friends and earn bonus coins when they join Quiz Dangal.</p>
+                </div>
+                <Button asChild variant="outline" size="sm" className="rounded-xl border-cyan-500/40 text-cyan-200 hover:bg-cyan-900/30">
+                  <Link to="/refer" className="inline-flex items-center gap-1">
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Refer & Earn</span>
+                  </Link>
+                </Button>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-3">
+                  <div className="text-[11px] uppercase text-slate-400 tracking-wide">Your Code</div>
+                  <div className="mt-1 flex items-center justify-between gap-2">
+                    <span className="font-mono text-lg font-semibold text-emerald-200">{profile?.referral_code || '—'}</span>
+                    <Button onClick={copyReferralCode} variant="outline" size="icon" className="h-8 w-8 border-emerald-500/40 text-emerald-200 hover:bg-emerald-900/30">
+                      {copiedCode ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                    </Button>
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-3">
+                  <div className="text-[11px] uppercase text-slate-400 tracking-wide">Friends Referred</div>
+                  <div className="mt-1 text-2xl font-extrabold text-cyan-200">{Number(profile?.referral_count || 0)}</div>
+                  <p className="text-xs text-slate-400 mt-1">Track how many friends joined using your link.</p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-slate-700/60 bg-slate-900/50 p-3">
+                <div className="text-[11px] uppercase text-slate-400 tracking-wide">Referred By</div>
+                {profile?.referred_by ? (
+                  <div className="mt-2 flex items-center gap-3">
+                    {referrerAvatar ? (
+                      <img src={referrerAvatar} alt="Referrer avatar" className="w-10 h-10 rounded-full object-cover border border-slate-700/60" loading="lazy" decoding="async" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-slate-800/70 border border-slate-700/60 flex items-center justify-center text-sm font-semibold text-slate-200">
+                        {(referrerProfile?.username || referrerProfile?.id || '?').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div>
+                      <div className="text-sm font-semibold text-slate-100">
+                        {referrerProfile?.username ? `@${referrerProfile.username}` : 'Friend'}
+                      </div>
+                      {referrerProfile?.referral_code && (
+                        <div className="text-xs text-slate-400">Code: {referrerProfile.referral_code}</div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-sm text-slate-300">You joined directly. Share your code above to earn referral coins.</p>
+                )}
+              </div>
+            </div>
+          )}
 
         {/* Stats cards removed per requirement: Quizzes Played, Quizzes Won, Friends Referred */}
 

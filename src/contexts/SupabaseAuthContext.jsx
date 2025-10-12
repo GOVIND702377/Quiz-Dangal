@@ -239,6 +239,15 @@ function AuthProviderInner({ children }) {
     // SIGN UP FUNCTION (EMAIL)
     const signUp = async (email, password, { referralCode, options } = {}) => {
         const supabaseOptions = { ...(options || {}) };
+        // Ensure a valid redirect URL exists to avoid Gotrue 500 if SITE_URL is not configured
+        if (!supabaseOptions.emailRedirectTo) {
+            try {
+                // Use current origin as a safe default (e.g., http://localhost:5173 or prod domain)
+                supabaseOptions.emailRedirectTo = `${window.location.origin}/`;
+            } catch {
+                // In non-browser contexts, skip
+            }
+        }
         const normalizedReferral = normalizeReferralCode(referralCode);
         if (normalizedReferral) {
             supabaseOptions.data = {

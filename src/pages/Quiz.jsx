@@ -1,6 +1,6 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { m, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from '@/lib/motion-lite';
 import { Button } from '@/components/ui/button';
 import { formatDateOnly, formatTimeOnly, getPrizeDisplay } from '@/lib/utils';
 import { useQuizEngine } from '@/hooks/useQuizEngine';

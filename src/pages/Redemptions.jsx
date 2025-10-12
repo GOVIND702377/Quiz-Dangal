@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react';
-import { AnimatePresence, m } from 'framer-motion';
+import { AnimatePresence, m } from '@/lib/motion-lite';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Loader2, Receipt, Gift, CheckCircle2, Clock, XCircle, Coins, Wallet as WalletIcon, Search, Sparkles, PartyPopper, ArrowRight, Copy } from 'lucide-react';

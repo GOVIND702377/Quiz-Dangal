@@ -1,14 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { LazyMotion } from 'framer-motion';
 import { initWebVitals } from '@/lib/webVitals';
 import { AuthProvider } from '@/contexts/SupabaseAuthContext';
 import App from '@/App';
 import '@/index.css';
 import { HelmetProvider } from 'react-helmet-async';
 import { SoundProvider } from './contexts/SoundContext';
-
-const loadDomAnimation = () => import('framer-motion').then((mod) => mod.domAnimation);
+import { warmMotion } from '@/lib/motion-lite';
 
 const rootEl = document.getElementById('root');
 if (!rootEl) {
@@ -20,9 +18,7 @@ if (!rootEl) {
       <AuthProvider>
         <HelmetProvider>
           <SoundProvider>
-            <LazyMotion features={loadDomAnimation} strict>
-              <App />
-            </LazyMotion>
+            <App />
           </SoundProvider>
         </HelmetProvider>
       </AuthProvider>
@@ -33,4 +29,5 @@ if (!rootEl) {
 // Defer vitals collection until after initial paint.
 if (typeof window !== 'undefined') {
   requestIdleCallback ? requestIdleCallback(() => initWebVitals()) : setTimeout(() => initWebVitals(), 1500);
+  warmMotion();
 }

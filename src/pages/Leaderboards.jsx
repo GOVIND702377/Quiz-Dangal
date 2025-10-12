@@ -3,7 +3,7 @@ import SEO from '@/components/SEO';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Loader2, ChevronRight, Search, Zap } from 'lucide-react';
-import { m, AnimatePresence } from 'framer-motion';
+import { m, AnimatePresence } from '@/lib/motion-lite';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 
 const periods = [

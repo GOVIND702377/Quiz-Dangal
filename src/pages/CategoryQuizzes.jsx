@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { m } from 'framer-motion';
+import { m } from '@/lib/motion-lite';
 import { supabase } from '@/lib/customSupabaseClient';
 import { rateLimit } from '@/lib/security';
 import { formatDateOnly, formatTimeOnly, getPrizeDisplay } from '@/lib/utils';

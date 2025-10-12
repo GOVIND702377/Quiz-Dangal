@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import SEO from '@/components/SEO';
-import { Gift, Users, Coins, Share2, Copy, Check } from 'lucide-react';
+import { Gift, Users, Coins, Share2, Copy, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { normalizeReferralCode, saveReferralCode } from '@/lib/referralStorage';
@@ -22,7 +22,7 @@ const ReferEarn = () => {
   })();
   const referralCode = normalizeReferralCode(userProfile?.referral_code || fallbackCode);
   const referralLink = `https://quizdangal.com/?ref=${referralCode}`;
-  const shareCaption = `Yo! 🤩 Ab dimaag se paisa banao 💸
+  const shareCaption = useMemo(() => `Yo! 🤩 Ab dimaag se paisa banao 💸
 Join Quiz Dangal – jaha brains = fame ✨
 
 👉 बस नीचे दिए लिंक पर जाओ
@@ -32,7 +32,7 @@ Referral Code: ${referralCode} डालो
 Don’t scroll, hustle smartly 💯
 
 Referral Link:
-${referralLink}`;
+${referralLink}`, [referralCode, referralLink]);
 
     const faqSchema = {
       '@context': 'https://schema.org',
@@ -73,9 +73,10 @@ ${referralLink}`;
       try {
         const { data: referrals, error } = await supabase
           .from('referrals')
-          .select('*')
+          .select('id, referred_id, coins_awarded, created_at, referral_code')
           .eq('referrer_id', user.id)
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(100);
         if (error && error.code !== 'PGRST116') throw error;
         if (!mounted) return;
 
@@ -106,9 +107,9 @@ ${referralLink}`;
           }
         }
 
-  const total = history.length;
-  const earnings = history.reduce((sum, r) => sum + (r.coins_awarded || 0), 0) || 0;
-  setReferralStats({ total, earnings });
+        const total = history.length;
+        const earnings = history.reduce((sum, r) => sum + (Number(r.coins_awarded) || 0), 0);
+        setReferralStats({ total, earnings });
         setReferralHistory(history);
       } catch (e) {
         if (!mounted) return;
@@ -308,7 +309,12 @@ ${referralLink}`;
         </div>
 
         {/* History */}
-        {!loading && (
+        {loading ? (
+          <div className="text-center py-10 text-slate-300">
+            <Loader2 className="w-6 h-6 mx-auto mb-2 animate-spin text-cyan-200" />
+            <p>Loading your referral stats…</p>
+          </div>
+        ) : (
           referralHistory.length > 0 ? (
             <div className="space-y-3 mt-6">
               <h3 className="font-semibold text-slate-200">Recent Referrals</h3>
