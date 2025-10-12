@@ -19,8 +19,8 @@ const ContactUs = () => {
       icon: Phone,
       title: 'Phone Support',
       description: 'For urgent matters or quick assistance.',
-      contact: '+91 8905536448',
-      action: () => window.open('tel:+918905536448')
+      contact: '+91 9587803557',
+      action: () => window.open('tel:+919587803557')
     }
   ];
 
