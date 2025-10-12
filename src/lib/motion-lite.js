@@ -126,7 +126,7 @@ export function AnimatePresence(props) {
   }, [Component]);
 
   if (Component) {
-    return React.createElement(Component, { children, ...rest });
+    return React.createElement(Component, rest, children);
   }
 
   return React.createElement(React.Fragment, null, children);
