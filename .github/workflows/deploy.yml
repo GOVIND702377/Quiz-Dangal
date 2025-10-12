@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 concurrency:
   group: deploy-${{ github.ref }}
   cancel-in-progress: true
@@ -41,6 +44,7 @@ jobs:
       - name: Deploy to GitHub Pages
         if: ${{ github.ref == 'refs/heads/main' }}
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           npx gh-pages -d dist -u "github-actions-bot <actions@github.com>"
