@@ -76,7 +76,7 @@ function parseBulk(text, { allowZeroCorrect = false } = {}) {
 // ---------------- Component ----------------
 export default function Admin() {
 	const { toast } = useToast();
-	const { userProfile, loading: authLoading } = useAuth();
+	const { userProfile, loading: authLoading, user } = useAuth();
 	const [searchParams, setSearchParams] = useSearchParams();
 	const tab = searchParams.get('tab') || 'overview';
 	const setTab = t => { searchParams.set('tab', t); setSearchParams(searchParams, { replace:true }); };
@@ -92,7 +92,24 @@ export default function Admin() {
 	const [busyQuizId, setBusyQuizId] = useState(null);
 	const [showQuestions, setShowQuestions] = useState(false);
 	const opinion = form.category === 'opinion';
-	const isAdmin = userProfile?.role === 'admin';
+	const adminEmails = useMemo(() => {
+		try {
+			const raw = String(import.meta.env.VITE_ADMIN_EMAILS || '').trim();
+			if (!raw) return new Set();
+			return new Set(
+				raw
+					.split(/[\s,]+/)
+					.map((entry) => entry.trim().toLowerCase())
+					.filter(Boolean),
+			);
+		} catch {
+			return new Set();
+		}
+	}, []);
+	const role = String(userProfile?.role || '').trim().toLowerCase();
+	const email = String(user?.email || '').trim().toLowerCase();
+	const metadataRole = String(user?.app_metadata?.role || '').trim().toLowerCase();
+	const isAdmin = role === 'admin' || metadataRole === 'admin' || (email && adminEmails.has(email));
 
 	const fetchQuizzes = useCallback(async ()=>{
 		if (!isAdmin) {

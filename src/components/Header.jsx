@@ -22,8 +22,8 @@ const Header = () => {
 
   // Auto-claim daily streak once per day on first app open after login
   useEffect(() => {
-    // Only run if a user is logged in
-    if (!user || claimingRef.current) return;
+    // Only run if Supabase is configured and a user is logged in
+    if (!user || claimingRef.current || !supabase) return;
 
     const claimStreak = async () => {
       claimingRef.current = true;
@@ -37,7 +37,7 @@ const Header = () => {
           if (last === stamp) return; // already claimed today in this session
         } catch (e) { /* sessionStorage read fail */ }
 
-        const { data, error } = await supabase.rpc('handle_daily_login', { user_uuid: user.id });
+  const { data, error } = await supabase.rpc('handle_daily_login', { user_uuid: user.id });
 
         if (error) {
           console.error('Error handling daily login:', error);
