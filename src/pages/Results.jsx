@@ -209,22 +209,6 @@ const Results = () => {
     setErrorMessage('');
     fetchResults();
   };
-
-  const handleAdminRecompute = async () => {
-    if (!isAdmin) return;
-    try {
-      setLoading(true);
-      await supabase.rpc('admin_recompute_quiz_results', { p_quiz_id: quizId });
-      await new Promise(r => setTimeout(r, 600));
-      await fetchResults();
-      toast({ title: 'Recompute triggered', description: 'Results recomputed.' });
-    } catch (e) {
-      toast({ title: 'Recompute failed', description: e?.message || 'Could not recompute.', variant: 'destructive' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   // Prepare poster in the background once results are available
   useEffect(() => {
     let cancelled = false;
