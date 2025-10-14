@@ -1,4 +1,4 @@
-const CACHE_NAME = 'qd-cache-v3';
+const CACHE_NAME = 'qd-cache-v4';
 const PRECACHE_URLS = [
   './index.html',
   './site.webmanifest',
