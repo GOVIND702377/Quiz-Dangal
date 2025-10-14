@@ -573,16 +573,6 @@ const Results = () => {
           ) : (
             <p className="text-slate-300 mb-4">Please check back after the quiz end time.</p>
           )}
-          <div className="flex justify-center gap-3">
-            <Button variant="brand" onClick={handleRetry}>Refresh</Button>
-            <Button variant="white" onClick={() => navigate('/my-quizzes')}>Back to My Quizzes</Button>
-            <Button variant="white" onClick={() => navigate('/')}>Go Home</Button>
-            {isAdmin && (
-              <Button variant="destructive" onClick={handleAdminRecompute} title="Admin only">
-                Force Recompute
-              </Button>
-            )}
-          </div>
         </div>
       </div>
     );
