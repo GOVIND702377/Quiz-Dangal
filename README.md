@@ -74,6 +74,7 @@ Error Modes:
 - `env.example` ko base mana kar `.env` banayein (frontend-only values).
 - Sensitive keys ko repo se bahar rakhein: `.env.local.example` copy karke `.env.local` banayein aur actual Supabase URL/keys service role/database password waha daalein. `.gitignore` already is file ko skip karta hai.
 - Agar pehle se credentials leak ho gaye ho (jaise repo ya chat me share), turant Supabase dashboard se naye keys rotate karein varna account compromise ho sakta hai.
+- Static hosting (GitHub Pages, Netlify, etc.) ke liye public keys `public/env-config.js` me bhi inject ho sakte hain. Yeh file runtime par `window.__QUIZ_DANGAL_ENV__` set karta hai; sirf public `VITE_SUPABASE_URL` aur `VITE_SUPABASE_ANON_KEY` hi yaha rakhein.
 - Required vars:
   - `VITE_SUPABASE_URL` = aapke Supabase project ka URL
   - `VITE_SUPABASE_ANON_KEY` = Supabase anon key
