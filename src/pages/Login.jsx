@@ -236,9 +236,8 @@ const Login = () => {
       <div className="qd-card rounded-2xl p-6 sm:p-8 max-w-md w-full shadow-xl text-slate-100 flex flex-col">
         <div className="text-center mb-6 sm:mb-8">
           <img 
-            src="/logo.svg"
+            src="/android-chrome-192x192.png"
             alt="Quiz Dangal Logo"
-            onError={(e) => { e.currentTarget.src='/android-chrome-512x512.png'; }}
             className="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-4 rounded-full shadow-lg"
             loading="eager" decoding="async" width="80" height="80"
           />

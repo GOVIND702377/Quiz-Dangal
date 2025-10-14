@@ -69,10 +69,41 @@ Edge Function expectations:
 { "title": "Win Big", "message": "Daily quiz starts now", "segment": "all" }
 
 Targeting participants of a specific quiz
+### Setup and Scheduling (Required for Auto Push)
 
 - You can now target only the users who joined a quiz by using a segment string of the form `participants:<quiz_uuid>`.
 - Example body:
 
+
+- Deploy Edge Functions:
+	- `send-notifications`
+	- `auto-push` (optional if you use the Node cron script instead)
+- Set env vars for both functions:
+	- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`
+	- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `CONTACT_EMAIL` (or `VAPID_CONTACT_EMAIL`)
+	- `CRON_SECRET` (same value in both functions and any external cron)
+	- `ALLOWED_ORIGINS` (include prod and localhost for testing)
+- Schedule every minute:
+	- Option A (recommended): Supabase Function Schedule → call `auto-push`
+	- Option B: External cron (GitHub Actions/VM) → run `node scripts/auto-push.mjs`
+
+### Targeting Rules
+
+- Broadcast to all: `segment = 'all'` or leave empty
+- Participants of a quiz only: `segment = 'participants:<quiz_uuid>'`
+
+### Click-through URLs
+
+- If no `url` is provided in payload and `quizId` is known, defaults are applied:
+	- `type: 'start_soon'` → `/quiz/<quiz_id>`
+	- `type: 'result'` → `/results/<quiz_id>`
+
+### Smoke Test Checklist
+
+1) Subscribe: Login → after 10s prompt, allow notifications. Ensure `push_subscriptions` row exists and `profiles.notifications_enabled = true`.
+2) Admin broadcast: Send a test from this panel (segment `all`) → push should arrive; row appears in `notifications`.
+3) Start soon: Create quiz starting in ~2 minutes, join it → within 1 minute before start, start push should arrive; `quizzes.start_push_sent_at` set.
+4) Result: Let quiz end → compute results → result push should arrive; `quiz_results.result_push_sent_at` set.
 ```
 { "title": "Quiz starts soon", "message": "Join now!", "type": "start_soon", "segment": "participants:00000000-0000-0000-0000-000000000000", "quizId": "00000000-0000-0000-0000-000000000000" }
 ```
@@ -147,3 +178,37 @@ Primary maintainers: (Update with actual team names/emails.)
 
 ---
 Generated on: 2025-10-08 (updated with Notifications & Redemptions panels)
+
+## Results & Awards operations (admin)
+
+- Compute and show results for a finished quiz:
+	- Panel button: Recompute (calls `admin_recompute_quiz_results(p_quiz_id)`)
+	- Server-side award (coins) auto-triggers if `prize_type='coins'` or numeric prizes exist.
+
+- Batch finalize due quizzes (server):
+	- `SELECT public.finalize_due_quizzes(100);` — processes up to 100 finished quizzes.
+
+- One-off fix for old quizzes created with `prize_type='money'` but numeric prizes:
+	- Convert to `coins` by heuristic and rerun finalize:
+
+		UPDATE public.quizzes q
+		SET prize_type = 'coins'
+		WHERE prize_type IS DISTINCT FROM 'coins'
+			AND EXISTS (
+				SELECT 1
+				FROM jsonb_array_elements_text(COALESCE(q.prizes,'[]'::jsonb)) AS e(txt)
+				WHERE txt ~ '^[0-9]+$' AND length(txt) > 0
+			);
+
+		UPDATE public.quizzes q
+		SET prize_type = 'coins'
+		WHERE prize_type IS DISTINCT FROM 'coins'
+			AND EXISTS (
+				SELECT 1 FROM public.quiz_prizes p
+				WHERE p.quiz_id = q.id AND p.prize_coins > 0
+			);
+
+		SELECT public.finalize_due_quizzes(100);
+
+- Idempotency: Duplicate rewards are prevented by unique partial index `uniq_quiz_reward_once`.
+

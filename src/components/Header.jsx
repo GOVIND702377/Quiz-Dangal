@@ -87,12 +87,11 @@ const Header = () => {
             {/* Brand */}
             <Link to="/" className="flex items-center gap-2 group">
               <img
-                src="/logo.svg"
+                src="/android-chrome-192x192.png"
                 alt="Quiz Dangal Logo"
                 width="48"
                 height="48"
                 decoding="async"
-                onError={(e) => { e.currentTarget.src = '/android-chrome-512x512.png'; }}
                 className="w-11 h-11 sm:w-12 sm:h-12 rounded-full shadow-lg object-contain select-none"
                 draggable="false"
                 style={{ imageRendering: 'auto' }}

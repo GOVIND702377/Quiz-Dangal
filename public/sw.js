@@ -93,7 +93,12 @@ self.addEventListener('push', function(event) {
   const title = pushData.title || 'New Notification';
   const type = pushData.type; // 'start_soon' | 'result' | custom
   const quizId = pushData.quizId;
-  const url = typeof pushData.url === 'string' ? pushData.url : undefined;
+  // Derive a sensible default URL if not provided
+  let url = typeof pushData.url === 'string' ? pushData.url : undefined;
+  if (!url && quizId && typeof quizId === 'string') {
+    if (type === 'start_soon') url = `/quiz/${quizId}`;
+    else if (type === 'result') url = `/results/${quizId}`;
+  }
 
   // Per-quiz tag so we can replace/close start-soon when result arrives
   const baseTag = 'quiz-dangal';
@@ -105,8 +110,9 @@ self.addEventListener('push', function(event) {
 
   const options = {
     body: pushData.body || 'You have a new message.',
-    icon: './android-chrome-192x192.png',
-    badge: './favicon-32x32.png',
+    // Use absolute paths to avoid scope/path issues across origins/scopes
+    icon: '/android-chrome-192x192.png',
+    badge: '/favicon-32x32.png',
     tag,
     renotify: true,
     requireInteraction,

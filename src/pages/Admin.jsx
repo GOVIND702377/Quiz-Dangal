@@ -84,7 +84,8 @@ export default function Admin() {
 	const [quizzes, setQuizzes] = useState([]);
 	const [loading, setLoading] = useState(false);
 	const [showCreate, setShowCreate] = useState(false);
-	const [form, setForm] = useState({ title: '', category: '', start_time:'', end_time:'', prizes:['','',''], prize_type:'money', bulk:'' });
+	// Default prize_type to 'coins' so winners get auto-credited by backend award logic
+	const [form, setForm] = useState({ title: '', category: '', start_time:'', end_time:'', prizes:['','',''], prize_type:'coins', bulk:'' });
 	const [entryMode, setEntryMode] = useState('form');
 	const [drafts, setDrafts] = useState([blankQuestion()]);
 	const [selectedQuiz, setSelectedQuiz] = useState(null);
@@ -162,7 +163,9 @@ export default function Admin() {
 
 			const prizesArr = form.prizes.filter(p=>p).map(p=>parseInt(p,10));
 			const prizePool = prizesArr.reduce((s,v)=>s+v,0);
-			const payload = { title:form.title.trim(), category:form.category, start_time: new Date(form.start_time).toISOString(), end_time:new Date(form.end_time).toISOString(), prizes:prizesArr, prize_pool:prizePool, prize_type: form.prize_type };
+			// Normalize prize_type: if numeric prizes are provided, prefer 'coins' to enable auto-award
+			const normalizedPrizeType = (form.prize_type === 'money' && prizePool > 0) ? 'coins' : form.prize_type;
+			const payload = { title:form.title.trim(), category:form.category, start_time: new Date(form.start_time).toISOString(), end_time:new Date(form.end_time).toISOString(), prizes:prizesArr, prize_pool:prizePool, prize_type: normalizedPrizeType };
 			if (!supabase) throw new Error('Supabase config missing');
 			const { data:quiz, error } = await supabase.from('quizzes').insert([payload]).select().single();
 			if (error) throw error;
@@ -170,7 +173,7 @@ export default function Admin() {
 
 			const res = await bulkInsert(quiz.id, items, 'replace');
 			if (!res.ok) toast({ title:'Question insert fallback', description:res.message||'Failed', variant:'destructive'}); else toast({ title:'Questions added', description:`${items.length} questions` });
-			setShowCreate(false); setForm({ title:'', category:'', start_time:'', end_time:'', prizes:['','',''], prize_type:'money', bulk:'' }); setDrafts([blankQuestion()]);
+			setShowCreate(false); setForm({ title:'', category:'', start_time:'', end_time:'', prizes:['','',''], prize_type:'coins', bulk:'' }); setDrafts([blankQuestion()]);
 			fetchQuizzes();
 		} catch (err) {
 			toast({ title:'Create failed', description: err.message, variant:'destructive'});
@@ -210,6 +213,13 @@ export default function Admin() {
 			setBusyQuizId(id);
 			const { error } = await supabase.rpc('admin_recompute_quiz_results', { p_quiz_id:id });
 			if (error) throw error;
+			// Also ensure award pipeline runs (coins only, safe idempotent)
+			try {
+				await supabase.rpc('compute_results_if_due', { p_quiz_id:id });
+			} catch (computeErr) {
+				// Swallow non-critical errors; idempotent award path may already have run
+				try { if (import.meta.env?.DEV) console.debug('compute_results_if_due failed; continuing', computeErr); } catch { void 0; }
+			}
 			toast({ title:'Recomputed' });
 		} catch(e){
 			toast({ title:'Recompute failed', description:e.message, variant:'destructive'});

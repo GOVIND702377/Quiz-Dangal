@@ -152,13 +152,21 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } });
     }
 
+    const payloadQuizId = typeof quizId === 'string' ? quizId : (segMatch ? segMatch[1] : undefined);
+    // Derive URL if missing and quizId exists
+    let finalUrl = typeof url === 'string' ? url : undefined;
+    if (!finalUrl && payloadQuizId) {
+      if (type === 'start_soon') finalUrl = `/quiz/${payloadQuizId}`;
+      else if (type === 'result') finalUrl = `/results/${payloadQuizId}`;
+    }
+
     const notificationPayload = JSON.stringify({
       title: title,
       body: message,
       icon: "/android-chrome-192x192.png",
       type: typeof type === 'string' ? type : undefined,
-      url: typeof url === 'string' ? url : undefined,
-      quizId: typeof quizId === 'string' ? quizId : (segMatch ? segMatch[1] : undefined),
+      url: finalUrl,
+      quizId: payloadQuizId,
     });
 
     // Dynamically import and configure web-push only when needed
