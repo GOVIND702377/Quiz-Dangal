@@ -116,7 +116,7 @@
 	    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" }
 	  }
 	</script>
-  <script type="module" crossorigin src="/assets/index-a13c1f79.js"></script>
+  <script type="module" crossorigin src="/assets/index-8cf98e3d.js"></script>
   <link rel="modulepreload" crossorigin href="/assets/react-8a702e3e.js">
   <link rel="modulepreload" crossorigin href="/assets/supabase-4c1332f7.js">
   <link rel="modulepreload" crossorigin href="/assets/router-f2cf3f51.js">
@@ -171,11 +171,20 @@
 	  (function(){const d=document;const l=d.createElement('link');if(l.relList&&l.relList.supports&&l.relList.supports('modulepreload'))return;for(const s of d.querySelectorAll('link[rel="modulepreload"]'))o(s);new MutationObserver(e=>{for(const t of e)if(t.type==='childList')for(const n of t.addedNodes)if(n.tagName==='LINK'&&n.rel==='modulepreload')o(n)}).observe(d,{childList:true,subtree:true});function o(e){if(e.ep)return;e.ep=true;const s={};if(e.integrity)s.integrity=e.integrity;if(e.referrerPolicy)s.referrerPolicy=e.referrerPolicy;s.credentials=e.crossOrigin==='use-credentials'?'include':e.crossOrigin==='anonymous'?'omit':'same-origin';fetch(e.href,s)}})();
 	</script>
 	<script>
-		// Register service worker only outside local/dev hosts to avoid dev cache issues
+		// Register service worker (prod by default). For local testing, enable via ?sw=1 once or localStorage flag.
 		(function() {
 			var h = window.location.hostname;
 			var isLocal = /(^localhost$)|(^127\.0\.0\.1$)|(^0\.0\.0\.0$)|(^192\.168\.)|(^10\.)|(^172\.(1[6-9]|2[0-9]|3[0-1])\.)|(\.local$)/.test(h);
-			if ('serviceWorker' in navigator && !isLocal) {
+			try {
+				var u = new URL(window.location.href);
+				if (u.searchParams.get('sw') === '1') {
+					localStorage.setItem('qd_sw_dev', '1');
+				}
+			} catch (e) {}
+			var forceDevSW = false;
+			try { forceDevSW = localStorage.getItem('qd_sw_dev') === '1'; } catch (e) { forceDevSW = false; }
+			var shouldRegister = ('serviceWorker' in navigator) && (!isLocal || forceDevSW);
+			if (shouldRegister) {
 				window.addEventListener('load', function() {
 					navigator.serviceWorker.register('/sw.js').then(function(registration) {
 						console.log('SW registered:', registration);
