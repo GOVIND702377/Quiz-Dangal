@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { AnimatePresence, m } from '@/lib/motion-lite';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { Loader2, Receipt, Gift, CheckCircle2, Clock, XCircle, Coins, Wallet as WalletIcon, Search, Sparkles, PartyPopper, ArrowRight, Copy } from 'lucide-react';
+import { Loader2, Receipt, Gift, CheckCircle2, Clock, XCircle, Coins, Sparkles, PartyPopper, ArrowRight, Copy } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Link } from 'react-router-dom';
+// Removed Link import since we no longer show the Earn now link
 
 export default function Redemptions() {
   const { user, userProfile, refreshUserProfile } = useAuth();
@@ -15,12 +15,17 @@ export default function Redemptions() {
   const [loading, setLoading] = useState(true);
   const [rewards, setRewards] = useState([]);
   const [rewardsLoading, setRewardsLoading] = useState(true);
-  const [rewardQuery, setRewardQuery] = useState('');
-  const [rewardFilter, setRewardFilter] = useState('all'); // all | new
+  // search is removed from UI; keep list as-is
   const [selectedReward, setSelectedReward] = useState(null);
   const [redeemOpen, setRedeemOpen] = useState(false);
   const [redeemStep, setRedeemStep] = useState('confirm'); // confirm | success
   const [redeemSubmitting, setRedeemSubmitting] = useState(false);
+  const [payoutIdentifier, setPayoutIdentifier] = useState('');
+  const [payoutChannel, setPayoutChannel] = useState('upi');
+  const payoutInputRef = React.useRef(null);
+  // Mobile keyboard handling: when input focused on small screens, lift dialog upward for better visibility
+  const [inputFocused, setInputFocused] = useState(false);
+  const isMobile = typeof window !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
   const [activeTab, setActiveTab] = useState('rewards'); // rewards | history
   const [historyQuery] = useState(''); // removed setter (unused)
   const [historySort] = useState('newest'); // removed setter (unused)
@@ -32,16 +37,10 @@ export default function Redemptions() {
     return (v === null || v === undefined) ? '' : String(v).trim();
   }, []);
 
+  // Display reward value exactly as provided by admin/backend without forcing currency like 'Rs.'
   const formatRewardValue = useCallback((value) => {
-    if (!value) return '';
-    let output = String(value).trim();
-  output = output.replace(/inr/gi, 'Rs');
-  output = output.replace(/rupess?/gi, 'Rs');
-  output = output.replace(/rupees?/gi, 'Rs');
-    output = output.replace(/rs\.?/gi, 'Rs');
-    output = output.replace(/\s*Rs\s*/gi, ' Rs ');
-    output = output.replace(/Rs\s*(\d)/gi, 'Rs $1');
-    return output.replace(/\s+/g, ' ').trim();
+    if (value === null || value === undefined) return '';
+    return String(value).trim();
   }, []);
 
   const loadRedemptions = useCallback(async () => {
@@ -106,21 +105,7 @@ export default function Redemptions() {
 
   const walletCoins = useMemo(() => Number(userProfile?.wallet_balance || 0), [userProfile]);
 
-  const filteredRewards = useMemo(() => {
-    const q = rewardQuery.trim().toLowerCase();
-    const twoWeeks = 1000 * 60 * 60 * 24 * 14;
-    const now = Date.now();
-    return (rewards || [])
-      .filter((rw) => {
-        const title = String(rw.title || rw.reward_type || '').toLowerCase();
-        const desc = String(rw.description || '').toLowerCase();
-        const matchesQuery = q ? title.includes(q) || desc.includes(q) : true;
-        const createdAt = rw.created_at ? new Date(rw.created_at).getTime() : 0;
-        const isNew = createdAt && now - createdAt <= twoWeeks;
-        if (rewardFilter === 'new') return matchesQuery && isNew;
-        return matchesQuery;
-      });
-  }, [rewards, rewardQuery, rewardFilter]);
+  const filteredRewards = useMemo(() => (rewards || []), [rewards]);
 
   // History filters and sorting
   const filteredRows = useMemo(() => {
@@ -163,6 +148,7 @@ export default function Redemptions() {
     setSelectedReward(rw);
     setRedeemStep('confirm');
     setRedeemOpen(true);
+  setTimeout(()=>{ try { payoutInputRef.current?.focus(); } catch (e) { /* ignore focus error */ } }, 100);
   };
 
   const handleConfirmRedeem = async () => {
@@ -171,22 +157,27 @@ export default function Redemptions() {
       toast({ title: 'Configuration missing', description: 'Supabase env vars are not set. Please configure .env.local', variant: 'destructive' });
       return;
     }
-  const price = Number(selectedReward.coins_required ?? selectedReward.coin_cost ?? selectedReward.coins ?? 0);
+    const price = Number(selectedReward.coins_required ?? selectedReward.coin_cost ?? selectedReward.coins ?? 0);
     if ((userProfile?.wallet_balance ?? 0) < price) {
       toast({ title: 'Not enough coins', description: 'Earn more coins to redeem this reward.' });
       return;
     }
+    if (!payoutIdentifier.trim()) {
+      toast({ title: 'Enter payout details', description: 'Please provide your UPI ID or phone number.' });
+      return;
+    }
     try {
       setRedeemSubmitting(true);
-      const { error } = await supabase.rpc('redeem_from_catalog', {
+      const rpcPayload = {
         p_catalog_id: selectedReward.id,
-      });
+        p_payout_identifier: payoutIdentifier.trim(),
+        p_payout_channel: payoutChannel || 'upi'
+      };
+      let { error } = await supabase.rpc('redeem_from_catalog_with_details', rpcPayload);
       if (error) throw error;
       setRedeemStep('success');
-      toast({
-        title: 'Reward granted',
-        description: 'Congratulations! Your reward has been issued instantly.',
-      });
+      toast({ title: 'Redemption pending', description: 'Your request is submitted. Await admin approval.' });
+      setPayoutIdentifier('');
       // refresh history
       await loadRedemptions();
       // refresh wallet balance immediately (ignore errors)
@@ -195,7 +186,7 @@ export default function Redemptions() {
       }
     } catch (e) {
       const message = e?.message || 'Please try again later';
-      toast({ title: 'Something went wrong', description: message, variant: 'destructive' });
+      toast({ title: 'Submission failed', description: message, variant: 'destructive' });
     } finally {
       setRedeemSubmitting(false);
     }
@@ -270,42 +261,11 @@ export default function Redemptions() {
           className="relative rounded-3xl p-[1px] bg-[radial-gradient(1200px_600px_at_10%_-10%,rgba(99,102,241,0.25),transparent_60%),radial-gradient(1200px_600px_at_90%_110%,rgba(217,70,239,0.22),transparent_60%)] mb-6"
         >
           <div className="qd-card rounded-3xl p-5 shadow-xl border border-white/10 bg-white/[0.03] backdrop-blur-xl">
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <div className="inline-flex w-9 h-9 rounded-xl bg-gradient-to-br from-fuchsia-500/25 to-indigo-500/25 border border-white/10 items-center justify-center">
-              <Sparkles className="w-4.5 h-4.5 text-fuchsia-200" />
-            </div>
-            <h2 className="text-lg md:text-xl font-bold text-slate-100">Available Rewards</h2>
+        <div className="mb-4 flex items-center gap-2">
+          <div className="inline-flex w-9 h-9 rounded-xl bg-gradient-to-br from-fuchsia-500/25 to-indigo-500/25 border border-white/10 items-center justify-center">
+            <Sparkles className="w-4.5 h-4.5 text-fuchsia-200" />
           </div>
-          <div className="ml-auto flex items-center gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:flex-none">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                value={rewardQuery}
-                onChange={(e) => setRewardQuery(e.target.value)}
-                placeholder="Search rewards..."
-                className="w-full sm:w-64 pl-9 pr-3 py-2 rounded-xl bg-white/5 border border-white/10 text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 focus:border-indigo-400/40"
-              />
-            </div>
-            <div className="flex items-center gap-1.5">
-              {[
-                { key: 'all', label: 'All' },
-                { key: 'new', label: 'New' },
-              ].map((f) => (
-                <button
-                  key={f.key}
-                  onClick={() => setRewardFilter(f.key)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                    rewardFilter === f.key
-                      ? 'bg-white/10 text-white border-white/20 shadow hover:bg-white/15'
-                      : 'bg-white/5 text-slate-200/90 border-white/10 hover:bg-white/10 hover:border-white/20'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <h2 className="text-lg md:text-xl font-bold text-slate-100">Available Rewards</h2>
         </div>
         {rewardsLoading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
@@ -332,7 +292,7 @@ export default function Redemptions() {
               const displayValue = formatRewardValue(rewardValue);
               const affordable = walletCoins >= price;
               const pct = price > 0 ? Math.min(100, Math.max(0, Math.round((walletCoins / price) * 100))) : 100;
-              const remainingCoins = Math.max(0, price - walletCoins);
+              // helper text removed: no need to compute remainingCoins here
               const description = rw.description ? String(rw.description).trim() : '';
               return (
                 <m.div
@@ -357,14 +317,18 @@ export default function Redemptions() {
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent" />
-                    <div className="relative flex h-full flex-col items-center justify-end gap-3 p-4 pb-8 text-center">
+                    <div className="relative flex h-full flex-col items-center justify-end gap-2 p-4 pb-12 text-center">
+                      {/* Value chip - fixed absolute position for consistency across screens */}
                       {displayValue && (
-                        <div
-                          className="mt-10 sm:mt-8 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/12 px-4 py-1.5 text-white shadow-lg backdrop-blur transform translate-y-6 sm:translate-y-7"
-                          title={displayValue}
-                        >
-                          <Sparkles className="h-[18px] w-[18px] text-fuchsia-200" />
-                          <span className="text-base font-semibold sm:text-lg tracking-tight">{displayValue}</span>
+                        <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-3">
+                          <div
+                            className="inline-flex w-[94%] sm:w-[90%] items-center justify-center rounded-2xl border border-white/20 bg-gradient-to-r from-white/15 to-white/10 px-5 py-2 text-white shadow-[0_8px_24px_rgba(0,0,0,0.35)] backdrop-blur-md ring-1 ring-white/10"
+                            title={displayValue}
+                          >
+                            <span className="text-[clamp(0.9rem,2.5vw,1.125rem)] font-semibold tracking-tight leading-none whitespace-nowrap">
+                              {displayValue}
+                            </span>
+                          </div>
                         </div>
                       )}
                       {rw.title && (
@@ -413,12 +377,7 @@ export default function Redemptions() {
                       >
                         Redeem <ArrowRight className="h-4 w-4" />
                       </button>
-                      {!affordable && (
-                        <div className="mt-2 text-center text-[11px] text-slate-400/90">
-                          Need <span className="font-semibold text-rose-200">{remainingCoins.toLocaleString()}</span> more coins.{' '}
-                          <Link to="/refer" className="text-indigo-300 hover:underline">Earn now</Link>
-                        </div>
-                      )}
+                      {/* Helper text under redeem removed as requested (leave empty area) */}
                     </div>
                   </div>
                 </m.div>
@@ -496,10 +455,11 @@ export default function Redemptions() {
                         <Gift className="w-5 h-5 text-white" />
                       </div>
                       <div className="min-w-0">
-                        {/* reward value only */}
-                        <div className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 bg-white/5 border border-white/10 backdrop-blur-sm shadow-sm">
-                          <Sparkles className="w-3.5 h-3.5 text-fuchsia-200" />
-                          <span className="text-slate-100 font-semibold text-sm truncate max-w-[200px] sm:max-w-[280px]">{r.reward_value}</span>
+                        {/* reward value only - without star icon, allow full text */}
+                        <div className="inline-block rounded-lg px-2.5 py-1 bg-white/5 border border-white/10 backdrop-blur-sm shadow-sm max-w-full">
+                          <span className="text-slate-100 font-semibold text-sm leading-snug break-words">
+                            {r.reward_value}
+                          </span>
                         </div>
                         <p className="mt-1 text-[11px] text-slate-400/80 font-mono truncate">
                           {r.requested_at ? new Date(r.requested_at).toLocaleString() : ''}
@@ -535,88 +495,59 @@ export default function Redemptions() {
       )}
 
   {/* Redeem Preview Dialog */}
-      <Dialog open={redeemOpen} onOpenChange={setRedeemOpen}>
-        <DialogContent className="bg-slate-900/95 border-white/10 text-slate-100 rounded-xl sm:rounded-2xl p-0 overflow-hidden w-[min(94vw,600px)] sm:max-w-xl md:max-w-2xl max-h-[86svh]">
+      <Dialog open={redeemOpen} onOpenChange={(o)=> { if (!o) setInputFocused(false); setRedeemOpen(o); }}>
+        <DialogContent className={`bg-slate-900/95 border-white/10 text-slate-100 rounded-xl sm:rounded-2xl p-0 overflow-hidden w-[min(94vw,600px)] sm:max-w-xl md:max-w-2xl max-h-[86svh] transition-transform duration-300 ${isMobile && inputFocused ? 'translate-y-[-12svh]' : ''}`}>        
           {selectedReward && (
             <div className="p-4 sm:p-6 md:p-7">
-              <DialogHeader className="text-center">
-                <DialogTitle className="text-xl sm:text-2xl flex items-center gap-2 justify-center font-extrabold">
-                  <PartyPopper className="w-6 h-6 text-fuchsia-300" /> Redeem Reward
+              <DialogHeader className="flex flex-col items-center text-center">
+                <DialogTitle className="text-xl sm:text-2xl font-extrabold flex items-center justify-center gap-2">
+                  <PartyPopper className="w-6 h-6 text-fuchsia-300" /> Redeem
                 </DialogTitle>
-                <DialogDescription className="text-slate-300 text-sm sm:text-base mt-1 md:mt-1 text-center">
-                  Confirm your redemption below.
-                </DialogDescription>
+                <div className="w-full flex justify-center">
+                  <DialogDescription className="text-slate-300 text-sm sm:text-base mt-1 max-w-[520px]">
+                    {redeemStep==='confirm' ? 'Enter payout details to submit your request.' : 'Submitted. Pending admin approval.'}
+                  </DialogDescription>
+                </div>
               </DialogHeader>
 
-              {(() => {
-                const price = Number(selectedReward.coins_required ?? selectedReward.coin_cost ?? selectedReward.coins ?? 0);
-                const valueStr = getRawRewardValue(selectedReward);
-                const canAfford = walletCoins >= price;
-                const coinsLeft = Math.max(0, walletCoins - price);
-                return (
-                  <div className="mt-4 md:mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4 md:gap-6 items-center">
-                    <div className="sm:col-span-1 flex items-center justify-center">
-                      {/* Premium framed box like cards (rectangular), mirrors main grid */}
-                      <div className="relative w-full max-w-[220px] md:max-w-[260px] rounded-2xl p-[2px] bg-gradient-to-br from-indigo-500/30 via-fuchsia-500/20 to-violet-500/30 shadow-lg">
-                        <div className="relative rounded-2xl bg-slate-900/80 backdrop-blur-lg p-3 text-center overflow-hidden">
-                          {/* gift image area - rectangular like cards */}
-                          <div className="relative rounded-[10px] h-32 md:h-36 overflow-hidden bg-black/25">
-                            {selectedReward.image_url ? (
-                              <img src={selectedReward.image_url} alt={selectedReward.title || 'Reward'} className="h-full w-full object-cover" onError={(e)=>{ e.currentTarget.style.display='none'; }} loading="lazy" decoding="async" />
-                            ) : (
-                              <div className="absolute inset-0 grid place-items-center">
-                                <div className="w-20 h-20 md:w-16 md:h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 ring-2 ring-white/20 shadow-lg grid place-items-center">
-                                  <Gift className="w-10 h-10 md:w-8 md:h-8 text-white/95" />
-                                </div>
-                              </div>
-                            )}
-                            {/* soft shine */}
-                            <div className="pointer-events-none absolute inset-0 opacity-10 bg-[radial-gradient(500px_120px_at_20%_-20%,rgba(255,255,255,0.18),transparent),radial-gradient(500px_120px_at_80%_120%,rgba(255,255,255,0.12),transparent)]" />
-                          </div>
-                          <div className="mt-3">
-                            {selectedReward.title && (
-                              <div className="text-base font-bold text-white truncate">{selectedReward.title}</div>
-                            )}
-                            {valueStr && (
-                              <div className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 bg-white/10 border border-white/15 backdrop-blur-sm shadow-sm">
-                                <Sparkles className="w-4 h-4 text-fuchsia-200" />
-                                <span className="text-white font-bold text-base tracking-tight">{valueStr}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="sm:col-span-2 grid gap-3 content-start md:-mt-2">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
-                          <div className="text-[11px] text-slate-400">Coins required</div>
-                          <div className="text-sm font-semibold text-fuchsia-200 inline-flex items-center gap-1.5"><Coins className="w-4 h-4" />{price.toLocaleString()}</div>
-                        </div>
-                        <div className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2">
-                          <div className="text-[11px] text-slate-400">Your balance</div>
-                          <div className="text-sm font-semibold text-indigo-200 inline-flex items-center gap-1.5"><WalletIcon className="w-4 h-4" />{walletCoins.toLocaleString()}</div>
-                        </div>
-                      </div>
-                      <div className="text-xs text-slate-400 text-center sm:text-left">
-                        {canAfford ? (
-                          <span>After redeem, you&apos;ll have <span className="text-indigo-200 font-semibold">{coinsLeft.toLocaleString()}</span> coins left.</span>
-                        ) : (
-                          <span>You are short by <span className="text-rose-200 font-semibold">{Math.max(0, price - walletCoins).toLocaleString()}</span> coins.</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
+              {/* Top summary intentionally removed (was value/coins line). No empty block retained. */}
 
               <DialogFooter className="mt-6">
                 {redeemStep === 'confirm' ? (
                   <div className="w-full">
-                    {(() => { const price = Number(selectedReward.coins_required ?? selectedReward.coin_cost ?? selectedReward.coins ?? 0); return (
-                    <Button onClick={handleConfirmRedeem} disabled={redeemSubmitting || walletCoins < price} className="w-full bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-600 hover:to-fuchsia-600 text-base py-3 h-12">
-                      {redeemSubmitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Processing</>) : (<>Confirm & Redeem for {price.toLocaleString()} coins</>)}
-                    </Button>
+                    <div className="space-y-4 mb-5">
+                      <div className="flex flex-col sm:flex-row gap-3">
+                        <div className="flex-1">
+                          <label className="text-[11px] font-semibold text-slate-400 mb-1 block">Payout Method</label>
+                          <div className="flex gap-2">
+                            {['upi','phone'].map(ch => (
+                              <button key={ch} type="button" onClick={()=> setPayoutChannel(ch)} className={`px-3 py-1.5 rounded-md text-xs font-semibold border transition ${payoutChannel===ch? 'bg-indigo-600 text-white border-indigo-600':'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'}`}>{ch.toUpperCase()}</button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex-[2]">
+                          <label className="text-[11px] font-semibold text-slate-400 mb-1 block">{payoutChannel==='phone' ? 'Phone Number' : 'UPI ID'}</label>
+                          <input
+                            ref={payoutInputRef}
+                            value={payoutIdentifier}
+                            onChange={(e)=> setPayoutIdentifier(e.target.value)}
+                            onFocus={()=> setInputFocused(true)}
+                            onBlur={()=> setInputFocused(false)}
+                            placeholder=""
+                            className="w-full px-3 py-2 rounded-lg bg-slate-800/70 border border-slate-600 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                          />
+                        </div>
+                      </div>
+                      {(() => { const price = Number(selectedReward.coins_required ?? selectedReward.coin_cost ?? selectedReward.coins ?? 0); return (
+                        <div className="text-xs text-slate-400 text-center">
+                          <span className="text-white font-semibold">{getRawRewardValue(selectedReward)}</span> • <span className="text-fuchsia-200 font-semibold">{price.toLocaleString()} coins</span>
+                        </div>
+                      ); })()}
+                    </div>
+                    {(() => { const rewardLabel = getRawRewardValue(selectedReward); const price = Number(selectedReward.coins_required ?? selectedReward.coin_cost ?? selectedReward.coins ?? 0); return (
+                      <Button onClick={handleConfirmRedeem} disabled={redeemSubmitting || walletCoins < price} className="w-full bg-gradient-to-r from-indigo-600 to-fuchsia-600 hover:from-indigo-600 hover:to-fuchsia-600 text-base py-3 h-12">
+                        {redeemSubmitting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin"/>Submitting</>) : (<>Redeem {rewardLabel}</>)}
+                      </Button>
                     ); })()}
                   </div>
                 ) : (
@@ -624,8 +555,8 @@ export default function Redemptions() {
                     <div className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-4 text-emerald-100 flex items-start gap-3">
                       <CheckCircle2 className="w-5 h-5 text-emerald-300 mt-0.5" />
                       <div>
-                        <div className="font-semibold">Redeemed successfully</div>
-                        <div className="text-xs opacity-80">Your reward has been granted immediately.</div>
+                        <div className="font-semibold">Redemption submitted</div>
+                        <div className="text-xs opacity-80">Your request is pending admin approval. You will receive payout after review.</div>
                       </div>
                     </div>
                     {/* Confetti micro-animation */}

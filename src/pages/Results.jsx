@@ -351,9 +351,11 @@ const Results = () => {
     // Realtime enable flag (can be disabled via env)
     const enableRealtime = (() => {
       try {
-        const v = String(import.meta.env.VITE_ENABLE_REALTIME ?? '1').toLowerCase();
+        const runtimeEnv = (typeof window !== 'undefined' && window.__QUIZ_DANGAL_ENV__) ? window.__QUIZ_DANGAL_ENV__ : {};
+        const raw = import.meta.env.VITE_ENABLE_REALTIME ?? runtimeEnv.VITE_ENABLE_REALTIME ?? (import.meta.env.DEV ? '0' : '0');
+        const v = String(raw).toLowerCase();
         return v === '1' || v === 'true' || v === 'yes';
-      } catch { return true; }
+      } catch { return false; }
     })();
 
     const shouldUseRealtime = () => {

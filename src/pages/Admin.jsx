@@ -266,6 +266,49 @@ export default function Admin() {
 		return { active, finished };
 	},[quizzes]);
 
+	// Pending redemptions state
+	const [pendingRedemptions, setPendingRedemptions] = useState([]);
+	const [loadingRedemptions, setLoadingRedemptions] = useState(false);
+
+	const fetchPendingRedemptions = useCallback(async () => {
+		if (!isAdmin) { setPendingRedemptions([]); return; }
+		if (!supabase) { setPendingRedemptions([]); return; }
+		setLoadingRedemptions(true);
+		try {
+			// Also fetch username from profiles via join
+			const { data, error } = await supabase
+				.from('redemptions')
+				.select('id,user_id,reward_value,reward_type,coins_required,payout_identifier,payout_channel,requested_at, profiles!inner(username)')
+				.eq('status','pending')
+				.order('requested_at',{ ascending:false });
+			if (error) throw error;
+			setPendingRedemptions(data||[]);
+		} catch(e) {
+			setPendingRedemptions([]);
+			if (import.meta.env.DEV) console.debug('Fetch pending redemptions failed', e);
+		} finally {
+			setLoadingRedemptions(false);
+		}
+	}, [isAdmin]);
+
+	const approveRedemption = useCallback(async (id) => {
+		if (!isAdmin) return;
+		if (!supabase) return;
+		// Optimistic UI: remove row immediately
+		setPendingRedemptions(prev => prev.filter(r => r.id !== id));
+		try {
+			const { error } = await supabase.rpc('admin_approve_redemption', { p_redemption_id: id });
+			if (error) throw error;
+			toast({ title: 'Approved', description: 'Redemption approved.' });
+		} catch(e) {
+			toast({ title: 'Approve failed', description: e.message, variant: 'destructive' });
+			// Re-fetch to restore list if failed
+			fetchPendingRedemptions();
+		}
+	}, [isAdmin, fetchPendingRedemptions, toast]);
+
+	useEffect(() => { fetchPendingRedemptions(); const i = setInterval(fetchPendingRedemptions, 30000); return () => clearInterval(i); }, [fetchPendingRedemptions]);
+
 	if (authLoading) {
 		return (
 			<div className="min-h-screen flex items-center justify-center">
@@ -303,6 +346,8 @@ export default function Admin() {
 		);
 	}
 
+	// Tabs defined inline in render; removed unused adminTabs array.
+
 	return (
 		<div className="container mx-auto p-6 max-w-5xl bg-white text-gray-900 rounded-2xl shadow-sm">
 			<h1 className="text-2xl font-bold mb-6 text-gray-900">Admin Dashboard</h1>
@@ -310,7 +355,7 @@ export default function Admin() {
 				<div className="mb-6 text-sm text-amber-600">Supabase env keys missing. Read-only UI only.</div>
 			)}
 			<div className="flex gap-2 mb-6 flex-wrap">
-				{['overview','notifications','redemptions'].map(t=> (
+				{['overview','rewards','approvals','notifications'].map(t=> (
 					<button key={t} onClick={()=>setTab(t)} className={`px-3 py-1.5 rounded border text-sm transition-colors ${t===tab? 'bg-indigo-600 text-white border-indigo-600':'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}>{t}</button>
 				))}
 			</div>
@@ -513,18 +558,64 @@ export default function Admin() {
 					</section>
 				</div>
 			)}
+			{tab==='approvals' && (
+				<div className="space-y-6">
+					<h2 className="text-lg font-semibold">Pending Redemptions</h2>
+					<div className="text-sm text-gray-600">Approve user reward payouts after verifying their UPI ID / phone number.</div>
+					{loadingRedemptions && (
+						<div className="py-8 text-center text-gray-500"><Loader2 className="w-5 h-5 animate-spin inline mr-2"/>Loading pending requests...</div>
+					)}
+					{!loadingRedemptions && pendingRedemptions.length===0 && (
+						<div className="py-6 text-center text-gray-500 border border-gray-200 rounded-xl bg-gray-50">No pending redemptions.</div>
+					)}
+					{pendingRedemptions.length>0 && (
+						<div className="space-y-4">
+							{pendingRedemptions.map(r => (
+								<div key={r.id} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm flex flex-col md:flex-row md:items-center gap-4">
+									<div className="flex-1 min-w-0">
+										<div className="flex items-center gap-2">
+											<div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-yellow-500 flex items-center justify-center text-white font-semibold shadow">
+												<span className="text-sm">₹</span>
+											</div>
+											{(() => { 
+												const rawVal = r.reward_value;
+												const displayVal = rawVal && String(rawVal).trim().length ? rawVal : `${r.reward_type||''}`.trim() || 'Reward';
+												return (
+													<div>
+														<div className="text-sm font-semibold text-gray-900 truncate">{displayVal}</div>
+														<div className="text-[11px] text-gray-600">@{r.profiles?.username || 'user'}</div>
+													</div>
+												);
+											})()}
+										</div>
+										<div className="mt-2 text-xs text-gray-600 flex flex-wrap gap-3">
+											<span>Type: {r.reward_type || '—'}</span>
+											<span>Coins: {r.coins_required ?? 0}</span>
+											<span>Requested: {r.requested_at ? formatDateTime(r.requested_at) : '—'}</span>
+										</div>
+										<div className="mt-1 text-xs text-gray-500">Payout: {r.payout_identifier ? `${r.payout_identifier} (${r.payout_channel||'upi'})` : '—'}</div>
+									</div>
+									<div className="flex items-center gap-2 self-start md:self-center">
+										<Button size="sm" onClick={()=> approveRedemption(r.id)} className="bg-green-600 hover:bg-green-700 text-white">Approve</Button>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+				</div>
+			)}
 			{tab==='notifications' && (
 				<NotificationsPanel />
 			)}
-			{tab==='redemptions' && (
-				<RedemptionsPanel />
+			{tab==='rewards' && (
+				<RewardsPanel />
 			)}
 		</div>
 	);
 }
 
-// ---------------- Redemptions Panel ----------------
-function RedemptionsPanel() {
+// ---------------- Rewards Catalog Panel ----------------
+function RewardsPanel() {
 	const { toast } = useToast();
 	// Only Rewards Catalog management is shown in this panel (no approval/rejection/history)
 	const [rewards, setRewards] = React.useState([]);
@@ -549,7 +640,7 @@ function RedemptionsPanel() {
 
 	React.useEffect(() => { loadRewards(); }, [loadRewards]);
 
-	// Approval flow removed: auto-fulfillment is in place. Admin sees read-only history and manages catalog only.
+	// Approval flow handled separately in Approvals tab. This panel only manages active reward catalog entries.
 
 	const resetRewardForm = () => setRewardForm({ reward_type:'coins', reward_value:'', coins_required:'', is_active:true });
 	const saveReward = async e => {

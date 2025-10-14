@@ -1,10 +1,20 @@
-This folder is kept only for documentation/context.
+Ad-hoc SQL folder (now cleaned)
 
-- All database behavior is defined and managed exclusively via migrations under `supabase/migrations/`.
-- The old `supabase/sql/functions/` helpers were editor-only and have been removed to prevent drift. Please do not add ad‑hoc SQL files here.
-- If you need a one‑off maintenance query: run it via the SQL editor temporarily, then codify the change as a proper migration so schema stays in sync across environments.
+All database behavior is defined and managed via versioned migrations under `supabase/migrations/`.
 
-Applied manual fix (Oct 8, 2025):
-- Granted anon read access (columns: id, username, avatar_url) on `public.profiles` and added a select RLS policy `profiles_public_read`.
-- Purpose: fix "permission denied for table profiles" for public RPCs (`is_username_available`, `profiles_public_by_ids`).
-- If a new environment needs this, re-run the migration content from `20251008101500_fix_public_profiles_read.sql` (now removed as requested).
+Removed obsolete helper scripts after successful migration push:
+- 2025-10-14_redemptions_payout.sql (duplicate of migration)
+- 2025-10-14_notifications_enabled_fix.sql (duplicate of migration)
+
+
+Their logic lives in migrations:
+- 202510141200_redemptions_payout.sql
+- 202510141205_notifications_enabled_fix.sql
+- Later patch / grant migrations
+
+Guidelines:
+1. Prefer creating a migration instead of dropping raw SQL here.
+2. If you must run a one-off production hotfix, create the script, execute, then immediately transform into a migration and delete the ad‑hoc script.
+3. Keep this directory empty or documentation-only to avoid schema drift.
+
+Historical note (Oct 8, 2025): public profiles read access & policy fix was migrated (see removed migration `20251008101500_fix_public_profiles_read.sql`).
