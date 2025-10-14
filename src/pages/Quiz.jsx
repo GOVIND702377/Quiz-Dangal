@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { m, AnimatePresence } from '@/lib/motion-lite';
 import { Button } from '@/components/ui/button';
@@ -15,6 +15,61 @@ const Quiz = () => {
     handleJoinOrPrejoin, handleAnswerSelect, handleSubmit,
     formatTime,
   } = useQuizEngine(quizId, navigate);
+
+  const [resultsCountdownMs, setResultsCountdownMs] = useState(null);
+
+  useEffect(() => {
+    if (!quiz?.end_time) {
+      setResultsCountdownMs(null);
+      return;
+    }
+    if (!(quizState === 'completed' || quizState === 'finished')) {
+      setResultsCountdownMs(null);
+      return;
+    }
+    const target = new Date(quiz.end_time).getTime();
+    const update = () => {
+      const diff = Math.max(0, target - Date.now());
+      setResultsCountdownMs(diff);
+    };
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [quiz?.end_time, quizState]);
+
+  const renderResultCountdown = () => {
+    if (!quiz?.end_time) {
+      return <p className="text-slate-300">Results will be published soon.</p>;
+    }
+    const ms = resultsCountdownMs ?? Math.max(0, new Date(quiz.end_time).getTime() - Date.now());
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    const Part = ({ value, label }) => (
+      <div className="px-3 py-2 rounded-md bg-slate-800/70 border border-slate-700 min-w-[64px]">
+        <div className="text-xl font-bold text-white tabular-nums">{value.toString().padStart(2, '0')}</div>
+        <div className="text-xs text-slate-400">{label}</div>
+      </div>
+    );
+
+    return (
+      <div className="space-y-4">
+        <p className="text-slate-300">Results will be published soon.</p>
+        <div className="flex items-center justify-center gap-2">
+          {days > 0 && <Part value={days} label="Days" />}
+          <Part value={hours} label="Hours" />
+          <Part value={minutes} label="Minutes" />
+          <Part value={seconds} label="Seconds" />
+        </div>
+        <div className="text-xs text-slate-400">
+          Expected publish time: {new Date(quiz.end_time).toLocaleString()}
+        </div>
+      </div>
+    );
+  };
 
   // All lifecycle & actions handled by useQuizEngine
 
@@ -108,26 +163,6 @@ const Quiz = () => {
       </div>
     );
   }
-  if (quizState === 'completed') {
-    // TODO: Extract CompletedView component
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-  <m.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="qd-card rounded-2xl p-8 shadow-xl text-center max-w-md text-slate-100"
-        >
-          <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Quiz Completed!</h2>
-          <p className="text-slate-300 mb-4">You have already submitted your answers for this quiz.</p>
-          <Button onClick={() => navigate('/my-quizzes')} variant="brand" className="w-full">
-            View My Quizzes
-          </Button>
-  </m.div>
-      </div>
-    );
-  }
-
   if (quizState === 'waiting') {
     // TODO: Extract WaitingView component
     return (
@@ -175,8 +210,8 @@ const Quiz = () => {
           className="qd-card rounded-2xl p-8 shadow-xl text-center max-w-md text-slate-100"
         >
           <Clock className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-2">Quiz Ended</h2>
-          <p className="text-slate-300 mb-4">The quiz has ended. Results will be announced soon!</p>
+          <h2 className="text-2xl font-bold text-white mb-3">Quiz Ended</h2>
+          {renderResultCountdown()}
           {submitting && (
             <div className="flex items-center justify-center">
               <Loader2 className="h-6 w-6 animate-spin mr-2" />

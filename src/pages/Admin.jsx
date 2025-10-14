@@ -182,12 +182,42 @@ export default function Admin() {
 
 	const bulkInsert = async (quizId, items, mode='append') => {
 		if (!isAdmin) return { ok:false, message:'Admin access required' };
-		try {
-			if (!supabase) throw new Error('No Supabase client');
-			const { error } = await supabase.rpc('admin_bulk_upsert_questions', { p_quiz_id: quizId, p_payload: items, p_mode: mode });
-			if (!error) return { ok:true };
-		} catch (e) { /* fallback */ }
 		if (!supabase) return { ok:false, message:'No Supabase client' };
+
+		// Prefer edge function that runs with service role to avoid RLS blocks
+		try {
+			const { data: sessionData } = await supabase.auth.getSession();
+			const token = sessionData?.session?.access_token;
+			const res = await fetch('/functions/v1/admin-upsert-questions', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
+				},
+				body: JSON.stringify({ quizId, items, mode }),
+			});
+			if (res.ok) {
+				return { ok: true };
+			}
+			// If the function is not deployed fall back; otherwise bubble specific error
+			if (res.status !== 404) {
+				const info = await res.json().catch(() => ({}));
+				throw new Error(info?.error || `HTTP ${res.status}`);
+			}
+		} catch (fnErr) {
+			console.warn('Edge bulk insert failed, falling back to direct RPC path', fnErr);
+		}
+
+		// Attempt direct RPC (older deployments)
+		try {
+			const { error } = await supabase.rpc('admin_bulk_upsert_questions', { p_quiz_id: quizId, p_payload: items, p_mode: mode });
+			if (!error) return { ok: true };
+			console.warn('admin_bulk_upsert_questions RPC returned error, using manual inserts', error?.message);
+		} catch (rpcErr) {
+			console.warn('admin_bulk_upsert_questions RPC threw, using manual inserts', rpcErr);
+		}
+
+		// Manual fallback (anon key must have insert rights via RLS)
 		if (mode==='replace') await supabase.from('questions').delete().eq('quiz_id', quizId);
 		for (const it of items) {
 			const { data:qrow, error:qerr } = await supabase.from('questions').insert({ quiz_id: quizId, question_text: it.question_text }).select('id').single();

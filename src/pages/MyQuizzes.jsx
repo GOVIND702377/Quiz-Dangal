@@ -364,7 +364,14 @@ const MyQuizzes = () => {
   // Merge: Live/Upcoming (pre_joined or joined, but not finished), then Finished
   const nowTs = Date.now();
   const liveUpcoming = quizzes.filter(q => q.end_time && nowTs < new Date(q.end_time).getTime());
-  const finished = quizzes.filter(q => q.end_time && nowTs >= new Date(q.end_time).getTime());
+  const finished = quizzes
+    .filter(q => q.end_time && nowTs >= new Date(q.end_time).getTime())
+    .sort((a, b) => {
+      const aEnd = a.end_time ? new Date(a.end_time).getTime() : 0;
+      const bEnd = b.end_time ? new Date(b.end_time).getTime() : 0;
+      return bEnd - aEnd;
+    })
+    .slice(0, 5);
   // sort live/upcoming: active first, then by start time
   liveUpcoming.sort((a,b) => {
     const aSt = a.start_time ? new Date(a.start_time).getTime() : 0;
@@ -531,9 +538,6 @@ const MyQuizzes = () => {
                     <h3 className="text-base sm:text-lg font-semibold text-white truncate pr-3">{quiz.title}</h3>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <div className={`px-2.5 py-1 rounded-full text-[11px] font-medium border ${isPastEnd ? 'bg-emerald-900/25 text-emerald-200 border-emerald-500/30' : 'bg-amber-900/25 text-amber-200 border-amber-500/30'}`}>
-                      {isPastEnd ? 'Completed' : 'Awaiting Results'}
-                    </div>
                     <button
                       onClick={(e) => { e.stopPropagation(); navigate(`/results/${quiz.id}`); }}
                       className="px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-extrabold border text-white transition focus:outline-none focus:ring-2 focus:ring-fuchsia-300 overflow-hidden hover:scale-[1.015] active:scale-[0.99] shadow-[0_8px_18px_rgba(139,92,246,0.4)] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)] border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)]">
