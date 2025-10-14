@@ -381,6 +381,7 @@ const Results = () => {
     }
 
     let channel = null;
+    let cleanupTimer = null;
     try {
       channel = supabase
         .channel(`quiz-results-${quizId}`, { config: { broadcast: { ack: false } } })
@@ -391,15 +392,22 @@ const Results = () => {
             fetchResults();
           },
         )
-        .subscribe(() => {
-          // No-op; status values: 'SUBSCRIBED' | 'TIMED_OUT' | 'CHANNEL_ERROR' | 'CLOSED'
+        .subscribe((status) => {
+          // Silently handle subscription status
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            // Cleanup failed channel to prevent console errors
+            try {
+              if (channel) supabase.removeChannel(channel);
+            } catch { /* ignore */ }
+          }
         });
 
       // If the channel didn't join promptly, clean it up to avoid noisy console errors
-      setTimeout(() => {
+      cleanupTimer = setTimeout(() => {
         try {
           if (channel && channel.state !== 'joined') {
             supabase.removeChannel(channel);
+            channel = null;
           }
         } catch { /* ignore */ }
       }, 5000);
@@ -409,6 +417,7 @@ const Results = () => {
 
     return () => {
       try {
+        if (cleanupTimer) clearTimeout(cleanupTimer);
         if (channel) supabase.removeChannel(channel);
       } catch {
         /* ignore */
@@ -564,74 +573,86 @@ const Results = () => {
 
   return (
     <div className="min-h-screen p-4 pb-24 relative overflow-hidden" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' }}>
+      <style>{`.results-prize-row::-webkit-scrollbar{display:none;}`}</style>
       {/* Decorative background gradients */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute -top-32 -right-16 w-80 h-80 rounded-full blur-3xl opacity-30 bg-gradient-to-br from-fuchsia-600 to-indigo-600"></div>
         <div className="absolute -bottom-24 -left-16 w-96 h-96 rounded-full blur-3xl opacity-20 bg-gradient-to-br from-emerald-500 to-cyan-500"></div>
       </div>
       <div className="max-w-4xl mx-auto">
-        {/* Modern hero header */}
-        <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur p-4 sm:p-5 relative overflow-hidden">
-          <div className="absolute inset-0 pointer-events-none" aria-hidden>
-            <div className="absolute -inset-1 bg-[conic-gradient(var(--tw-gradient-stops))] from-fuchsia-500/10 via-indigo-500/5 to-cyan-500/10 blur-2xl"></div>
-          </div>
-          <div className="flex items-center justify-between gap-3 relative">
-            <div>
-              <div className="flex items-center gap-2 text-slate-300 text-xs">
-                <Users className="w-3.5 h-3.5" />
-                <span>{participantsCount || results?.length || 0} participants</span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight flex items-center gap-2">
-                <Trophy className="w-5 h-5 text-amber-300" /> Results
-              </h1>
-              <p className="text-xs text-slate-400 truncate max-w-[90vw]">{quiz?.title}</p>
+        {/* Results header wrapped in a decorative blue box (restored) */}
+        <div className="px-1 sm:px-1.5 pt-1 pb-2 sm:pt-1.5 sm:pb-3">
+          <div className="relative rounded-2xl border border-slate-800 bg-slate-900/60 backdrop-blur p-3 sm:p-4 overflow-hidden">
+            <div className="absolute inset-0 pointer-events-none" aria-hidden>
+              <div className="absolute -inset-1 bg-[conic-gradient(var(--tw-gradient-stops))] from-indigo-500/12 via-fuchsia-500/10 to-cyan-500/12 blur-2xl"></div>
             </div>
-            {userRank?.rank && (
-              <div className="shrink-0 text-center">
-                <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-200 border border-indigo-600/30 text-xs font-semibold"><Sparkles className="w-3.5 h-3.5"/> You ranked</div>
-                <div className="mt-1 text-2xl font-extrabold text-white">#{userRank.rank}</div>
+            <div className="relative">
+              <div className="flex items-start justify-between gap-3 flex-nowrap">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 text-slate-300 text-xs">
+                    <Users className="w-3.5 h-3.5" />
+                    <span>{participantsCount || results?.length || 0} participants</span>
+                  </div>
+                  <h1 className="text-[22px] sm:text-[26px] font-extrabold text-white tracking-tight flex items-center gap-2">
+                    <Trophy className="w-6 h-6 text-amber-300" /> Results
+                  </h1>
+                  <p className="text-[12px] sm:text-sm text-slate-400 truncate max-w-[65vw] sm:max-w-sm">{quiz?.title}</p>
+                </div>
+                {userRank?.rank && (
+                  <div className="shrink-0 text-right pl-1 self-start relative z-10">
+                    <div className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-indigo-200 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"><Sparkles className="w-4 h-4"/>You ranked</div>
+                    <div className="mt-1 text-2xl sm:text-3xl font-extrabold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)]">#{userRank.rank}</div>
+                  </div>
+                )}
               </div>
-            )}
+              {Array.isArray(quiz?.prizes) && quiz.prizes.length > 0 && (
+                <div className="results-prize-row mt-2 flex items-center gap-1.5 flex-nowrap overflow-x-auto sm:overflow-visible [-ms-overflow-style:none] [scrollbar-width:none] relative z-0">
+                  {quiz.prizes.map((amount, idx) => {
+                    const prizeDisplay = getPrizeDisplay(prizeType, amount, { fallback: 0 });
+                    const base = 'inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border shadow-sm backdrop-blur-sm whitespace-nowrap';
+                    const palette = idx === 0
+                      ? 'bg-amber-500/15 text-amber-100 border-amber-500/35'
+                      : idx === 1
+                        ? 'bg-sky-500/15 text-sky-100 border-sky-500/35'
+                        : idx === 2
+                          ? 'bg-violet-500/15 text-violet-100 border-violet-500/35'
+                          : 'bg-slate-800/70 text-slate-200 border-slate-700/60';
+                    return (
+                      <span key={idx} className={`${base} ${palette}`}>
+                        <span>{idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : `#${idx + 1}`}</span>
+                        <span>{idx === 0 ? '1st' : idx === 1 ? '2nd' : idx === 2 ? '3rd' : 'Prize'}</span>
+                        <span>{prizeDisplay.formatted}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Slim user summary */}
+        {/* Slim user summary (restored) */}
         {(userRank && userProfile?.role !== 'admin') && (
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-600 text-white font-bold flex items-center justify-center ring-1 ring-indigo-300/40">#{userRank.rank}</div>
-              <div className="text-xs text-slate-300">
-                <div className="text-white font-semibold">Your Result</div>
-                <div>Out of {results.length} participants</div>
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 px-3 py-3 mt-4 mb-5">
+            <div className="flex items-center justify-between gap-3 flex-nowrap text-[10px] sm:text-xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-600 text-white font-bold flex items-center justify-center ring-1 ring-indigo-300/40">#{userRank.rank}</div>
+                <div className="leading-tight min-w-0">
+                  <div className="text-[12px] sm:text-sm font-semibold text-white">Your Result</div>
+                  <div className="text-[11px] sm:text-xs text-slate-300 truncate">Out of {results.length} participants</div>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3 text-center">
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-500/15 text-indigo-200 border border-indigo-600/30">YOU</span>
-              <div>
-                <div className="text-[11px] text-slate-400">Score</div>
-                <div className="text-sm font-bold text-emerald-300">{userRank.score}</div>
-              </div>
-              <div className="min-w-[68px]">
-                <div className="text-[11px] text-slate-400">Prize</div>
-                <div className="text-sm font-bold text-purple-300 flex items-center justify-end gap-1">
-                  <span>{userPrizeDisplay.formatted}</span>
+              <div className="flex items-center gap-3 sm:gap-5 shrink-0">
+                <div className="flex flex-col items-end min-w-[60px]">
+                  <span className="uppercase text-[9px] sm:text-[10px] tracking-wide text-slate-400">Score</span>
+                  <span className="text-[15px] sm:text-base font-bold text-emerald-300 leading-tight">{userRank.score}</span>
+                </div>
+                <div className="flex flex-col items-end min-w-[78px]">
+                  <span className="uppercase text-[9px] sm:text-[10px] tracking-wide text-slate-400">Prize</span>
+                  <span className="text-[15px] sm:text-base font-bold text-purple-300 leading-tight">{userPrizeDisplay.formatted}</span>
                 </div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Prize chips */}
-        {Array.isArray(quiz?.prizes) && quiz.prizes.length > 0 && (
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 mb-4 overflow-x-auto whitespace-nowrap">
-            {quiz.prizes.map((amount, idx) => {
-              const prizeDisplay = getPrizeDisplay(prizeType, amount, { fallback: 0 });
-              return (
-                <span key={idx} className={`inline-block mr-2 mb-2 px-2.5 py-1 rounded-lg text-xs font-semibold border ${idx===0 ? 'bg-amber-500/10 text-amber-200 border-amber-500/30' : idx===1 ? 'bg-sky-500/10 text-sky-200 border-sky-500/30' : idx===2 ? 'bg-violet-500/10 text-violet-200 border-violet-500/30' : 'bg-slate-800/60 text-slate-200 border-slate-700'}`}>
-                  {(idx===0 ? '🥇 1st' : idx===1 ? '🥈 2nd' : idx===2 ? '🥉 3rd' : `#${idx+1}`)} • {prizeDisplay.formatted}
-                </span>
-              );
-            })}
           </div>
         )}
 
@@ -649,7 +670,7 @@ const Results = () => {
               const prizeDisplay = getPrizeDisplay(prizeType, prizeVal, { fallback: 0 });
               const isMe = participant.user_id === user?.id;
               return (
-                <m.div key={participant.id} variants={itemVariants} initial="hidden" animate="show" className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors ${isMe ? 'bg-indigo-950/40 border-indigo-700/40 ring-1 ring-indigo-500/20' : index<3 ? 'bg-slate-900/70 border-slate-700/60' : 'bg-slate-950/30 border-slate-800 hover:bg-slate-900/60'}`}>
+                <m.div key={participant.id} variants={itemVariants} initial="hidden" animate="show" className={`flex items-center justify-between gap-3 p-2.5 rounded-lg border transition-colors ${isMe ? 'bg-indigo-950/40 border-indigo-700/40 ring-1 ring-indigo-500/20' : index<3 ? 'bg-slate-900/70 border-slate-700/60' : 'bg-slate-950/30 border-slate-800 hover:bg-slate-900/60'}`}>
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-md grid place-items-center text-xs font-bold bg-slate-800 text-slate-100 ring-1 ring-white/10">
                       <span>{participant.rank || index + 1}</span>
@@ -668,16 +689,16 @@ const Results = () => {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-5 shrink-0">
-                    <div className="text-right">
-                      <p className="text-sm font-bold text-emerald-300 leading-none">{participant.score}</p>
-                      <p className="text-[10px] text-slate-400 leading-none">Score</p>
+                  <div className="flex items-center gap-3 sm:gap-5 shrink-0 whitespace-nowrap">
+                    <div className="text-right min-w-[52px]">
+                      <p className="text-[10px] text-slate-400 leading-none mb-0.5">Score</p>
+                      <p className="text-sm sm:text-base font-bold text-emerald-300 leading-none">{participant.score}</p>
                     </div>
-                    <div className="text-right min-w-[64px]">
-                      <p className="text-sm font-bold text-purple-300 leading-none flex items-center justify-end gap-1">
+                    <div className="text-right min-w-[70px]">
+                      <p className="text-[10px] text-slate-400 leading-none mb-0.5">Prize</p>
+                      <p className="text-sm sm:text-base font-bold text-purple-300 leading-none flex items-center justify-end gap-1">
                         <span>{prizeDisplay.formatted}</span>
                       </p>
-                      <p className="text-[10px] text-slate-400 leading-none">Prize</p>
                     </div>
                   </div>
                 </m.div>

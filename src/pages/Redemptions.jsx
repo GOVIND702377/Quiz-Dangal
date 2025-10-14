@@ -32,6 +32,18 @@ export default function Redemptions() {
     return (v === null || v === undefined) ? '' : String(v).trim();
   }, []);
 
+  const formatRewardValue = useCallback((value) => {
+    if (!value) return '';
+    let output = String(value).trim();
+  output = output.replace(/inr/gi, 'Rs');
+  output = output.replace(/rupess?/gi, 'Rs');
+  output = output.replace(/rupees?/gi, 'Rs');
+    output = output.replace(/rs\.?/gi, 'Rs');
+    output = output.replace(/\s*Rs\s*/gi, ' Rs ');
+    output = output.replace(/Rs\s*(\d)/gi, 'Rs $1');
+    return output.replace(/\s+/g, ' ').trim();
+  }, []);
+
   const loadRedemptions = useCallback(async () => {
     if (!user || !hasSupabaseConfig || !supabase) {
       setRows([]);
@@ -317,76 +329,97 @@ export default function Redemptions() {
             {filteredRewards.map((rw) => {
               const price = Number(rw.coins_required ?? rw.coin_cost ?? rw.coins ?? 0);
               const rewardValue = getRawRewardValue(rw);
+              const displayValue = formatRewardValue(rewardValue);
               const affordable = walletCoins >= price;
-              // const createdAt = rw.created_at ? new Date(rw.created_at).getTime() : 0; // not used currently
-              const pct = price > 0 ? Math.max(0, Math.min(100, Math.floor((walletCoins / price) * 100))) : 0;
+              const pct = price > 0 ? Math.min(100, Math.max(0, Math.round((walletCoins / price) * 100))) : 100;
+              const remainingCoins = Math.max(0, price - walletCoins);
+              const description = rw.description ? String(rw.description).trim() : '';
               return (
-                <m.div 
-                  key={rw.id} 
-                  className="group relative rounded-2xl p-3.5 bg-white/[0.05] border border-white/10 shadow-lg backdrop-blur-xl overflow-hidden"
-                  whileHover={{ y: -3, scale: 1.01 }} 
-                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                <m.div
+                  key={rw.id}
+                  className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-white/10 bg-[linear-gradient(160deg,rgba(31,41,80,0.92),rgba(11,15,34,0.96))] shadow-[0_25px_45px_-35px_rgba(129,140,248,0.9)] backdrop-blur-xl"
+                  whileHover={{ y: -4, scale: 1.015 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 22 }}
                 >
-                  {/* Gift box with premium frame */}
-                  <div className="relative rounded-xl p-[2px] bg-gradient-to-br from-indigo-500/30 via-fuchsia-500/20 to-violet-500/30">
-                    <div className="relative rounded-[10px] h-32 overflow-hidden bg-black/25">
-                      {rw.image_url ? (
-                        <img
-                          src={rw.image_url}
-                          alt={rw.title || 'Reward'}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          onError={(e)=>{ e.currentTarget.style.display='none'; }}
-                        />
-                      ) : (
-                        <div className="absolute inset-0 grid place-items-center">
-                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-fuchsia-500 ring-2 ring-white/20 shadow-lg grid place-items-center">
-                            <Gift className="w-8 h-8 text-white/95" />
-                          </div>
+                    <div className="relative aspect-[4/5] w-full overflow-hidden sm:aspect-[4/4.5]">
+                    {rw.image_url ? (
+                      <img
+                        src={rw.image_url}
+                        alt={rw.title || 'Reward preview'}
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
+                    ) : (
+                      <div className="absolute inset-0 grid place-items-center bg-gradient-to-br from-indigo-500/40 via-fuchsia-500/30 to-sky-500/25">
+                        <div className="grid place-items-center rounded-2xl bg-black/30 p-6 pt-7 shadow-lg ring-1 ring-white/12">
+                          <Gift className="h-11 w-11 text-white/95 translate-y-1" />
+                        </div>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/20 to-transparent" />
+                    <div className="relative flex h-full flex-col items-center justify-end gap-3 p-4 pb-8 text-center">
+                      {displayValue && (
+                        <div
+                          className="mt-10 sm:mt-8 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/12 px-4 py-1.5 text-white shadow-lg backdrop-blur transform translate-y-6 sm:translate-y-7"
+                          title={displayValue}
+                        >
+                          <Sparkles className="h-[18px] w-[18px] text-fuchsia-200" />
+                          <span className="text-base font-semibold sm:text-lg tracking-tight">{displayValue}</span>
                         </div>
                       )}
-                      {/* soft shine */}
-                      <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-[radial-gradient(500px_120px_at_20%_-20%,rgba(255,255,255,0.18),transparent),radial-gradient(500px_120px_at_80%_120%,rgba(255,255,255,0.12),transparent)]" />
-                      {/* removed top-left badges/labels inside gift box for a cleaner look */}
+                      {rw.title && (
+                        <div className="text-xs font-semibold uppercase tracking-wide text-indigo-100/80 sm:text-sm sm:normal-case sm:tracking-normal sm:text-slate-100/90">
+                          {rw.title}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  {/* Value below the gift box */}
-                  <div className="mt-3 text-center">
-                    {rewardValue && (
-                      <div className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 bg-white/10 border border-white/15 backdrop-blur-sm shadow-sm" title={rewardValue}>
-                        <Sparkles className="w-4 h-4 text-fuchsia-200" />
-                        <span className="text-white font-bold text-base sm:text-lg tracking-tight">{rewardValue}</span>
+                  <div className="flex flex-1 flex-col gap-3 p-4">
+                    {description && (
+                      <p className="text-xs leading-relaxed text-slate-300/85">
+                        {description.length > 140 ? `${description.slice(0, 137)}...` : description}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-3 rounded-2xl border border-white/12 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.42),rgba(12,15,35,0.92))] px-3.5 py-3 shadow-[0_18px_34px_-26px_rgba(129,140,248,0.75)] backdrop-blur">
+                      <div className="inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl bg-white/12 text-indigo-100 ring-1 ring-white/35 shadow-inner">
+                        <Coins className="h-3.5 w-3.5" />
                       </div>
-                    )}
-                    {rw.title && (
-                      <div className="text-sm font-semibold text-slate-200/90 truncate mt-1">{rw.title}</div>
-                    )}
-                    <div className="mt-2 text-xs text-indigo-200/90 font-medium">
-                      Requires <span className="font-bold text-indigo-100">{price.toLocaleString()}</span> coins
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <div className="h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
-                      <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-fuchsia-500" style={{ width: `${pct}%` }} />
-                    </div>
-                    <button
-                      type="button"
-                      disabled={!affordable}
-                      className={`mt-3 w-full inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold border transition focus:outline-none focus:ring-2 focus:ring-indigo-400/40 ${
-                        affordable
-                          ? 'bg-gradient-to-r from-indigo-600/85 to-fuchsia-600/85 text-white border-white/10 hover:from-indigo-600 hover:to-fuchsia-600 shadow-md hover:shadow-lg active:scale-[0.99]'
-                          : 'bg-white/5 text-slate-300/70 border-white/10 cursor-not-allowed'
-                      }`}
-                      onClick={() => onRedeemClick(rw)}
-                      title={affordable ? 'Redeem reward' : 'Not enough coins'}
-                    >
-                      Redeem <ArrowRight className="w-4 h-4" />
-                    </button>
-                    {!affordable && (
-                      <div className="mt-1.5 text-center text-[10px] text-slate-400/90">
-                        Need <span className="text-rose-200 font-semibold">{Math.max(0, price - walletCoins).toLocaleString()}</span> more coins.{' '}
-                        <Link to="/refer" className="text-indigo-300 hover:underline">Earn</Link>
+                      <div className="leading-tight text-left text-white">
+                        <div className="text-[10px] uppercase tracking-[0.25em] text-white/70">Coins needed</div>
+                        <div className="text-base font-semibold tracking-tight text-white">
+                          {price.toLocaleString()}
+                        </div>
                       </div>
-                    )}
+                    </div>
+                    <div className="space-y-2">
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/15">
+                        <div
+                          className="h-full rounded-full bg-[linear-gradient(90deg,#38bdf8,#a855f7,#f472b6)] shadow-[0_0_12px_rgba(168,85,247,0.45)] transition-all duration-500"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-auto">
+                      <button
+                        type="button"
+                        disabled={!affordable}
+                        onClick={() => onRedeemClick(rw)}
+                        className={`w-full inline-flex items-center justify-center gap-2 rounded-2xl px-3 py-2.5 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-indigo-400/40 ${
+                          affordable
+                            ? 'bg-gradient-to-r from-indigo-600 to-fuchsia-600 text-white shadow-lg hover:from-indigo-500 hover:to-fuchsia-500'
+                            : 'bg-white/5 text-slate-300/70 border border-white/10 cursor-not-allowed'
+                        }`}
+                        title={affordable ? 'Redeem reward' : 'Not enough coins yet'}
+                      >
+                        Redeem <ArrowRight className="h-4 w-4" />
+                      </button>
+                      {!affordable && (
+                        <div className="mt-2 text-center text-[11px] text-slate-400/90">
+                          Need <span className="font-semibold text-rose-200">{remainingCoins.toLocaleString()}</span> more coins.{' '}
+                          <Link to="/refer" className="text-indigo-300 hover:underline">Earn now</Link>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </m.div>
               );

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { m } from '@/lib/motion-lite';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Clock, Play, Loader2, Users } from 'lucide-react';
+import { Clock, Play, Loader2, Users, Award, Target, Sparkles, Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 import { formatDateOnly, formatTimeOnly, getPrizeDisplay, shouldAllowClientCompute, safeComputeResultsIfDue } from '@/lib/utils';
@@ -512,96 +512,112 @@ const MyQuizzes = () => {
             </div>
           )}
 
-          <h2 className="text-xl font-semibold text-white mb-3">Finished</h2>
-      <div className="space-y-3">
+      <h2 className="text-xl font-semibold text-white mb-3">Finished</h2>
+    <div className="space-y-2.5">
           {finished.map((quiz, index) => {
             const now = new Date();
             const endTime = new Date(quiz.end_time);
+            const endedAtLabel = endTime.toLocaleString([], { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
             const board = Array.isArray(quiz.leaderboard) ? quiz.leaderboard : [];
             const isResultOut = now >= endTime && board.length > 0;
             const isPastEnd = now >= endTime;
             const userRank = isResultOut ? board.find(p => p.user_id === (user?.id)) : null;
+            const prizeType = (quiz.prize_type && String(quiz.prize_type).trim()) ? quiz.prize_type : 'coins';
+            const rawPrize = userRank?.rank && Array.isArray(quiz.prizes) ? quiz.prizes[userRank.rank - 1] : null;
+            const prizeDisplay = userRank?.rank ? getPrizeDisplay(prizeType, rawPrize ?? 0, { fallback: 0 }).formatted : '—';
             
-            return(
-              <m.div key={quiz.id} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.06 }}
+            return (
+              <m.div
+                key={quiz.id}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.06 }}
                 onClick={() => navigate(`/results/${quiz.id}`)}
-                className="qd-card relative overflow-hidden rounded-xl p-4 shadow-lg text-slate-100 cursor-pointer group border border-slate-800 hover:-translate-y-0.5 transition-transform">
-                {/* Decorative overlays to differentiate finished cards */}
-                <span className="pointer-events-none absolute left-0 top-0 bottom-0 w-[3px] bg-[linear-gradient(180deg,#9333ea,#4f46e5,#06b6d4)] opacity-70" />
-                <div className="pointer-events-none absolute inset-0 -z-10 opacity-50 mix-blend-screen [background-image:radial-gradient(circle_at_18%_28%,rgba(99,102,241,0.22),rgba(0,0,0,0)60%),radial-gradient(circle_at_82%_72%,rgba(168,85,247,0.18),rgba(0,0,0,0)65%),radial-gradient(circle_at_50%_50%,rgba(236,72,153,0.12),rgba(0,0,0,0)55%)]" />
-                <div className="pointer-events-none absolute -top-1/2 left-1/4 w-2/3 h-full rotate-12 bg-gradient-to-b from-white/10 via-transparent to-transparent opacity-20" />
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-[linear-gradient(135deg,rgba(99,102,241,0.25),rgba(236,72,153,0.2))] ring-1 ring-white/10 text-base">
-                      {isResultOut ? '🏆' : '⏳'}
-                    </span>
-                    <h3 className="text-base sm:text-lg font-semibold text-white truncate pr-3">{quiz.title}</h3>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                className="qd-card relative overflow-hidden rounded-2xl border border-slate-800/70 bg-slate-950/80 p-3 sm:p-3.5 text-slate-100 cursor-pointer group shadow-[0_14px_34px_-22px_rgba(99,102,241,0.6)] backdrop-blur-[2px] hover:-translate-y-1 hover:border-slate-700/70 transition-transform"
+              >
+                {/* Soft light sweeps to keep the card lively but compact */}
+                <div className="pointer-events-none absolute inset-0 -z-10 opacity-70 mix-blend-screen [background-image:radial-gradient(circle_at_12%_24%,rgba(99,102,241,0.22),rgba(0,0,0,0)55%),radial-gradient(circle_at_82%_76%,rgba(236,72,153,0.18),rgba(0,0,0,0)60%),radial-gradient(circle_at_50%_0%,rgba(45,212,191,0.14),rgba(0,0,0,0)58%)]" />
+                <div className="pointer-events-none absolute -top-16 right-[-20%] h-36 w-36 rounded-full bg-fuchsia-500/12 blur-3xl" />
+
+                <div className="relative flex flex-col gap-2.5">
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      <span className="relative inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400/25 via-fuchsia-500/22 to-indigo-500/25 ring-1 ring-amber-300/40 text-amber-200 shadow-[0_10px_20px_rgba(147,51,234,0.3)]">
+                        <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/6 via-transparent to-transparent" aria-hidden />
+                        {isResultOut ? <Trophy className="relative w-[18px] h-[18px]" strokeWidth={2.3} /> : <Clock className="relative w-[18px] h-[18px]" strokeWidth={2.1} />}
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm sm:text-base font-semibold text-white pr-6">{quiz.title}</h3>
+                        <p className="mt-0.5 text-[10px] sm:text-xs text-slate-400 leading-tight">Ended {endedAtLabel}</p>
+                      </div>
+                    </div>
                     <button
-                      onClick={(e) => { e.stopPropagation(); navigate(`/results/${quiz.id}`); }}
-                      className="px-3 py-1.5 rounded-lg text-[11px] sm:text-xs font-extrabold border text-white transition focus:outline-none focus:ring-2 focus:ring-fuchsia-300 overflow-hidden hover:scale-[1.015] active:scale-[0.99] shadow-[0_8px_18px_rgba(139,92,246,0.4)] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)] border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)]">
-                      RESULT
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/results/${quiz.id}`);
+                      }}
+                      className="shrink-0 rounded-full border border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea)] px-3 py-1.5 text-[11px] sm:text-xs font-semibold text-white transition focus:outline-none focus:ring-2 focus:ring-fuchsia-300/60 hover:scale-[1.03] active:scale-[0.98] shadow-[0_8px_20px_rgba(139,92,246,0.4)]"
+                    >
+                      Result
                     </button>
                   </div>
-                </div>
 
-                {isResultOut ? (
-                  <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
-                    <div className="bg-slate-900/60 border border-slate-700/60 rounded-lg px-2 py-1.5 text-center">
-                      <div className="uppercase text-[10px] text-slate-400">Your Rank</div>
-                      <div className="font-semibold text-indigo-200">#{userRank?.rank ?? '-'}</div>
+                  {isResultOut ? (
+                    <div className="grid grid-cols-3 gap-1 text-[10px] sm:text-xs">
+                      <div className="flex items-center justify-between gap-1.5 rounded-xl border border-indigo-500/35 bg-indigo-500/12 px-2.5 py-1.5 min-w-0">
+                        <Award className="h-4 w-4 text-indigo-200 shrink-0" />
+                        <div className="text-right leading-tight min-w-0">
+                          <div className="uppercase text-[9px] tracking-wider text-slate-400">Rank</div>
+                          <div className="font-semibold text-indigo-100 truncate">#{userRank?.rank ?? '-'}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-1.5 rounded-xl border border-sky-500/35 bg-sky-500/12 px-2.5 py-1.5 min-w-0">
+                        <Target className="h-4 w-4 text-sky-200 shrink-0" />
+                        <div className="text-right leading-tight min-w-0">
+                          <div className="uppercase text-[9px] tracking-wider text-slate-400">Score</div>
+                          <div className="font-semibold text-sky-100 truncate">{userRank?.score ?? '-'}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-1.5 rounded-xl border border-fuchsia-500/40 bg-fuchsia-500/12 px-2.5 py-1.5 min-w-0">
+                        <Sparkles className="h-4 w-4 text-fuchsia-200 shrink-0" />
+                        <div className="text-right leading-tight min-w-0">
+                          <div className="uppercase text-[9px] tracking-wider text-slate-400">Prize</div>
+                          <div className="font-semibold text-fuchsia-100 truncate">{prizeDisplay}</div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="bg-slate-900/60 border border-slate-700/60 rounded-lg px-2 py-1.5 text-center">
-                      <div className="uppercase text-[10px] text-slate-400">Your Score</div>
-                      <div className="font-semibold text-indigo-200">{userRank?.score ?? '-'}</div>
+                  ) : (
+                    <div className="flex items-center justify-between gap-2 rounded-xl border border-slate-800/70 bg-slate-900/65 px-3 py-2 text-[11px] sm:text-xs text-slate-300">
+                      <Clock className="h-4 w-4 text-indigo-200" />
+                      {isPastEnd ? (
+                        <span className="flex-1 leading-tight">Finalized. No participants or valid answers.</span>
+                      ) : (
+                        <span className="flex-1 leading-tight">Results will be declared at {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      )}
+                      {userProfile?.role === 'admin' && hasSupabaseConfig && supabase && !isPastEnd && (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              const { error } = await supabase.rpc('admin_recompute_quiz_results', { p_quiz_id: quiz.id });
+                              if (error) throw error;
+                              toast({ title: 'Recompute triggered', description: 'Results recompute requested.' });
+                              await fetchMyQuizzes();
+                            } catch (err) {
+                              toast({ title: 'Recompute failed', description: err?.message || 'Could not recompute.', variant: 'destructive' });
+                            }
+                          }}
+                          className="rounded-lg border border-fuchsia-500/40 bg-fuchsia-500/10 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-fuchsia-200 transition hover:bg-fuchsia-500/20"
+                          title="Admin only"
+                        >
+                          Recompute
+                        </button>
+                      )}
                     </div>
-                    <div className="bg-slate-900/60 border border-slate-700/60 rounded-lg px-2 py-1.5 text-center">
-                      <div className="uppercase text-[10px] text-slate-400">Your Prize</div>
-                      {(() => {
-                        const prizeType = (quiz.prize_type && String(quiz.prize_type).trim()) ? quiz.prize_type : 'coins';
-                        const rawPrize = userRank?.rank && Array.isArray(quiz.prizes) ? quiz.prizes[userRank.rank - 1] : null;
-                        if (!userRank?.rank) {
-                          return <div className="font-semibold text-purple-200">—</div>;
-                        }
-                        const display = getPrizeDisplay(prizeType, rawPrize ?? 0, { fallback: 0 });
-                        // UI decision: no separate icon, show plain text like "251 coins"
-                        const text = display.formatted;
-                        return <div className="font-semibold text-purple-200">{text}</div>;
-                      })()}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-3 flex items-center gap-3 text-xs text-slate-300">
-                    <Clock className="h-4 w-4 text-slate-400" />
-                    {isPastEnd ? (
-                      <span className="flex-1">Finalized. No participants or valid answers.</span>
-                    ) : (
-                      <span className="flex-1">Results will be declared at {endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    )}
-                    {userProfile?.role === 'admin' && hasSupabaseConfig && supabase && !isPastEnd && (
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          try {
-                            const { error } = await supabase.rpc('admin_recompute_quiz_results', { p_quiz_id: quiz.id });
-                            if (error) throw error;
-                            toast({ title: 'Recompute triggered', description: 'Results recompute requested.' });
-                            await fetchMyQuizzes();
-                          } catch (err) {
-                            toast({ title: 'Recompute failed', description: err?.message || 'Could not recompute.', variant: 'destructive' });
-                          }
-                        }}
-                        className="px-2 py-1 rounded-md border border-fuchsia-500/40 bg-fuchsia-500/10 text-fuchsia-200 hover:bg-fuchsia-500/20 transition"
-                        title="Admin only"
-                      >
-                        Recompute
-                      </button>
-                    )}
-                  </div>
-                )}
+                  )}
+                </div>
               </m.div>
-            )
+            );
           })}
           </div>
   </m.div>
