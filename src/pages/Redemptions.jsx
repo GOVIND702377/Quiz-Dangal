@@ -22,13 +22,14 @@ export default function Redemptions() {
   const [redeemSubmitting, setRedeemSubmitting] = useState(false);
   const [payoutIdentifier, setPayoutIdentifier] = useState('');
   const [payoutChannel, setPayoutChannel] = useState('upi');
+  const [redeemMode, setRedeemMode] = useState('cash'); // cash | voucher
   const payoutInputRef = React.useRef(null);
   // Mobile keyboard handling: when input focused on small screens, lift dialog upward for better visibility
   const [inputFocused, setInputFocused] = useState(false);
   const isMobile = typeof window !== 'undefined' && /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
   const [activeTab, setActiveTab] = useState('rewards'); // rewards | history
-  const [historyQuery] = useState(''); // removed setter (unused)
-  const [historySort] = useState('newest'); // removed setter (unused)
+  const historyQuery = '';
+  const historySort = 'newest';
   
   // Use backend reward_value exactly as provided (no extra suffix/prefix)
   const getRawRewardValue = useCallback((rw) => {
@@ -105,7 +106,7 @@ export default function Redemptions() {
 
   const walletCoins = useMemo(() => Number(userProfile?.wallet_balance || 0), [userProfile]);
 
-  const filteredRewards = useMemo(() => (rewards || []), [rewards]);
+  const filteredRewards = rewards || [];
 
   // History filters and sorting
   const filteredRows = useMemo(() => {
@@ -126,6 +127,14 @@ export default function Redemptions() {
     return list;
   }, [rows, historyQuery, historySort]);
 
+  const resolveRewardMode = useCallback((rw) => {
+    const raw = String(rw?.reward_type || '').trim().toLowerCase();
+    if (!raw) return 'cash';
+    if (raw.includes('cash')) return 'cash';
+    if (raw.includes('voucher')) return 'voucher';
+    return raw === 'voucher' ? 'voucher' : 'cash';
+  }, []);
+
   const stats = useMemo(() => {
     const total = rows.length;
     const pending = rows.filter(r => r.status === 'pending').length;
@@ -145,10 +154,17 @@ export default function Redemptions() {
 
   // Note: Redemption action will use admin-configured rewards; no hardcoded catalog here.
   const onRedeemClick = (rw) => {
+    const mode = resolveRewardMode(rw);
     setSelectedReward(rw);
+    setRedeemMode(mode);
     setRedeemStep('confirm');
+    setPayoutIdentifier('');
+    setInputFocused(false);
+    setPayoutChannel(mode === 'voucher' ? 'phone' : 'upi');
     setRedeemOpen(true);
-  setTimeout(()=>{ try { payoutInputRef.current?.focus(); } catch (e) { /* ignore focus error */ } }, 100);
+    setTimeout(() => {
+      try { payoutInputRef.current?.focus(); } catch (e) { /* ignore focus error */ }
+    }, 100);
   };
 
   const handleConfirmRedeem = async () => {
@@ -157,30 +173,41 @@ export default function Redemptions() {
       toast({ title: 'Configuration missing', description: 'Supabase env vars are not set. Please configure .env.local', variant: 'destructive' });
       return;
     }
+    const requiresWhatsApp = redeemMode === 'voucher';
     const price = Number(selectedReward.coins_required ?? selectedReward.coin_cost ?? selectedReward.coins ?? 0);
+    const rawIdentifier = payoutIdentifier.trim();
     if ((userProfile?.wallet_balance ?? 0) < price) {
       toast({ title: 'Not enough coins', description: 'Earn more coins to redeem this reward.' });
       return;
     }
-    if (!payoutIdentifier.trim()) {
-      toast({ title: 'Enter payout details', description: 'Please provide your UPI ID or phone number.' });
+    if (!rawIdentifier) {
+      toast({ title: 'Enter payout details', description: requiresWhatsApp ? 'Please provide your WhatsApp number.' : 'Please provide your UPI ID or phone number.' });
       return;
+    }
+    let identifierToSend = rawIdentifier;
+    if (requiresWhatsApp) {
+      const digitsOnly = rawIdentifier.replace(/\D/g, '');
+      if (digitsOnly.length < 8 || digitsOnly.length > 15) {
+        toast({ title: 'Invalid WhatsApp number', description: 'Please enter a valid WhatsApp number with 8 to 15 digits.', variant: 'destructive' });
+        return;
+      }
+      identifierToSend = digitsOnly;
     }
     try {
       setRedeemSubmitting(true);
+      const channel = requiresWhatsApp ? 'phone' : (payoutChannel || 'upi');
+      if (requiresWhatsApp && payoutChannel !== 'phone') setPayoutChannel('phone');
       const rpcPayload = {
         p_catalog_id: selectedReward.id,
-        p_payout_identifier: payoutIdentifier.trim(),
-        p_payout_channel: payoutChannel || 'upi'
+        p_payout_identifier: identifierToSend,
+        p_payout_channel: channel
       };
       let { error } = await supabase.rpc('redeem_from_catalog_with_details', rpcPayload);
       if (error) throw error;
       setRedeemStep('success');
       toast({ title: 'Redemption pending', description: 'Your request is submitted. Await admin approval.' });
       setPayoutIdentifier('');
-      // refresh history
       await loadRedemptions();
-      // refresh wallet balance immediately (ignore errors)
       if (typeof refreshUserProfile === 'function') {
         await refreshUserProfile(user).catch(() => { void 0; });
       }
@@ -495,9 +522,25 @@ export default function Redemptions() {
       )}
 
   {/* Redeem Preview Dialog */}
-      <Dialog open={redeemOpen} onOpenChange={(o)=> { if (!o) setInputFocused(false); setRedeemOpen(o); }}>
+      <Dialog open={redeemOpen} onOpenChange={(o)=> {
+        if (!o) {
+          setInputFocused(false);
+          setSelectedReward(null);
+          setPayoutIdentifier('');
+          setPayoutChannel('upi');
+          setRedeemStep('confirm');
+          setRedeemSubmitting(false);
+          setRedeemMode('cash');
+        }
+        setRedeemOpen(o);
+      }}>
         <DialogContent className={`bg-slate-900/95 border-white/10 text-slate-100 rounded-xl sm:rounded-2xl p-0 overflow-hidden w-[min(94vw,600px)] sm:max-w-xl md:max-w-2xl max-h-[86svh] transition-transform duration-300 ${isMobile && inputFocused ? 'translate-y-[-12svh]' : ''}`}>        
-          {selectedReward && (
+          {selectedReward && (() => {
+            const isVoucherReward = redeemMode === 'voucher';
+            const payoutLabel = isVoucherReward ? 'WhatsApp Number' : (payoutChannel === 'phone' ? 'Phone Number' : 'UPI ID');
+            const payoutPlaceholder = isVoucherReward ? 'Enter WhatsApp number (8-15 digits)' : (payoutChannel === 'phone' ? 'Enter phone number' : 'Enter UPI ID');
+            const payoutInputMode = (isVoucherReward || payoutChannel === 'phone') ? 'tel' : 'text';
+            return (
             <div className="p-4 sm:p-6 md:p-7">
               <DialogHeader className="flex flex-col items-center text-center">
                 <DialogTitle className="text-xl sm:text-2xl font-extrabold flex items-center justify-center gap-2">
@@ -516,28 +559,48 @@ export default function Redemptions() {
                 {redeemStep === 'confirm' ? (
                   <div className="w-full">
                     <div className="space-y-4 mb-5">
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        <div className="flex-1">
-                          <label className="text-[11px] font-semibold text-slate-400 mb-1 block">Payout Method</label>
-                          <div className="flex gap-2">
-                            {['upi','phone'].map(ch => (
-                              <button key={ch} type="button" onClick={()=> setPayoutChannel(ch)} className={`px-3 py-1.5 rounded-md text-xs font-semibold border transition ${payoutChannel===ch? 'bg-indigo-600 text-white border-indigo-600':'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'}`}>{ch.toUpperCase()}</button>
-                            ))}
+                      {isVoucherReward ? (
+                        <div className="flex flex-col gap-3">
+                          <div>
+                            <label className="text-[11px] font-semibold text-slate-400 mb-1 block">{payoutLabel}</label>
+                            <input
+                              ref={payoutInputRef}
+                              value={payoutIdentifier}
+                              onChange={(e)=> setPayoutIdentifier(e.target.value)}
+                              onFocus={()=> setInputFocused(true)}
+                              onBlur={()=> setInputFocused(false)}
+                              placeholder={payoutPlaceholder}
+                              inputMode={payoutInputMode}
+                              className="w-full px-3 py-2 rounded-lg bg-slate-800/70 border border-slate-600 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            />
+                            <p className="mt-2 text-[11px] text-slate-400">Voucher code WhatsApp par share kiya jayega.</p>
                           </div>
                         </div>
-                        <div className="flex-[2]">
-                          <label className="text-[11px] font-semibold text-slate-400 mb-1 block">{payoutChannel==='phone' ? 'Phone Number' : 'UPI ID'}</label>
-                          <input
-                            ref={payoutInputRef}
-                            value={payoutIdentifier}
-                            onChange={(e)=> setPayoutIdentifier(e.target.value)}
-                            onFocus={()=> setInputFocused(true)}
-                            onBlur={()=> setInputFocused(false)}
-                            placeholder=""
-                            className="w-full px-3 py-2 rounded-lg bg-slate-800/70 border border-slate-600 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
-                          />
+                      ) : (
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <div className="flex-1">
+                            <label className="text-[11px] font-semibold text-slate-400 mb-1 block">Payout Method</label>
+                            <div className="flex gap-2">
+                              {['upi','phone'].map(ch => (
+                                <button key={ch} type="button" onClick={()=> setPayoutChannel(ch)} className={`px-3 py-1.5 rounded-md text-xs font-semibold border transition ${payoutChannel===ch? 'bg-indigo-600 text-white border-indigo-600':'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'}`}>{ch.toUpperCase()}</button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex-[2]">
+                            <label className="text-[11px] font-semibold text-slate-400 mb-1 block">{payoutLabel}</label>
+                            <input
+                              ref={payoutInputRef}
+                              value={payoutIdentifier}
+                              onChange={(e)=> setPayoutIdentifier(e.target.value)}
+                              onFocus={()=> setInputFocused(true)}
+                              onBlur={()=> setInputFocused(false)}
+                              placeholder={payoutPlaceholder}
+                              inputMode={payoutInputMode}
+                              className="w-full px-3 py-2 rounded-lg bg-slate-800/70 border border-slate-600 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+                            />
+                          </div>
                         </div>
-                      </div>
+                      )}
                       {(() => { const price = Number(selectedReward.coins_required ?? selectedReward.coin_cost ?? selectedReward.coins ?? 0); return (
                         <div className="text-xs text-slate-400 text-center">
                           <span className="text-white font-semibold">{getRawRewardValue(selectedReward)}</span> • <span className="text-fuchsia-200 font-semibold">{price.toLocaleString()} coins</span>
@@ -590,7 +653,8 @@ export default function Redemptions() {
                 )}
               </DialogFooter>
             </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

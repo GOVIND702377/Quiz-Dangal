@@ -643,12 +643,12 @@ function RewardsPanel() {
 
 	// Approval flow handled separately in Approvals tab. This panel only manages active reward catalog entries.
 
-	const resetRewardForm = () => setRewardForm({ reward_type:'coins', reward_value:'', coins_required:'', is_active:true });
+	const resetRewardForm = () => setRewardForm({ reward_type:'cash', reward_value:'', coins_required:'', is_active:true });
 	const saveReward = async e => {
 		e.preventDefault(); if(!supabase) return; setSavingReward(true);
 		try {
 			const payload = {
-				reward_type: String(rewardForm.reward_type||'').trim() || 'other',
+				reward_type: String(rewardForm.reward_type||'').trim() || 'cash',
 				reward_value: String(rewardForm.reward_value||'').trim(),
 				coins_required: rewardForm.coins_required!=='' && rewardForm.coins_required!==null ? parseInt(rewardForm.coins_required,10) : null,
 				is_active: !!rewardForm.is_active,
@@ -673,7 +673,7 @@ function RewardsPanel() {
 		setEditingId(r.id);
 		setShowNewReward(true);
 		setRewardForm({
-			reward_type: r.reward_type || 'coins',
+			reward_type: r.reward_type || 'cash',
 			reward_value: r.reward_value || '',
 			coins_required: (r.coins_required ?? '').toString(),
 			is_active: !!r.is_active,
@@ -699,10 +699,15 @@ function RewardsPanel() {
 							<div>
 								<Label>Type</Label>
 								<div className="flex gap-2 flex-wrap mt-1">
-									{['coins','cash','voucher','other'].map(k=> (
-										<button type="button" key={k} onClick={()=> setRewardForm(f=>({...f,reward_type:k}))} className={`px-2 py-1 rounded text-xs border ${rewardForm.reward_type===k? 'bg-indigo-600 text-white border-indigo-600':'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>{k}</button>
+									{['cash','voucher'].map(k=> (
+										<button type="button" key={k} onClick={()=> setRewardForm(f=>({...f,reward_type:k}))} className={`px-2 py-1 rounded text-xs border ${rewardForm.reward_type===k? 'bg-indigo-600 text-white border-indigo-600':'border-gray-300 text-gray-600 hover:bg-gray-100'}`}>
+											{k === 'cash' ? '💵 Cash (UPI/Phone)' : '🎟️ Voucher (WhatsApp)'}
+										</button>
 									))}
 								</div>
+								<p className="text-xs text-gray-500 mt-1">
+									{rewardForm.reward_type === 'cash' ? 'User will provide UPI ID or Phone number' : 'User will provide WhatsApp number'}
+								</p>
 							</div>
 							<div>
 								<Label>Value</Label>
@@ -783,25 +788,25 @@ function NotificationsPanel() {
 
 	React.useEffect(()=>{ load(); },[load]);
 
-	const send = async e => {
+		const send = async e => {
 		e.preventDefault();
 		if (!title.trim() || !message.trim()) { toast({ title:'Missing fields', variant:'destructive'}); return; }
 		if (!supabase) { toast({ title:'No backend client', variant:'destructive'}); return; }
 		setSending(true);
 		try {
-			// Use edge function (assumes URL pattern: /functions/v1/send-notifications)
-			const { data: { session } } = await supabase.auth.getSession();
-			const token = session?.access_token;
-			const res = await fetch('/functions/v1/send-notifications', {
-				method:'POST',
-				headers: { 'Content-Type':'application/json', ...(token? { Authorization:`Bearer ${token}` }: {}) },
-				body: JSON.stringify({ title: title.trim(), message: message.trim(), segment })
+			const payload = { title: title.trim(), message: message.trim(), segment };
+			// Route via Supabase client so we hit the deployed edge function even off-origin
+			const { data: sessionData } = await supabase.auth.getSession();
+			const token = sessionData?.session?.access_token;
+			const { data, error } = await supabase.functions.invoke('send-notifications', {
+				body: payload,
+				headers: token ? { Authorization: `Bearer ${token}` } : undefined,
 			});
-			if (!res.ok) {
-				const text = await res.text();
-				throw new Error(text || `HTTP ${res.status}`);
+			if (error) {
+				throw new Error(error.message || error.error || 'Failed to send notification');
 			}
-			toast({ title:'Sent', description:title.trim() });
+			const responseMessage = typeof data === 'object' && data?.message ? data.message : title.trim();
+			toast({ title:'Sent', description: responseMessage });
 			setTitle(''); setMessage('');
 			load();
 		} catch (e) {
@@ -814,13 +819,28 @@ function NotificationsPanel() {
 			<form onSubmit={send} className="space-y-4 bg-gray-50 border border-gray-200 rounded-xl p-5">
 				<h2 className="font-semibold text-lg">Send Notification</h2>
 				<div>
-					<Label>Title</Label>
-					<Input value={title} onChange={e=> setTitle(e.target.value)} maxLength={80} placeholder="Short title" />
+					<Label htmlFor="notification-title">Title</Label>
+					<Input
+						id="notification-title"
+						name="notificationTitle"
+						value={title}
+						onChange={e=> setTitle(e.target.value)}
+						maxLength={80}
+						placeholder="Short title"
+					/>
 					<div className="text-[10px] text-gray-500 mt-1">Max 80 chars • {title.length}/80</div>
 				</div>
 				<div>
-					<Label>Message</Label>
-					<Textarea value={message} onChange={e=> setMessage(e.target.value)} className="h-28" maxLength={280} placeholder="Body shown in push notification" />
+					<Label htmlFor="notification-message">Message</Label>
+					<Textarea
+						id="notification-message"
+						name="notificationMessage"
+						value={message}
+						onChange={e=> setMessage(e.target.value)}
+						className="h-28"
+						maxLength={280}
+						placeholder="Body shown in push notification"
+					/>
 					<div className="text-[10px] text-gray-500 mt-1">Max 280 chars • {message.length}/280</div>
 				</div>
 				<div>
