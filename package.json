@@ -8,7 +8,7 @@
     "dev": "vite",
     "dev:lan": "vite --host --port 5173",
     "build": "vite build",
-    "postbuild": "node ./scripts/generate-sitemap.mjs",
+    "postbuild": "echo Skipping sitemap generation - using manual sitemap",
     "build:secure": "vite build && node ./scripts/scan-dist-secrets.mjs dist",
     "analyze": "cross-env ANALYZE=true vite build && echo 'Open dist/stats.html'",
     "test": "vitest run",
