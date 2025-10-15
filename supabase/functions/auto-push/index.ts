@@ -26,7 +26,18 @@ async function callSendNotifications(payload: Record<string, unknown>) {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('', { status: 204 });
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { 
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "authorization, x-cron-secret, content-type",
+      }
+    });
+  }
+  
   try {
     const missingConfig: string[] = [];
     if (!SUPABASE_URL) missingConfig.push('SUPABASE_URL');
@@ -67,12 +78,12 @@ serve(async (req) => {
       }
       try {
         await callSendNotifications({
-        title: `${row.title || 'Quiz'} starts soon`,
-        message: 'Get ready! Starting in 1 minute.',
-        type: 'start_soon',
-        segment: `participants:${quizId}`,
-        quizId,
-      });
+          title: `${row.title || 'Quiz'} starts soon`,
+          message: 'Get ready! Starting in 1 minute.',
+          type: 'start_soon',
+          segment: `participants:${quizId}`,
+          quizId,
+        });
         startCount += 1;
       } catch (notifyErr) {
         console.error(`Failed to send start push for quiz ${quizId}:`, notifyErr);
@@ -103,12 +114,12 @@ serve(async (req) => {
       }
       try {
         await callSendNotifications({
-        title: 'Quiz Result',
-        message: 'Results are out. Check your rank!',
-        type: 'result',
-        segment: `participants:${quizId}`,
-        quizId,
-      });
+          title: 'Quiz Result',
+          message: 'Results are out. Check your rank!',
+          type: 'result',
+          segment: `participants:${quizId}`,
+          quizId,
+        });
         resultCount += 1;
       } catch (notifyErr) {
         console.error(`Failed to send result push for quiz ${quizId}:`, notifyErr);

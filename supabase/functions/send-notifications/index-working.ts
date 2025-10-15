@@ -47,18 +47,11 @@ function makeCorsHeaders(req: Request): Record<string, string> {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight FIRST, before any try-catch
-  if (req.method === 'OPTIONS') {
-    const corsHeaders = {
-      "Access-Control-Allow-Origin": req.headers.get("Origin") || "https://quizdangal.com",
-      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-      "Vary": "Origin",
-    };
-    return new Response(null, { status: 204, headers: corsHeaders });
-  }
-  
   try {
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      return new Response("", { status: 204, headers: { ...makeCorsHeaders(req) } });
+    }
     // Only POST is allowed beyond this point
     if (req.method !== 'POST') {
       return new Response("Method Not Allowed", { status: 405, headers: { ...makeCorsHeaders(req) } });
