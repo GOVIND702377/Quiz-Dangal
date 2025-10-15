@@ -200,25 +200,32 @@ const Quiz = () => {
     );
   }
 
-  if (quizState === 'finished') {
-    // TODO: Extract FinishedView component
+  // Show completed/finished state with countdown - NO LOADING, DIRECT TIMER
+  if (quizState === 'completed' || quizState === 'finished') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-  <m.div
+        <m.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="qd-card rounded-2xl p-8 shadow-xl text-center max-w-md text-slate-100"
         >
-          <Clock className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-white mb-3">Quiz Ended</h2>
+          <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-white mb-3">
+            Quiz Submitted Successfully!
+          </h2>
+          <p className="text-slate-300 mb-4">
+            Thank you for participating!
+          </p>
           {renderResultCountdown()}
-          {submitting && (
-            <div className="flex items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin mr-2" />
-              <span>Submitting your answers...</span>
-            </div>
-          )}
-  </m.div>
+          <div className="mt-6">
+            <Button 
+              onClick={() => navigate('/')} 
+              className="bg-indigo-600 hover:bg-indigo-700"
+            >
+              Back to Home
+            </Button>
+          </div>
+        </m.div>
       </div>
     );
   }

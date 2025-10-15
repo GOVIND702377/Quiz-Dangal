@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { isDocumentHidden } from '@/lib/visibility';
 import { safeComputeResultsIfDue } from '@/lib/utils';
-import { QUIZ_ENGAGEMENT_POLL_INTERVAL_MS, QUIZ_COMPLETION_REDIRECT_DELAY_MS } from '@/constants';
+import { QUIZ_ENGAGEMENT_POLL_INTERVAL_MS } from '@/constants';
 
 /**
  * useQuizEngine
@@ -210,17 +210,34 @@ export function useQuizEngine(quizId, navigate) {
   // Transition to active: join & load questions
   useEffect(() => {
     const run = async () => {
-      if (!quiz) return; if (quizState !== 'active') return; if (!user) return;
+      if (!quiz) return; 
+      if (quizState !== 'active') return; 
+      if (!user) return;
+      
       try {
         if (!joined || participantStatus === 'pre_joined') {
           const { error } = await supabase.rpc('join_quiz', { p_quiz_id: quizId });
-          if (error) throw error;
-          setJoined(true);
-          setParticipantStatus('joined');
+          if (error) {
+            // Silently handle if already joined or completed
+            if (error.message?.includes('already') || error.message?.includes('completed')) {
+              console.log('User already joined or completed quiz');
+              setJoined(true);
+              setParticipantStatus('joined');
+            } else {
+              throw error;
+            }
+          } else {
+            setJoined(true);
+            setParticipantStatus('joined');
+          }
         }
         if (questions.length === 0) await loadQuestions();
       } catch (e) {
-        toast({ title: 'Unable to start', description: e?.message || 'Could not start the quiz.', variant: 'destructive' });
+        // Only show error if it's not a duplicate join attempt
+        if (!e?.message?.includes('already') && !e?.message?.includes('completed')) {
+          console.error('Quiz join error:', e);
+          // Don't show toast to user, just log it
+        }
       }
     };
     run();
@@ -235,14 +252,16 @@ export function useQuizEngine(quizId, navigate) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [quizState]);
 
-  // After finish/completion: trigger compute and navigate to Results immediately
+  // After finish/completion: Wait for timer to complete, then redirect to Results
   useEffect(() => {
     if (redirectTimeoutRef.current) {
       clearTimeout(redirectTimeoutRef.current);
       redirectTimeoutRef.current = null;
     }
 
-    if (!quiz?.end_time) return;
+    // Safety checks
+    if (!quiz) return;
+    if (!quiz.end_time) return;
     if (!(quizState === 'finished' || quizState === 'completed')) return;
 
     const navigateToResults = () => {
@@ -256,13 +275,29 @@ export function useQuizEngine(quizId, navigate) {
       })();
     };
 
-    if (QUIZ_COMPLETION_REDIRECT_DELAY_MS > 0) {
+    // Calculate time until quiz end_time
+    try {
+      const endTime = new Date(quiz.end_time).getTime();
+      const now = Date.now();
+      const timeUntilEnd = Math.max(0, endTime - now);
+
+      // If quiz has already ended, redirect immediately
+      if (timeUntilEnd === 0) {
+        navigateToResults();
+      } else {
+        // Wait until timer completes, then redirect
+        redirectTimeoutRef.current = setTimeout(() => {
+          redirectTimeoutRef.current = null;
+          navigateToResults();
+        }, timeUntilEnd);
+      }
+    } catch (error) {
+      console.error('Error calculating redirect time:', error);
+      // Fallback: redirect after 5 seconds
       redirectTimeoutRef.current = setTimeout(() => {
         redirectTimeoutRef.current = null;
         navigateToResults();
-      }, QUIZ_COMPLETION_REDIRECT_DELAY_MS);
-    } else {
-      navigateToResults();
+      }, 5000);
     }
 
     return () => {
@@ -271,37 +306,66 @@ export function useQuizEngine(quizId, navigate) {
         redirectTimeoutRef.current = null;
       }
     };
-  }, [quiz?.end_time, quizId, quizState, navigate]);
+  }, [quiz, quizId, quizState, navigate]);
 
   const handleJoinOrPrejoin = useCallback(async () => {
     if (!quiz) return;
-    if (!user) { toast({ title: 'Login required', description: 'Please sign in to join the quiz.', variant: 'destructive' }); navigate('/login'); return; }
+    if (!user) { 
+      toast({ title: 'Login required', description: 'Please sign in to join the quiz.', variant: 'destructive' }); 
+      navigate('/login'); 
+      return; 
+    }
     if (participantStatus === 'completed') {
-      toast({ title: 'Already submitted', description: 'You have already completed this quiz and cannot join again.', variant: 'destructive' });
+      // Silently return - user will see timer screen, no error
+      console.log('User already completed this quiz');
       return;
     }
+    
     try {
       if (typeof Notification !== 'undefined' && Notification.permission !== 'granted' && !isSubscribed) {
         await subscribeToPush();
       }
     } catch { /* ignore */ }
+    
     const now = new Date();
     const st = quiz.start_time ? new Date(quiz.start_time) : null;
     const et = quiz.end_time ? new Date(quiz.end_time) : null;
     const isActive = quiz.status === 'active' && st && et && now >= st && now < et;
     const rpc = isActive ? 'join_quiz' : 'pre_join_quiz';
+    
     try {
       const { error } = await supabase.rpc(rpc, { p_quiz_id: quizId });
-      if (error) throw error;
+      if (error) {
+        // Silently handle if already joined
+        if (error.message?.includes('already') || error.message?.includes('completed')) {
+          console.log('User already joined this quiz');
+          setJoined(true);
+          setParticipantStatus(isActive ? 'joined' : 'pre_joined');
+          if (isActive) { 
+            await loadQuestions(); 
+            setQuizState('active'); 
+          }
+          return;
+        }
+        throw error;
+      }
+      
       setJoined(true);
       refreshEngagement();
       setParticipantStatus(isActive ? 'joined' : 'pre_joined');
       toast({ title: isActive ? 'Joined!' : 'Pre-joined!', description: isActive ? 'Starting now.' : 'We will remind you before start.' });
-      if (isActive) { await loadQuestions(); setQuizState('active'); }
+      if (isActive) { 
+        await loadQuestions(); 
+        setQuizState('active'); 
+      }
     } catch (err) {
-      toast({ title: 'Error', description: err?.message || 'Could not join.', variant: 'destructive' });
+      // Only show error if it's not a duplicate join
+      if (!err?.message?.includes('already') && !err?.message?.includes('completed')) {
+        console.error('Join quiz error:', err);
+        toast({ title: 'Error', description: 'Could not join quiz. Please try again.', variant: 'destructive' });
+      }
     }
-  }, [quiz, user, participantStatus, isSubscribed, subscribeToPush, quizId, toast, navigate, refreshEngagement, loadQuestions]);
+  }, [quiz, user, participantStatus, isSubscribed, subscribeToPush, quizId, toast, navigate, refreshEngagement, loadQuestions, setQuizState]);
 
   const handleAnswerSelect = useCallback(async (questionId, optionId) => {
     if (submitting || quizState !== 'active' || participantStatus === 'completed') return;
