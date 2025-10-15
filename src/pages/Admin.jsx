@@ -275,10 +275,10 @@ export default function Admin() {
 		if (!supabase) { setPendingRedemptions([]); return; }
 		setLoadingRedemptions(true);
 		try {
-			// Also fetch username from profiles via join
+			// Fetch username from profiles via LEFT join (not inner) to include rows even if username is NULL
 			const { data, error } = await supabase
 				.from('redemptions')
-				.select('id,user_id,reward_value,reward_type,coins_required,payout_identifier,payout_channel,requested_at, profiles!inner(username)')
+				.select('id,user_id,reward_value,reward_type,coins_required,payout_identifier,payout_channel,requested_at, profiles(username,full_name)')
 				.eq('status','pending')
 				.order('requested_at',{ ascending:false });
 			if (error) throw error;
@@ -580,10 +580,11 @@ export default function Admin() {
 											{(() => { 
 												const rawVal = r.reward_value;
 												const displayVal = rawVal && String(rawVal).trim().length ? rawVal : `${r.reward_type||''}`.trim() || 'Reward';
+												const username = r.profiles?.username || r.profiles?.full_name || 'Anonymous';
 												return (
 													<div>
 														<div className="text-sm font-semibold text-gray-900 truncate">{displayVal}</div>
-														<div className="text-[11px] text-gray-600">@{r.profiles?.username || 'user'}</div>
+														<div className="text-[11px] text-gray-600">@{username}</div>
 													</div>
 												);
 											})()}
