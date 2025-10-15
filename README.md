@@ -198,8 +198,10 @@ Run hone ke baad quick smoke check:
 - Build: `npm run build`
 - Build (secure): `npm run build:secure`
 - Preview: `npm run preview` (LAN: `npm run preview:lan`)
- - Analyze bundle: `npm run analyze` (generates `dist/stats.html`)
- - Tests: `npm test`
+- Analyze bundle: `npm run analyze` (generates `dist/stats.html`)
+- Tests: `npm test`
+- **SEO Verification**: `npm run verify:seo` (checks sitemap, robots.txt, meta tags)
+- **Generate Sitemap**: `npm run generate:sitemap` (auto-runs after build)
 
 ### Secrets Rotation Checklist
 Kabhi bhi keys leak hone ka doubt ho (repo, logs, chat, build assets), turant:
@@ -218,6 +220,22 @@ Kabhi bhi keys leak hone ka doubt ho (repo, logs, chat, build assets), turant:
 - Dynamic QR Code import in `Results` page (heavy `qrcode` lib only loads when poster generation runs).
 - Idle Prefetch helper (`lib/prefetch.js`) warms common routes under good network/device conditions.
 - Optional Web Vitals logging: set `.env` `VITE_ENABLE_VITALS=1` → metrics logged to console (CLS, LCP, FID/INP, TTFB). No network beacons by default.
+
+## SEO & Indexing
+
+### Quick Setup
+```bash
+npm run verify:seo  # Verify before deploy
+npm run build
+npm run deploy
+```
+
+### Google Search Console
+1. Submit sitemap: `https://quizdangal.com/sitemap.xml`
+2. Request indexing for 8 public pages (see sitemap)
+3. Monitor Coverage report after 3-7 days
+
+**Expected**: 8 pages indexed (About, Contact, Terms, Privacy, Play & Win, Opinion Quiz, Refer & Earn, Leaderboards)
 
 
 ---

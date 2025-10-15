@@ -3,6 +3,37 @@ import SEO from '@/components/SEO';
 
 export default function ReferEarnInfo() {
   const canonical = 'https://quizdangal.com/refer-earn-quiz-app';
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: 'How does Refer & Earn work?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Share your unique referral code or link with friends. When they sign up and complete eligible quizzes, both of you receive bonus coins automatically.'
+        }
+      },
+      {
+        '@type': 'Question',
+        name: 'When do I get referral bonus?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Bonuses are awarded when your referred friend completes their first few eligible quiz rounds. This prevents abuse and ensures genuine participation.'
+        }
+      },
+      {
+        '@type': 'Question',
+        name: 'Can I use multiple referral codes?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'No, each player can only use one referral code during sign-up to maintain fairness.'
+        }
+      }
+    ]
+  };
+  
   return (
     <div className="min-h-screen text-slate-100">
       <SEO
@@ -10,6 +41,7 @@ export default function ReferEarnInfo() {
         description="Invite friends, they play quizzes, and you both earn. Learn how the referral code works, bonus rules, and best practices to invite more effectively."
         canonical={canonical}
         keywords={["refer and earn quiz", "invite friends earn coins", "quiz app referral india", "quizdangal refer"]}
+        jsonLd={[faqSchema]}
       />
       <div className="container mx-auto px-4 py-8 space-y-6">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent">Refer & Earn – Quiz Dangal</h1>
@@ -42,32 +74,6 @@ export default function ReferEarnInfo() {
             <li>Track invites and bonuses inside the app.</li>
           </ul>
         </div>
-
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify({
-            '@context': 'https://schema.org',
-            '@type': 'FAQPage',
-            mainEntity: [
-              {
-                '@type': 'Question',
-                name: 'Referral bonus kab milta hai?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'Jab aapka friend sign up karke eligible rounds complete karta hai, dono ko bonus coins milte hain. Yeh fraud prevention ke liye necessary hai.'
-                }
-              },
-              {
-                '@type': 'Question',
-                name: 'Kya main multiple codes use kar sakta hoon?',
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: 'Nahi, har player ke liye sirf ek referral code allowed hai sign-up ke time par.'
-                }
-              }
-            ]
-          }) }}
-        />
       </div>
     </div>
   );

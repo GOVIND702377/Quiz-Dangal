@@ -36,6 +36,28 @@ const PlayWinQuiz = lazy(() => import('@/pages/PlayWinQuiz'));
 const OpinionQuiz = lazy(() => import('@/pages/OpinionQuiz'));
 const ReferEarnInfo = lazy(() => import('@/pages/ReferEarnInfo'));
 
+// Smart component: Show landing to bots, redirect users to login instantly
+function LandingOrRedirect() {
+  // Check if it's a bot BEFORE rendering
+  const isBot = useMemo(() => {
+    try {
+      if (typeof navigator === 'undefined' || !navigator.userAgent) return false;
+      const ua = navigator.userAgent.toLowerCase();
+      return /bot|crawl|slurp|spider|mediapartners|google|bing|duckduckgo|baiduspider|yandex|facebookexternalhit|linkedinbot|twitterbot/.test(ua);
+    } catch {
+      return false;
+    }
+  }, []);
+  
+  // Instant redirect for real users - no flash
+  if (!isBot) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  // Show landing page only to bots
+  return <Landing />;
+}
+
 // Reusable group of static public informational routes (as a fragment – not a component – so <Routes> accepts it)
 const policyRoutes = (
   <>
@@ -102,15 +124,7 @@ function App() {
   const { user: authUser, loading, isRecoveryFlow } = useAuth();
   // We only need focus management once layout is rendered; apply inside Router tree via helper component
 
-  const isBot = useMemo(() => {
-    try {
-      if (typeof navigator === 'undefined' || !navigator.userAgent) return false;
-      const ua = navigator.userAgent.toLowerCase();
-      return /bot|crawl|slurp|spider|mediapartners|google|bing|duckduckgo|baiduspider|yandex|facebookexternalhit|linkedinbot|twitterbot/.test(ua);
-    } catch (err) {
-      return false;
-    }
-  }, []);
+
 
   if (loading) {
     return (
@@ -148,11 +162,10 @@ function App() {
               </>
             ) : !authUser ? (
               <>
-                {/* Public pages accessible without login and without Header/Footer */}
-                {/* Serve landing to crawlers but redirect real users to login */}
-                <Route path="/" element={isBot ? <Landing /> : <Navigate to="/login" replace />} />
+                {/* Public pages accessible without login */}
+                {/* Homepage: Show landing for bots/SEO, redirect users to login */}
+                <Route path="/" element={<LandingOrRedirect />} />
                 {policyRoutes}
-                <Route path="/landing" element={<Landing />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />

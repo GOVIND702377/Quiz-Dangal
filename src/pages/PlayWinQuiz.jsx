@@ -3,6 +3,37 @@ import SEO from '@/components/SEO';
 
 export default function PlayWinQuiz() {
   const canonical = 'https://quizdangal.com/play-win-quiz-app';
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: 'How does Play & Win work on Quiz Dangal?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Play & Win lets you compete in daily quizzes across Opinion, GK, Sports, and Movies categories. Answer questions accurately and quickly to earn coins and climb leaderboards.'
+        }
+      },
+      {
+        '@type': 'Question',
+        name: 'How is scoring calculated in Quiz Dangal?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Scores are based on accuracy and response time. Correct answers give more weight than speed. All scoring is transparent and verified server-side to ensure fair play.'
+        }
+      },
+      {
+        '@type': 'Question',
+        name: 'What are the best tips to win more quizzes?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Focus on accuracy first, then speed. Play daily to build streaks, warm up with opinion rounds, and ensure stable internet connection during quizzes.'
+        }
+      }
+    ]
+  };
+  
   return (
     <div className="min-h-screen text-slate-100">
       <SEO
@@ -10,6 +41,7 @@ export default function PlayWinQuiz() {
         description="Play daily quizzes, climb leaderboards, and win rewards. Opinion-based and GK quizzes made for India – start free on Quiz Dangal. Learn rules, scoring, and tips to win more."
         canonical={canonical}
         keywords={["play and win quiz", "daily quiz India", "quiz app rewards", "leaderboards", "quizdangal"]}
+        jsonLd={[faqSchema]}
       />
       <div className="container mx-auto px-4 py-8 space-y-6">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent">Play & Win Quiz App</h1>
