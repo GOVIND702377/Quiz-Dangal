@@ -1,5 +1,16 @@
+# Quiz Dangal - Robots.txt
 User-agent: *
 Allow: /
+Allow: /leaderboards
+Allow: /play-win-quiz-app
+Allow: /opinion-quiz-app
+Allow: /refer-earn-quiz-app
+Allow: /about-us
+Allow: /contact-us
+Allow: /terms-conditions
+Allow: /privacy-policy
+
+# Block private/authenticated pages
 Disallow: /login
 Disallow: /admin
 Disallow: /reset-password
@@ -7,4 +18,14 @@ Disallow: /profile
 Disallow: /wallet
 Disallow: /rewards
 Disallow: /my-quizzes
+Disallow: /quiz/
+Disallow: /results/
+Disallow: /category/
+Disallow: /refer
+
+# Sitemap location
 Sitemap: https://quizdangal.com/sitemap.xml
+
+# Crawl-delay for aggressive bots (optional)
+User-agent: *
+Crawl-delay: 1
