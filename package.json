@@ -82,5 +82,8 @@
     "vite": "^4.4.5",
     "vitest": "^3.2.4",
     "web-vitals": "^3.5.2"
+  },
+  "overrides": {
+    "esbuild": "^0.25.11"
   }
 }
