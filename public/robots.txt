@@ -1,18 +1,12 @@
-# Quiz Dangal - Robots.txt
 User-agent: *
+# Allow all public routes by default
 Allow: /
-Allow: /leaderboards
-Allow: /play-win-quiz-app
-Allow: /opinion-quiz-app
-Allow: /refer-earn-quiz-app
-Allow: /about-us
-Allow: /contact-us
-Allow: /terms-conditions
-Allow: /privacy-policy
 
-# Block private/authenticated pages
+# Disallow private/authenticated or dynamic routes
 Disallow: /login
 Disallow: /admin
+Disallow: /admin/
+Disallow: /admin/*
 Disallow: /reset-password
 Disallow: /profile
 Disallow: /wallet
@@ -22,10 +16,10 @@ Disallow: /quiz/
 Disallow: /results/
 Disallow: /category/
 Disallow: /refer
+Disallow: /debug/
 
 # Sitemap location
 Sitemap: https://quizdangal.com/sitemap.xml
 
-# Crawl-delay for aggressive bots (optional)
-User-agent: *
+# Gentle crawl-delay
 Crawl-delay: 1

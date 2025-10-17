@@ -1,6 +1,7 @@
 // Unified Admin panel (merged from former AdminClean). Single source of truth.
 // Keep this file focused and under control; add new panels as separate components if it grows.
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { Helmet } from 'react-helmet-async';
 import { m, AnimatePresence } from '@/lib/motion-lite';
 import { Plus, Trash2, RefreshCcw, ListChecks, Loader2, Eye, Settings } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -319,7 +320,12 @@ export default function Admin() {
 
 	if (!isAdmin) {
 		return (
-			<div className="min-h-screen flex items-center justify-center px-4">
+			<>
+				<Helmet>
+					<meta name="robots" content="noindex, nofollow" />
+					<link rel="canonical" href="https://quizdangal.com/admin" />
+				</Helmet>
+				<div className="min-h-screen flex items-center justify-center px-4">
 				<div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-md w-full text-center shadow-sm">
 					<h2 className="text-xl font-semibold text-red-500 mb-2">Admin access required</h2>
 					<p className="text-sm text-gray-600">
@@ -342,7 +348,8 @@ export default function Admin() {
 						<li>Dev bypass (<code>VITE_BYPASS_AUTH=1</code>) mein mock admin auto-enable hota hai.</li>
 					</ul>
 				</div>
-			</div>
+				</div>
+			</>
 		);
 	}
 
@@ -350,6 +357,10 @@ export default function Admin() {
 
 	return (
 		<div className="container mx-auto p-6 max-w-5xl bg-white text-gray-900 rounded-2xl shadow-sm">
+			<Helmet>
+				<meta name="robots" content="noindex, nofollow" />
+				<link rel="canonical" href="https://quizdangal.com/admin" />
+			</Helmet>
 			<h1 className="text-2xl font-bold mb-6 text-gray-900">Admin Dashboard</h1>
 			{!hasSupabaseConfig && (
 				<div className="mb-6 text-sm text-amber-600">Supabase env keys missing. Read-only UI only.</div>

@@ -40,6 +40,7 @@ export default function PlayWinQuiz() {
         title="Play & Win Quiz App – Quiz Dangal"
         description="Play daily quizzes, climb leaderboards, and win rewards. Opinion-based and GK quizzes made for India – start free on Quiz Dangal. Learn rules, scoring, and tips to win more."
         canonical={canonical}
+        alternateLocales={['hi_IN','en_US']}
         keywords={["play and win quiz", "daily quiz India", "quiz app rewards", "leaderboards", "quizdangal"]}
         jsonLd={[faqSchema]}
       />

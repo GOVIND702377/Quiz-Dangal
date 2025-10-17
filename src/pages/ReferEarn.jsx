@@ -218,7 +218,7 @@ ${referralLink}`, [referralCode, referralLink]);
         title="Refer & Earn – Quiz Dangal | Invite Friends, Get Coins"
         description="Share your unique referral link on Quiz Dangal and earn bonus coins when friends join and play opinion-based quizzes."
         canonical="https://quizdangal.com/refer"
-        robots="index, follow"
+        robots="noindex, nofollow"
         image="https://quizdangal.com/refer-earn-poster.png?v=1"
         imageAlt="Quiz Dangal Refer and Earn poster"
         keywords={[

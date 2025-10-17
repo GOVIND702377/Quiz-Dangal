@@ -34,6 +34,9 @@ export default function SEO({
   const ogLocale = normalizedLang.replace('-', '_');
   const alternateHrefLang = normalizedLang.toLowerCase();
   const jsonLdBlocks = Array.isArray(jsonLd) ? jsonLd : jsonLd ? [jsonLd] : [];
+  const toHrefLang = (loc) => String(loc || '')
+    .replace(/_/g, '-')
+    .toLowerCase();
 
   return (
     <Helmet>
@@ -47,11 +50,11 @@ export default function SEO({
       {canonical && (
         <>
           <link rel="alternate" hrefLang="x-default" href={canonical} />
-          <link rel="alternate" hrefLang={alternateHrefLang} href={canonical} />
+          <link rel="alternate" hrefLang={toHrefLang(alternateHrefLang)} href={canonical} />
         </>
       )}
       {canonical && alternateLocales.map((locale) => (
-        <link key={locale} rel="alternate" hrefLang={locale.toLowerCase()} href={canonical} />
+        <link key={locale} rel="alternate" hrefLang={toHrefLang(locale)} href={canonical} />
       ))}
 
       {/* Open Graph */}

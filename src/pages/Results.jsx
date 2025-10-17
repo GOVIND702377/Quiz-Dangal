@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Trophy, Users, ArrowLeft, Share2, Sparkles } from 'lucide-react';
 import { normalizeReferralCode, saveReferralCode } from '@/lib/referralStorage';
+import SEO from '@/components/SEO';
 
 const Results = () => {
   const { id: quizId } = useParams();
@@ -512,6 +513,12 @@ const Results = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
+        <SEO
+          title="Results – Loading | Quiz Dangal"
+          description="Loading quiz results."
+          canonical={typeof window !== 'undefined' ? `${window.location.origin}/results/${quizId}` : 'https://quizdangal.com/results'}
+          robots="noindex, nofollow"
+        />
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-accent-b"></div>
       </div>
     );
@@ -520,6 +527,12 @@ const Results = () => {
   if (!loading && errorMessage) {
     return (
       <div className="min-h-screen p-4 flex items-center justify-center">
+        <SEO
+          title="Results – Error | Quiz Dangal"
+          description={errorMessage || 'Could not load results.'}
+          canonical={typeof window !== 'undefined' ? `${window.location.origin}/results/${quizId}` : 'https://quizdangal.com/results'}
+          robots="noindex, nofollow"
+        />
         <div className="qd-card rounded-2xl p-6 shadow-lg text-center max-w-md w-full text-slate-100">
           <h2 className="text-2xl font-bold mb-2 text-white">Couldn&apos;t load results</h2>
           <p className="text-slate-300 mb-4">{errorMessage}</p>
@@ -535,6 +548,12 @@ const Results = () => {
   if (!loading && (timeLeftMs ?? 0) > 0 && results.length === 0) {
     return (
       <div className="min-h-screen p-4 flex items-center justify-center">
+        <SEO
+          title="Results – Not Published | Quiz Dangal"
+          description="Results will be available after the quiz ends."
+          canonical={typeof window !== 'undefined' ? `${window.location.origin}/results/${quizId}` : 'https://quizdangal.com/results'}
+          robots="noindex, nofollow"
+        />
         <div className="qd-card rounded-2xl p-6 shadow-lg text-center max-w-md w-full text-slate-100">
             <h2 className="text-2xl font-bold mb-2 text-white">Results not published yet</h2>
           {quiz?.end_time ? (
@@ -575,6 +594,12 @@ const Results = () => {
 
   return (
     <div className="min-h-screen p-4 pb-24 relative overflow-hidden" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 96px)' }}>
+      <SEO
+        title={`${quiz?.title ? `${quiz.title} – Results` : 'Quiz Results'} | Quiz Dangal`}
+        description={results.length > 0 ? 'Leaderboard and winners for this quiz.' : 'Results are finalized.'}
+        canonical={typeof window !== 'undefined' ? `${window.location.origin}/results/${quizId}` : 'https://quizdangal.com/results'}
+        robots="noindex, nofollow"
+      />
       <style>{`.results-prize-row::-webkit-scrollbar{display:none;}`}</style>
       {/* Decorative background gradients */}
       <div className="pointer-events-none absolute inset-0 -z-10">

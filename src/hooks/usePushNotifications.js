@@ -3,8 +3,16 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 import { logger } from '@/lib/logger';
 
-// Read VAPID key from env; do not hardcode in source.
-const VAPID_PUBLIC_KEY = (import.meta?.env?.VITE_VAPID_PUBLIC_KEY || '').trim();
+// Read VAPID key from env; prefer build-time but fall back to runtime window config
+const runtimeEnv = (typeof window !== 'undefined' && window.__QUIZ_DANGAL_ENV__)
+  ? window.__QUIZ_DANGAL_ENV__
+  : {};
+const VAPID_PUBLIC_KEY = (
+  (import.meta?.env?.VITE_VAPID_PUBLIC_KEY) ||
+  runtimeEnv.VITE_VAPID_PUBLIC_KEY ||
+  runtimeEnv.VAPID_PUBLIC_KEY ||
+  ''
+).trim();
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);

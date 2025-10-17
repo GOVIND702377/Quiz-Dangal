@@ -40,6 +40,7 @@ export default function OpinionQuiz() {
         title="Opinion-Based Quiz App – Quiz Dangal"
         description="Opinion-based quizzes designed for quick fun and fair play. Learn how voting works, how results are shown, and tips to enjoy and improve your outcomes."
         canonical={canonical}
+        alternateLocales={['hi_IN','en_US']}
         keywords={["opinion quiz app", "poll quiz india", "real-time results", "quizdangal"]}
         jsonLd={[faqSchema]}
       />

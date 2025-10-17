@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Users, MessageSquare, Brain, Clapperboard, Clock, Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import SEO from '@/components/SEO';
 
 function statusBadge(s) {
   const base = 'px-2 py-0.5 rounded-full text-xs font-semibold';
@@ -186,8 +187,16 @@ const CategoryQuizzes = () => {
     .filter(ts => ts && ts > nowHeader)
     .sort((a,b) => a - b)[0] || null;
 
+  const canonical = typeof window !== 'undefined' ? `${window.location.origin}/category/${slug}` : 'https://quizdangal.com/category';
+
   return (
     <div className="container mx-auto px-4 py-3 text-foreground">
+      <SEO
+        title={`${meta.title} – Quiz Dangal`}
+        description={`Active and upcoming quizzes in ${meta.title}.`}
+        canonical={canonical}
+        robots="noindex, nofollow"
+      />
       <span className="hidden" aria-hidden>{tick}</span>
       {/* Hero Header */}
       <div className={`relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-r ${meta.from} ${meta.to} shadow-xl mb-4`}>

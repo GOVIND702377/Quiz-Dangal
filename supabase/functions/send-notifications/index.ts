@@ -42,7 +42,8 @@ function makeCorsHeaders(req: Request): Record<string, string> {
     "Access-Control-Allow-Origin": allowOrigin,
     "Vary": "Origin",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    // Allow GET so clients can retrieve public config like VAPID key
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   };
 }
 
@@ -52,10 +53,23 @@ serve(async (req) => {
     const corsHeaders = {
       "Access-Control-Allow-Origin": req.headers.get("Origin") || "https://quizdangal.com",
       "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      // Mirror allowed methods here
+      "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
       "Vary": "Origin",
     };
     return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  // Public GET endpoint to expose non-sensitive config (e.g., VAPID public key)
+  if (req.method === 'GET') {
+    const body = {
+      vapidPublicKey: VAPID_PUBLIC_KEY || '',
+      allowedOrigins: ALLOWED_ORIGINS,
+    };
+    return new Response(JSON.stringify(body), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...makeCorsHeaders(req) },
+    });
   }
   
   try {

@@ -10,12 +10,13 @@ const SKIP = String(process.env.SITEMAP_SKIP || '').trim() === '1';
 const EXTRA_ROUTES_FILE = path.resolve(__dirname, '..', 'public', 'sitemap.extra.json');
 
 const ROUTES = [
-  { path: '/', changefreq: 'daily', priority: 1.0, source: 'src/pages/Landing.jsx' },
+  // Include homepage if it's public-facing. If you ever gate home behind login, set noindex via extra routes.
+  { path: '/', changefreq: 'weekly', priority: 0.9, source: 'src/pages/Home.jsx' },
   { path: '/leaderboards', changefreq: 'weekly', priority: 0.8, source: 'src/pages/Leaderboards.jsx' },
   { path: '/play-win-quiz-app', changefreq: 'weekly', priority: 0.7, source: 'src/pages/PlayWinQuiz.jsx' },
   { path: '/opinion-quiz-app', changefreq: 'weekly', priority: 0.7, source: 'src/pages/OpinionQuiz.jsx' },
   { path: '/refer-earn-quiz-app', changefreq: 'weekly', priority: 0.7, source: 'src/pages/ReferEarnInfo.jsx' },
-  { path: '/refer', changefreq: 'weekly', priority: 0.7, source: 'src/pages/ReferEarn.jsx' },
+  // NOTE: '/refer' is an internal referral landing for authenticated users; exclude from sitemap
   { path: '/about-us', changefreq: 'monthly', priority: 0.6, source: 'src/pages/AboutUs.jsx' },
   { path: '/contact-us', changefreq: 'monthly', priority: 0.6, source: 'src/pages/ContactUs.jsx' },
   { path: '/terms-conditions', changefreq: 'yearly', priority: 0.5, source: 'src/pages/TermsConditions.jsx' },
@@ -67,7 +68,9 @@ async function loadExtraRoutes() {
 
 async function buildSitemap() {
   const extraRoutes = await loadExtraRoutes();
-  const allRoutes = [...ROUTES, ...extraRoutes].filter((route) => !route?.noindex);
+  const allRoutes = [...ROUTES, ...extraRoutes]
+    .filter((route) => !route?.noindex)
+    .filter((route) => route?.path !== '/refer');
 
   const xmlItems = await Promise.all(allRoutes.map(async (route) => {
     const changefreq = route.changefreq || 'monthly';
@@ -75,10 +78,19 @@ async function buildSitemap() {
     const loc = route.loc || route.path;
     const lastmod = await resolveLastModified(route);
     const url = toUrl(loc);
-    return `  <url>\n    <loc>${url}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>\n  </url>`;
+    // Add hreflang only for home for now; extendable via route.hreflang
+    const hreflang = (loc === '/' || route.hreflang) ? [
+      { lang: 'en', href: url },
+      { lang: 'hi', href: url },
+      { lang: 'x-default', href: url },
+    ] : [];
+    const xhtml = hreflang
+      .map((h) => `    <xhtml:link rel="alternate" hreflang="${h.lang}" href="${h.href}" />`)
+      .join('\n');
+    return `  <url>\n    <loc>${url}</loc>\n    <lastmod>${lastmod}</lastmod>\n    <changefreq>${changefreq}</changefreq>\n    <priority>${priority}</priority>${xhtml ? `\n${xhtml}` : ''}\n  </url>`;
   }));
 
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${xmlItems.join('\n')}\n</urlset>\n`;
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${xmlItems.join('\n')}\n</urlset>\n`;
 }
 
 const outputDir = path.resolve(__dirname, '..', 'public');

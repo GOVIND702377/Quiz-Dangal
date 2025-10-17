@@ -40,6 +40,7 @@ export default function ReferEarnInfo() {
         title="Refer & Earn Quiz App – Quiz Dangal"
         description="Invite friends, they play quizzes, and you both earn. Learn how the referral code works, bonus rules, and best practices to invite more effectively."
         canonical={canonical}
+        alternateLocales={['hi_IN','en_US']}
         keywords={["refer and earn quiz", "invite friends earn coins", "quiz app referral india", "quizdangal refer"]}
         jsonLd={[faqSchema]}
       />

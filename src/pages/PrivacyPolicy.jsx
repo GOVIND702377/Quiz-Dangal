@@ -80,6 +80,7 @@ const PrivacyPolicy = () => {
           title="Privacy Policy – Quiz Dangal"
           description="How Quiz Dangal collects, uses, stores, and protects your personal data and quiz activity."
           canonical="https://quizdangal.com/privacy-policy"
+          alternateLocales={['hi_IN','en_US']}
           keywords={[
             'quiz dangal privacy',
             'quiz app privacy policy',

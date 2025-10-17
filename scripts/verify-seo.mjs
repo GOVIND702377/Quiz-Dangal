@@ -22,10 +22,30 @@ try {
     const sitemap = readFileSync(sitemapPath, 'utf-8');
     if (!sitemap.includes('https://quizdangal.com/')) {
       errors.push('❌ sitemap.xml does not contain quizdangal.com URLs');
-    } else if (sitemap.includes('2025-10-')) {
-      warnings.push('⚠️  sitemap.xml contains future dates (October 2025)');
     } else {
-      success.push('✅ sitemap.xml is valid');
+      // Parse <lastmod> values and warn only if any is truly in the future
+      try {
+        const rx = /<lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/g;
+        const now = new Date();
+        const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+        let m;
+        let futureCount = 0;
+        while ((m = rx.exec(sitemap)) !== null) {
+          const dateStr = m[1];
+          const t = Date.parse(dateStr + 'T00:00:00Z');
+          if (Number.isFinite(t) && t > todayUTC) {
+            futureCount++;
+          }
+        }
+        if (futureCount > 0) {
+          warnings.push(`⚠️  sitemap.xml has ${futureCount} future lastmod date(s)`);
+        } else {
+          success.push('✅ sitemap.xml is valid');
+        }
+      } catch (e) {
+        // If parse fails, do not block; just provide a soft warning
+        warnings.push('⚠️  Unable to fully parse lastmod dates from sitemap.xml');
+      }
     }
   }
 } catch (err) {
@@ -81,7 +101,6 @@ try {
 
 // Check 4: Key pages have SEO component
 const keyPages = [
-  'src/pages/Landing.jsx',
   'src/pages/PlayWinQuiz.jsx',
   'src/pages/OpinionQuiz.jsx',
   'src/pages/ReferEarnInfo.jsx',

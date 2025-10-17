@@ -31,32 +31,10 @@ const Results = lazy(() => import('@/pages/Results'));
 const Leaderboards = lazy(() => import('@/pages/Leaderboards'));
 const Redemptions = lazy(() => import('@/pages/Redemptions'));
 const ReferEarn = lazy(() => import('@/pages/ReferEarn'));
-const Landing = lazy(() => import('@/pages/Landing'));
 const PlayWinQuiz = lazy(() => import('@/pages/PlayWinQuiz'));
 const OpinionQuiz = lazy(() => import('@/pages/OpinionQuiz'));
 const ReferEarnInfo = lazy(() => import('@/pages/ReferEarnInfo'));
-
-// Smart component: Show landing to bots, redirect users to login instantly
-function LandingOrRedirect() {
-  // Check if it's a bot BEFORE rendering
-  const isBot = useMemo(() => {
-    try {
-      if (typeof navigator === 'undefined' || !navigator.userAgent) return false;
-      const ua = navigator.userAgent.toLowerCase();
-      return /bot|crawl|slurp|spider|mediapartners|google|bing|duckduckgo|baiduspider|yandex|facebookexternalhit|linkedinbot|twitterbot/.test(ua);
-    } catch {
-      return false;
-    }
-  }, []);
-  
-  // Instant redirect for real users - no flash
-  if (!isBot) {
-    return <Navigate to="/login" replace />;
-  }
-  
-  // Show landing page only to bots
-  return <Landing />;
-}
+const NotificationsDebug = lazy(() => import('@/pages/NotificationsDebug'));
 
 // Reusable group of static public informational routes (as a fragment – not a component – so <Routes> accepts it)
 const policyRoutes = (
@@ -163,12 +141,13 @@ function App() {
             ) : !authUser ? (
               <>
                 {/* Public pages accessible without login */}
-                {/* Homepage: Show landing for bots/SEO, redirect users to login */}
-                <Route path="/" element={<LandingOrRedirect />} />
+                {/* Homepage: Open Login directly */}
+                <Route path="/" element={<Login />} />
                 {policyRoutes}
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/login" element={<Login />} />
-                <Route path="*" element={<Navigate to="/login" replace />} />
+                {/* For unknown routes when logged out, send users and bots to home */}
+                <Route path="*" element={<Navigate to="/" replace />} />
               </>
             ) : authUser.app_metadata?.provider === 'email' && !authUser.email_confirmed_at ? (
               <>
@@ -330,6 +309,7 @@ const MainLayout = () => {
             <Route path="/play-win-quiz-app" element={<Page><PlayWinQuiz /></Page>} />
             <Route path="/opinion-quiz-app" element={<Page><OpinionQuiz /></Page>} />
             <Route path="/refer-earn-quiz-app" element={<Page><ReferEarnInfo /></Page>} />
+            <Route path="/debug/notifications" element={<Page><NotificationsDebug /></Page>} />
             <Route path="/terms-conditions" element={<Page><TermsConditions /></Page>} />
             <Route path="/privacy-policy" element={<Page><PrivacyPolicy /></Page>} />
             <Route path="/admin" element={<AdminRoute><Page><Admin /></Page></AdminRoute>} />

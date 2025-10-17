@@ -30,7 +30,7 @@
 	<link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png">
 	<meta name="generator" content="Quiz Dangal" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-visual" />
-	<meta name="fragment" content="!" />
+	<!-- Remove deprecated AJAX crawling fragment meta -->
 	<meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 	<meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
 	<!-- Security & privacy hardening (frontend-only, no backend dependency) -->
@@ -38,7 +38,8 @@
 	<meta http-equiv="X-Content-Type-Options" content="nosniff" />
 	<meta name="color-scheme" content="light dark" />
 	<!-- Permissions-Policy: allow notifications (for push), geolocation optional; block unused powerful features -->
-	<meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), fullscreen=*, notifications=*" />
+	<!-- Modern Permissions-Policy (Feature-Policy successor) -->
+	<meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), fullscreen=(self), notifications=(self)" />
 	<meta name="theme-color" content="#6366f1" />
 	<meta name="apple-mobile-web-app-capable" content="yes" />
 	<meta name="mobile-web-app-capable" content="yes" />

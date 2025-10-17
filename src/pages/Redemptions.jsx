@@ -6,6 +6,7 @@ import { Loader2, Receipt, Gift, CheckCircle2, Clock, XCircle, Coins, Sparkles, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import SEO from '@/components/SEO';
 // Removed Link import since we no longer show the Earn now link
 
 export default function Redemptions() {
@@ -220,7 +221,14 @@ export default function Redemptions() {
   };
 
   return (
-    <div className="relative mx-auto max-w-5xl px-4 py-6">
+    <>
+      <SEO
+        title="Redemptions – Quiz Dangal"
+        description="View and manage your reward redemptions on Quiz Dangal."
+        canonical="https://quizdangal.com/redemptions"
+        robots="noindex, nofollow"
+      />
+      <div className="relative mx-auto max-w-5xl px-4 py-6">
       {/* background mesh */}
       <div className="absolute inset-0 -z-10 opacity-70 mix-blend-screen [background-image:radial-gradient(circle_at_18%_28%,rgba(56,189,248,0.25),rgba(0,0,0,0)60%),radial-gradient(circle_at_82%_72%,rgba(192,132,252,0.22),rgba(0,0,0,0)65%),radial-gradient(circle_at_50%_50%,rgba(244,114,182,0.15),rgba(0,0,0,0)55%)]" />
       {/* removed floating decorative icons for a cleaner layout */}
@@ -658,5 +666,6 @@ export default function Redemptions() {
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { formatDateOnly, formatTimeOnly, getPrizeDisplay } from '@/lib/utils';
 import { useQuizEngine } from '@/hooks/useQuizEngine';
 import { Loader2, CheckCircle, Clock, Users, X } from 'lucide-react';
+import SEO from '@/components/SEO';
 
 const Quiz = () => {
   const { id: quizId } = useParams();
@@ -76,6 +77,12 @@ const Quiz = () => {
   if (quizState === 'loading' || !quiz) {
     return (
       <div className="min-h-screen flex items-center justify-center">
+        <SEO
+          title="Quiz – Loading | Quiz Dangal"
+          description="Loading quiz details."
+          canonical={typeof window !== 'undefined' ? `${window.location.origin}/quiz/${quizId}` : 'https://quizdangal.com/quiz'}
+          robots="noindex, nofollow"
+        />
         <div className="text-center">
           <Loader2 className="h-16 w-16 animate-spin text-accent-b mx-auto mb-4" />
           <p className="text-gray-600">Loading quiz...</p>
@@ -129,6 +136,12 @@ const Quiz = () => {
     const isActive = quiz.status === 'active' && st && et && now >= st && now < et;
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
+        <SEO
+          title={`${quiz.title || 'Quiz'} – Lobby | Quiz Dangal`}
+          description="Join the quiz lobby."
+          canonical={typeof window !== 'undefined' ? `${window.location.origin}/quiz/${quizId}` : 'https://quizdangal.com/quiz'}
+          robots="noindex, nofollow"
+        />
   <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -167,6 +180,12 @@ const Quiz = () => {
     // TODO: Extract WaitingView component
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
+        <SEO
+          title={`${quiz.title || 'Quiz'} – Waiting | Quiz Dangal`}
+          description="Waiting for the quiz to start."
+          canonical={typeof window !== 'undefined' ? `${window.location.origin}/quiz/${quizId}` : 'https://quizdangal.com/quiz'}
+          robots="noindex, nofollow"
+        />
   <m.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -204,6 +223,12 @@ const Quiz = () => {
   if (quizState === 'completed' || quizState === 'finished') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
+        <SEO
+          title={`${quiz.title || 'Quiz'} – Completed | Quiz Dangal`}
+          description="Quiz completed. Results will be published soon."
+          canonical={typeof window !== 'undefined' ? `${window.location.origin}/quiz/${quizId}` : 'https://quizdangal.com/quiz'}
+          robots="noindex, nofollow"
+        />
         <m.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -247,6 +272,12 @@ const Quiz = () => {
 
   return (
     <div className="min-h-screen p-4 bg-[radial-gradient(1000px_600px_at_50%_-100px,rgba(59,130,246,0.25),transparent),radial-gradient(800px_500px_at_120%_0,rgba(168,85,247,0.18),transparent)]">
+      <SEO
+        title={`${quiz.title || 'Quiz'} – Play | Quiz Dangal`}
+        description="Answer questions and compete to win."
+        canonical={typeof window !== 'undefined' ? `${window.location.origin}/quiz/${quizId}` : 'https://quizdangal.com/quiz'}
+        robots="noindex, nofollow"
+      />
       <div className="max-w-2xl mx-auto">
         {/* Header */}
   <m.div

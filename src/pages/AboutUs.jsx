@@ -42,6 +42,7 @@ const AboutUs = () => {
         title="About Us – Quiz Dangal"
         description="Quiz Dangal – India’s most exciting quiz and rewards platform where knowledge meets entertainment."
         canonical="https://quizdangal.com/about-us"
+        alternateLocales={['hi_IN','en_US']}
         keywords={[
           'about quiz dangal',
           'quiz dangal team',
