@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Download } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
 
 const PWAInstallButton = () => {
   // Website-only mode: no APK download. We only support PWA install when the browser provides a prompt.
@@ -68,52 +67,24 @@ const PWAInstallButton = () => {
     try {
       if (!deferredPrompt) return;
       deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') {
-        setDeferredPrompt(null);
-        setCanInstall(false);
-      }
+      await deferredPrompt.userChoice;
+      // After user acts (accepted or dismissed), clear the prompt reference.
+      setDeferredPrompt(null);
+      setCanInstall(false);
     } catch {
       // Ignore install errors
     }
   };
 
-  // Always show the button (website-only). Attempt install when prompt is available.
-
+  // One-tap install only: we render the button only when the native prompt is available
   const handleClick = async () => {
     if (canInstall && deferredPrompt) {
       await handleInstall();
-      return;
-    }
-    // If prompt isn't available, provide iOS-specific two-step guidance via a subtle toast
-    try {
-      const ua = navigator.userAgent || navigator.vendor || window.opera || '';
-      const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
-      if (isIOS && isSafari) {
-        toast({
-          title: 'iPhone par Install kaise karein',
-          description: 'Share button par tap karein → "Add to Home Screen" chunein.'
-        });
-        return;
-      }
-      // Desktop Chrome/Edge fallback: guide to use built-in install UI
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
-      const isChromeEdge = /Chrome|Chromium|Edg\//.test(ua) && !/Mobile/i.test(ua);
-      if (!isMobile && isChromeEdge) {
-        toast({
-          title: 'Install on Desktop',
-          description: 'Address bar ke paas "Install app" icon par click karein, ya Chrome menu → Install Quiz Dangal.'
-        });
-        return;
-      }
-    } catch {
-      // ignore
     }
   };
 
-  // Hide in installed PWA (standalone). Keep permanently visible on the website.
-  if (isStandalone) return null;
+  // Hide if already installed OR install prompt not available yet
+  if (isStandalone || !canInstall || !deferredPrompt) return null;
 
   return (
     <button
