@@ -143,6 +143,36 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
       const cleaned = String(content).trim().replace(/^```json\n?|```$/g, '');
       return { ok: true, payload: JSON.parse(cleaned), status };
     }
+
+    // Perplexity AI (OpenAI-compatible-ish chat completions)
+    if (provider === 'perplexity' || provider === 'pplx' || provider === 'perplexity-ai') {
+      const resp = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-70b-instruct',
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: prompt + '\nRespond with JSON only.' },
+          ],
+          temperature: 0.6,
+          max_tokens: 2000,
+        }),
+      });
+      const status = resp.status;
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '');
+        return { ok: false, error: txt || `http_${status}`, status };
+      }
+      const data = await resp.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) return { ok: false, error: 'empty_content', status };
+      const cleaned = String(content).trim().replace(/^```json\n?|```$/g, '');
+      return { ok: true, payload: JSON.parse(cleaned), status };
+    }
   } catch (_) {
     return { ok: false, error: 'exception', status: 0 };
   }
