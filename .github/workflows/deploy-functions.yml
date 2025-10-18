@@ -8,9 +8,14 @@ on:
       - 'supabase/functions/**'
       - '.github/workflows/deploy-functions.yml'
 
+concurrency:
+  group: deploy-functions-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -40,3 +45,20 @@ jobs:
         run: |
           supabase functions deploy ai-orchestrator --project-ref "$SUPABASE_PROJECT_REF"
           supabase functions deploy admin-upsert-questions --project-ref "$SUPABASE_PROJECT_REF"
+
+      - name: Post-deploy sanity ping (ai-orchestrator)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "Skipping ping (missing SUPABASE_URL or CRON_SECRET)"; exit 0; fi
+          URL="$SUPABASE_URL/functions/v1/ai-orchestrator?task=run"
+          echo "Pinging $URL"
+          curl -sS -X POST "$URL" \
+            -H "Content-Type: application/json" \
+            -H "X-Cron-Secret: $CRON_SECRET" \
+            ${SUPABASE_ANON_KEY:+ -H "Authorization: Bearer $SUPABASE_ANON_KEY"} \
+            ${SUPABASE_ANON_KEY:+ -H "apikey: $SUPABASE_ANON_KEY"} \
+            -d '{}' | tee /dev/stderr
