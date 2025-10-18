@@ -8,13 +8,14 @@ on:
       - 'supabase/functions/**'
       - '.github/workflows/deploy-functions.yml'
 
+permissions:
+  contents: read
+
 concurrency:
   group: deploy-functions-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  permissions:
-    contents: read
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -44,6 +45,8 @@ jobs:
           supabase link --project-ref "$SUPABASE_PROJECT_REF" --workdir ./
 
       - name: Deploy functions
+        env:
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
           supabase functions deploy ai-orchestrator --project-ref "$SUPABASE_PROJECT_REF"
           supabase functions deploy admin-upsert-questions --project-ref "$SUPABASE_PROJECT_REF"
