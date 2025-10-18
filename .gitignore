@@ -7,14 +7,14 @@ dist/stats.html
 coverage
 .DS_Store
 *.log
-# Allow only project SQL under supabase/migrations and supabase/sql
+# Ignore all SQL by default (including migrations and dumps)
 *.sql
-!supabase/migrations/*.sql
-!supabase/sql/*.sql
-*.env
-*.env.local
 supabase/sql/*.sql
 !supabase/sql/README.md
+
+# Env files
+*.env
+*.env.local
 *.sqlite
 *.db
 *.db-wal
