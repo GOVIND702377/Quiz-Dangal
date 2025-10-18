@@ -15,13 +15,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
         with:
-          node-version: '20'
-
-      - name: Install Supabase CLI
-        run: npm i -g supabase@latest
+          version: latest
 
       - name: Login to Supabase
         env:
@@ -29,7 +26,7 @@ jobs:
         run: |
           if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
             echo "Missing SUPABASE_ACCESS_TOKEN secret" >&2; exit 1; fi
-          echo "Logged in via token (provided by secret)"
+          supabase login --token "$SUPABASE_ACCESS_TOKEN"
 
       - name: Link project
         env:
