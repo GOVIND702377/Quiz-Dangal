@@ -9,6 +9,20 @@ on:
   workflow_dispatch:
 
 jobs:
+  permissions:
+    contents: read
+    actions: none
+    checks: none
+    deployments: none
+    id-token: none
+    issues: none
+    discussions: none
+    packages: none
+    pages: none
+    pull-requests: none
+    repository-projects: none
+    security-events: none
+    statuses: none
   generate:
     if: >-
       ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '*/1 * * * *') }}

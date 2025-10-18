@@ -5,8 +5,17 @@ on:
     - cron: '*/1 * * * *'
   workflow_dispatch:
 
+name: AI Orchestrator - Generate
+
+on:
+  schedule:
+    - cron: '*/1 * * * *'
+  workflow_dispatch:
+
 jobs:
   generate:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:

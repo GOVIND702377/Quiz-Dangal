@@ -55,7 +55,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
 
   // Common system message to enforce strict JSON
   const system = `You are a strict JSON generator. Respond ONLY with valid minified JSON matching this schema:
-  { "title": string, "items": [ { "question_text": string, "options": [ { "option_text": string, "is_correct": boolean }, {..}, {..}, {..} ] }, ... (4 items total) ] }
+  { "title": string, "items": [ { "question_text": string, "options": [ { "option_text": string, "is_correct": boolean }, {..}, {..}, {..} ] }, ... (10 items total) ] }
   No markdown, no code fences, no commentary.`;
 
   try {
@@ -529,11 +529,11 @@ serve(async (req: Request) => {
 
       // Hindi + English prompt with quality and uniqueness constraints
       const basePrompt = [
-  `You are a Quiz Generator. Create exactly 4 multiple-choice questions for the category: ${category}.`,
+  `You are a Quiz Generator. Create exactly 10 multiple-choice questions for the category: ${category}.`,
         `Each question MUST be bilingual: Hindi main text + (English translation in brackets).`,
         `Title: unique, catchy, and clearly related to the category, also bilingual (Hindi + (English)). Avoid generic titles.`,
         `Options: exactly 4 per question. Keep options concise (not too short, not too long).`,
-  `Aim for a balanced difficulty across the 4 questions (mix of easy/medium/hard).`,
+  `Aim for a balanced difficulty across the 10 questions (mix of easy/medium/hard).`,
         `Opinion category should be fun, engaging, and can ask lighthearted or trending preferences (no correct answer; set all options is_correct=false).`,
         `For non-opinion categories (sports, gk, movies): ensure factual correctness and exactly one correct option per question.`,
         `Prefer trending topics in India when reasonable (news, recent releases, viral subjects).`,
@@ -541,7 +541,7 @@ serve(async (req: Request) => {
         `${avoidStems.length ? `Avoid repeating these recent question ideas: ${avoidStems.join(' | ')}` : ''}`,
         `Avoid options like 'All of the above' or 'None of the above'. Use clear, distinct choices.`,
         `Return STRICT JSON with this shape: { title: string, items: Array<{ question_text: string, options: Array<{ option_text: string, is_correct: boolean }> }> }`,
-        `Make sure there are exactly 4 items and exactly 4 options in each item.`
+        `Make sure there are exactly 10 items and exactly 4 options in each item.`
       ].join('\n');
       let prompt = basePrompt;
 
@@ -572,9 +572,9 @@ serve(async (req: Request) => {
 
             // Normalize and validate payload strictly
             const rawItems = Array.isArray(payload.items) ? payload.items : [];
-            if (rawItems.length !== 4) {
-              lastErrLocal = 'invalid item count (need exactly 4)';
-              usedPrompt = basePrompt + '\nRETRY: Ensure exactly 4 unique items. No duplicates.';
+            if (rawItems.length !== 10) {
+              lastErrLocal = 'invalid item count (need exactly 10)';
+              usedPrompt = basePrompt + '\nRETRY: Ensure exactly 10 unique items. No duplicates.';
               continue;
             }
             const normalized = rawItems.map((it: any) => ({
@@ -589,9 +589,9 @@ serve(async (req: Request) => {
             if (removed > 0) {
               await supabase.from('ai_generation_logs').insert({ job_id: job.id, level: 'warn', message: 'dedupe removed duplicate questions within payload', context: { removed, category } });
             }
-            if (unique.length !== 4) {
-              lastErrLocal = 'dedupe reduced items below 4';
-              usedPrompt = basePrompt + `\nRETRY: Provide completely different 4 questions.`;
+            if (unique.length !== 10) {
+              lastErrLocal = 'dedupe reduced items below 10';
+              usedPrompt = basePrompt + `\nRETRY: Provide completely different 10 questions.`;
               continue;
             }
             // Exactly 4 options per question
@@ -689,7 +689,7 @@ serve(async (req: Request) => {
     return new Response(JSON.stringify({ ok: true }), { headers: jsonHeaders(req) });
   } catch (e: any) {
     await logUnhandled(e);
-    return new Response(JSON.stringify({ ok: false, error: e?.message || String(e) }), { status: 500, headers: jsonHeaders(req) });
+    return new Response(JSON.stringify({ ok: false, error: 'internal_error' }), { status: 500, headers: jsonHeaders(req) });
   }
 });
 

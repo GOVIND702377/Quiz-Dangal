@@ -13,6 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  permissions:
+    contents: read
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15

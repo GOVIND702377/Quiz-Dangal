@@ -245,11 +245,12 @@ serve(async (req) => {
     return new Response(JSON.stringify({ message: "Notifications sent successfully." }), { status: 200, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } });
   } catch (e: any) {
     console.error("Main error:", e);
-    try {
-      return new Response(JSON.stringify({ error: e?.message || String(e) }), { status: 500, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } });
-    } catch (corsErr) {
-      // Fallback if even CORS headers fail
-      return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
-    }
+      // Avoid leaking stack traces or sensitive error details in responses
+      console.error('Unhandled error in send-notifications');
+      try {
+        const sb = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, { auth: { persistSession: false } });
+        await sb.from('ai_generation_logs').insert({ level: 'error', message: 'send-notifications unhandled', context: { err: String(e?.message || e) } });
+      } catch { /* ignore */ }
+      return new Response(JSON.stringify({ ok: false, error: 'internal_error' }), { status: 500, headers: jsonHeaders(req) });
   }
 });
