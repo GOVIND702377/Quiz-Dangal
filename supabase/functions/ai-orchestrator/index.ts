@@ -47,7 +47,9 @@ async function sendAlert(supabase: any, emails: string[], subject: string, body:
 }
 
 // Provider invocation wrappers (extensible)
-async function callProvider(name: string, apiKey: string, prompt: string): Promise<{ title: string; items: { question_text: string; options: { option_text: string; is_correct: boolean }[] }[] } | null> {
+type QuizPayload = { title: string; items: { question_text: string; options: { option_text: string; is_correct: boolean }[] }[] };
+type ProviderResult = { ok: true; payload: QuizPayload; status: number } | { ok: false; error: string; status: number };
+async function callProvider(name: string, apiKey: string, prompt: string): Promise<ProviderResult> {
   const provider = String(name || '').toLowerCase();
   if (!apiKey) return null;
 
@@ -74,11 +76,15 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
           temperature: 0.6,
         }),
       });
-      if (!resp.ok) return null;
+      const status = resp.status;
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '');
+        return { ok: false, error: txt || `http_${status}`, status };
+      }
       const data = await resp.json();
       const content = data?.choices?.[0]?.message?.content;
-      if (!content) return null;
-      return JSON.parse(content);
+      if (!content) return { ok: false, error: 'empty_content', status };
+      return { ok: true, payload: JSON.parse(content), status };
     }
 
     if (provider === 'groq') {
@@ -97,13 +103,17 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
           temperature: 0.6,
         }),
       });
-      if (!resp.ok) return null;
+      const status = resp.status;
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '');
+        return { ok: false, error: txt || `http_${status}`, status };
+      }
       const data = await resp.json();
       const content = data?.choices?.[0]?.message?.content;
-      if (!content) return null;
+      if (!content) return { ok: false, error: 'empty_content', status };
       // Some models may wrap in ```json fences—strip if present
       const cleaned = String(content).trim().replace(/^```json\n?|```$/g, '');
-      return JSON.parse(cleaned);
+      return { ok: true, payload: JSON.parse(cleaned), status };
     }
 
     if (provider === 'anthropic' || provider === 'claude' || provider === 'anthropic-claude') {
@@ -122,17 +132,21 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
           temperature: 0.6,
         }),
       });
-      if (!resp.ok) return null;
+      const status = resp.status;
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '');
+        return { ok: false, error: txt || `http_${status}`, status };
+      }
       const data = await resp.json();
       const content = data?.content?.[0]?.text || data?.content?.[0]?.["text"] || '';
-      if (!content) return null;
+      if (!content) return { ok: false, error: 'empty_content', status };
       const cleaned = String(content).trim().replace(/^```json\n?|```$/g, '');
-      return JSON.parse(cleaned);
+      return { ok: true, payload: JSON.parse(cleaned), status };
     }
   } catch (_) {
-    return null;
+    return { ok: false, error: 'exception', status: 0 };
   }
-  return null;
+  return { ok: false, error: 'unknown_provider', status: 0 };
 }
 
 function roundToMinute(d = new Date()) {
@@ -302,7 +316,7 @@ serve(async (req: Request) => {
       { start: nextSlotStart, end: new Date(nextSlotStart.getTime() + liveMin * 60_000) },
     ];
 
-    for (const s of slots) {
+  for (const s of slots) {
       // Skip current slot if we're too close or past start (to avoid start-time edit locks)
       const leadMs = s.start.getTime() - Date.now();
       if (leadMs <= startOffsetSec * 1000) {
@@ -359,16 +373,29 @@ serve(async (req: Request) => {
       let success = false;
       let lastErr: string | null = null;
 
-      // Hindi + English prompt with constraints and difficulty mix
+      // Fetch recent titles for uniqueness guidance
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const { data: recent } = await supabase
+        .from('quizzes')
+        .select('title')
+        .eq('category', category)
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(5);
+      const avoidTitles = (recent || []).map((r: any) => String(r.title || '').trim()).filter(Boolean);
+
+      // Hindi + English prompt with quality and uniqueness constraints
       const prompt = [
         `You are a Quiz Generator. Create exactly 10 multiple-choice questions for the category: ${category}.`,
         `Each question MUST be bilingual: Hindi main text + (English translation in brackets).`,
-        `Title: unique, catchy, and clearly related to the category, also bilingual (Hindi + (English)).`,
+        `Title: unique, catchy, and clearly related to the category, also bilingual (Hindi + (English)). Avoid generic titles.`,
         `Options: exactly 4 per question. Keep options concise (not too short, not too long).`,
         `Difficulty mix across the 10 questions: 40% easy, 30% medium, 30% hard (label not needed, just ensure balance).`,
         `Opinion category should be fun, engaging, and can ask lighthearted or trending preferences (no correct answer; set all options is_correct=false).`,
-        `For non-opinion categories (sports, gk, movies): ensure factual correctness.`,
-        `Prefer trending topics when reasonable (news, recent releases, viral subjects).`,
+        `For non-opinion categories (sports, gk, movies): ensure factual correctness and exactly one correct option per question.`,
+        `Prefer trending topics in India when reasonable (news, recent releases, viral subjects).`,
+        `Avoid duplication with recent quizzes. Do NOT reuse or paraphrase these recent titles: ${avoidTitles.length ? avoidTitles.join(' | ') : 'None'}.`,
+        `Avoid options like 'All of the above' or 'None of the above'. Use clear, distinct choices.`,
         `Return STRICT JSON with this shape: { title: string, items: Array<{ question_text: string, options: Array<{ option_text: string, is_correct: boolean }> }> }`,
         `Make sure there are exactly 10 items and exactly 4 options in each item.`
       ].join('\n');
@@ -376,8 +403,18 @@ serve(async (req: Request) => {
       for (const p of providers || []) {
         const apiKey = p.api_key_enc || '';
         try {
-          const payload = await callProvider(p.name, apiKey, prompt);
-          if (!payload) throw new Error('provider returned no data');
+          const resp = await callProvider(p.name, apiKey, prompt);
+          if (!resp?.ok) {
+            // Detect quota/unauthorized for provider
+            if (resp?.status === 429 || /rate.?limit|quota/i.test(resp?.error || '')) {
+              await supabase.from('ai_providers').update({ last_error: 'rate_limited', last_error_at: new Date().toISOString(), quota_exhausted: true }).eq('id', p.id);
+              await sendAlert(supabase, settings.alert_emails || [], `AI provider quota exhausted (${p.name})`, `Provider ${p.name} returned 429/rate limit. Marked as quota_exhausted.`);
+            } else if (resp?.status === 401 || resp?.status === 403 || /unauthorized|invalid api/i.test(resp?.error || '')) {
+              await supabase.from('ai_providers').update({ last_error: 'unauthorized', last_error_at: new Date().toISOString() }).eq('id', p.id);
+            }
+            throw new Error(resp?.error || 'provider returned no data');
+          }
+          const payload = resp.payload;
 
           // Normalize and validate payload strictly
           const rawItems = Array.isArray(payload.items) ? payload.items : [];
