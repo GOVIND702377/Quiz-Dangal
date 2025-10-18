@@ -177,6 +177,60 @@ function jsonHeaders(req: Request): HeadersInit {
   return { "Content-Type": "application/json", ...makeCorsHeaders(req) };
 }
 
+// Helpers for title formatting in IST with bilingual fallback
+function formatISTHHMM(date: Date): string {
+  try {
+    const fmt = new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+    const parts = fmt.formatToParts(date);
+    const hh = parts.find(p => p.type === 'hour')?.value || '00';
+    const mm = parts.find(p => p.type === 'minute')?.value || '00';
+    return `${hh}:${mm}`;
+  } catch {
+    // Fallback to UTC if tz not available
+    const hh = String(date.getUTCHours()).padStart(2, '0');
+    const mm = String(date.getUTCMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+}
+
+function categoryLabels(cat: string): { hi: string; en: string } {
+  const c = String(cat || '').toLowerCase();
+  if (c === 'gk' || c === 'general_knowledge' || c === 'general-knowledge') return { hi: 'सामान्य ज्ञान', en: 'General Knowledge' };
+  if (c === 'sports') return { hi: 'खेल', en: 'Sports' };
+  if (c === 'movies' || c === 'bollywood' || c === 'films') return { hi: 'फिल्में', en: 'Movies' };
+  if (c === 'opinion') return { hi: 'राय', en: 'Opinion' };
+  return { hi: c, en: c.charAt(0).toUpperCase() + c.slice(1) };
+}
+
+function isGenericTitle(title: string, cat: string): boolean {
+  const t = String(title || '').toLowerCase().trim();
+  if (!t) return true;
+  if (t.length < 5) return true;
+  const bad = ['quiz', 'gk', 'sports', 'movies', 'opinion', 'bilingual', 'today'];
+  const tokens = t.replace(/\([^)]*\)/g, ' ').replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
+  // too many generic tokens or repetitive
+  const genericCount = tokens.filter(w => bad.includes(w)).length;
+  if (genericCount >= Math.max(2, Math.floor(tokens.length * 0.6))) return true;
+  return false;
+}
+
+function makeBilingualTitle(cat: string, startAt: Date, provided?: string): string {
+  const { hi, en } = categoryLabels(cat);
+  const hhmm = formatISTHHMM(startAt);
+  const base = `आज का ${hi} क्विज़ (${en} Quiz) – ${hhmm} IST`;
+  const t = String(provided || '').trim();
+  if (!t || isGenericTitle(t, cat)) return base;
+  // Ensure bilingual: if missing English part, append; if missing Hindi, prepend simple Hindi label
+  const hasEnglish = /\(.*\)/.test(t) || /[A-Za-z]/.test(t);
+  const hasHindi = /[\p{Script=Devanagari}]/u.test(t);
+  let out = t;
+  if (!hasEnglish) out = `${out} (${en} Quiz)`;
+  if (!hasHindi) out = `आज का ${hi} क्विज़ – ${out}`;
+  // append time marker softly if not present
+  if (!/\b\d{1,2}:\d{2}\b/.test(out)) out = `${out} – ${hhmm} IST`;
+  return out;
+}
+
 // Ensure exactly one correct option for non-opinion quizzes
 function normalizeCorrectness(items: any[]): any[] {
   return items.map((q: any) => {
@@ -332,6 +386,7 @@ serve(async (req: Request) => {
   const startOffsetSec = Math.max(0, Number(settings.start_offset_sec || 10));
   const slotStart = alignToCadence(now, cadence);
   const nextSlotStart = new Date(slotStart.getTime() + cadence * 60_000);
+  const nextNextSlotStart = new Date(slotStart.getTime() + 2 * cadence * 60_000);
 
   // Warn if cadence != liveMin + 3 (desired 7-min live, 3-min gap)
   if (cadence !== liveMin + 3) {
@@ -341,9 +396,11 @@ serve(async (req: Request) => {
   const categories: string[] = settings.categories || [];
 
   for (const category of categories) {
+    // Maintain up to two future upcoming quizzes in addition to the current slot
     const slots = [
       { start: slotStart, end: new Date(slotStart.getTime() + liveMin * 60_000) },
       { start: nextSlotStart, end: new Date(nextSlotStart.getTime() + liveMin * 60_000) },
+      { start: nextNextSlotStart, end: new Date(nextNextSlotStart.getTime() + liveMin * 60_000) },
     ];
 
   for (const s of slots) {
@@ -527,7 +584,8 @@ serve(async (req: Request) => {
           if (!finalItems) throw new Error(lastErrLocal || 'provider returned no data');
 
           // Create quiz row
-          const title = (payload.title && String(payload.title).trim()) || `${category.toUpperCase()} Quiz (Bilingual)`;
+          const plannedStart = new Date(s.start.getTime() + startOffsetSec * 1000);
+          const title = makeBilingualTitle(category, plannedStart, payload?.title);
           const { data: quiz, error: qErr } = await supabase
             .from('quizzes')
             .insert({
@@ -536,7 +594,7 @@ serve(async (req: Request) => {
               prize_type: 'coins',
               prizes: [101, 71, 51],
               prize_pool: 101 + 71 + 51,
-              start_time: new Date(s.start.getTime() + startOffsetSec * 1000).toISOString(),
+              start_time: plannedStart.toISOString(),
               end_time: new Date(s.end.getTime() + startOffsetSec * 1000).toISOString(),
               is_ai_generated: true,
             })
