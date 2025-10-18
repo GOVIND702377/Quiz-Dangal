@@ -163,6 +163,59 @@ function jsonHeaders(req: Request): HeadersInit {
   return { "Content-Type": "application/json", ...makeCorsHeaders(req) };
 }
 
+// Ensure exactly one correct option for non-opinion quizzes
+function normalizeCorrectness(items: any[]): any[] {
+  return items.map((q: any) => {
+    const opts = Array.isArray(q.options) ? q.options.slice(0, 4) : [];
+    let firstTrueIndex = opts.findIndex((o: any) => o?.is_correct === true);
+    const trueCount = opts.filter((o: any) => o?.is_correct === true).length;
+    // If multiple trues, keep the first and flip others to false
+    if (trueCount > 1) {
+      if (firstTrueIndex < 0) firstTrueIndex = 0;
+      return {
+        question_text: q.question_text,
+        options: opts.map((o: any, i: number) => ({ option_text: String(o.option_text || '').trim(), is_correct: i === firstTrueIndex })),
+      };
+    }
+    // If none true, default the first option to correct
+    if (trueCount === 0) {
+      return {
+        question_text: q.question_text,
+        options: opts.map((o: any, i: number) => ({ option_text: String(o.option_text || '').trim(), is_correct: i === 0 })),
+      };
+    }
+    // Exactly one true already
+    return {
+      question_text: q.question_text,
+      options: opts.map((o: any) => ({ option_text: String(o.option_text || '').trim(), is_correct: !!o.is_correct })),
+    };
+  });
+}
+
+// Direct insert fallback using service role
+async function insertQuestionsDirect(supabase: any, quizId: string, items: any[], mode: 'append' | 'replace' = 'append') {
+  if (mode === 'replace') {
+    await supabase.from('questions').delete().eq('quiz_id', quizId);
+  }
+  for (const it of items) {
+    const { data: qrow, error: qerr } = await supabase
+      .from('questions')
+      .insert({ quiz_id: quizId, question_text: it.question_text })
+      .select('id')
+      .single();
+    if (qerr) throw qerr;
+    const rows = (it.options || []).slice(0, 4).map((o: any) => ({
+      question_id: qrow.id,
+      option_text: String(o.option_text || '').trim(),
+      is_correct: !!o.is_correct,
+    }));
+    if (rows.length) {
+      const { error: oerr } = await supabase.from('options').insert(rows);
+      if (oerr) throw oerr;
+    }
+  }
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("", { status: 204, headers: { ...makeCorsHeaders(req) } });
@@ -340,9 +393,16 @@ serve(async (req: Request) => {
               options: q.options.map((o: any) => ({ option_text: o.option_text, is_correct: false })),
             }));
           } else {
-            // Non-opinion must have exactly one correct per question
+            // Non-opinion: enforce exactly one correct per question (normalize if needed)
             const ok = finalItems.every((q: any) => q.options.filter((o: any) => o.is_correct === true).length === 1);
-            if (!ok) throw new Error('each question must have exactly one correct option');
+            if (!ok) {
+              const before = finalItems;
+              finalItems = normalizeCorrectness(finalItems);
+              const stillBad = finalItems.some((q: any) => q.options.filter((o: any) => o.is_correct === true).length !== 1);
+              if (stillBad) throw new Error('failed to normalize correctness to single true');
+              // Log that normalization occurred for visibility
+              await supabase.from('ai_generation_logs').insert({ job_id: job.id, level: 'warn', message: 'normalized correctness to single true', context: { category, slot_start: s.start.toISOString() } });
+            }
           }
 
           // Create quiz row
@@ -363,17 +423,25 @@ serve(async (req: Request) => {
             .single();
           if (qErr) throw qErr;
 
-          // Upsert questions via RPC (admin path)
-          const { error: rpcErr } = await supabase.rpc('admin_bulk_upsert_questions', {
-            p_quiz_id: quiz.id,
-            p_payload: finalItems,
-            p_mode: 'replace',
-          });
-          if (rpcErr) throw rpcErr;
+          // Upsert questions via RPC (admin path) with fallback to direct inserts
+          let rpcUsed = false;
+          try {
+            const { error: rpcErr } = await supabase.rpc('admin_bulk_upsert_questions', {
+              p_quiz_id: quiz.id,
+              p_payload: finalItems,
+              p_mode: 'replace',
+            });
+            if (rpcErr) throw rpcErr;
+            rpcUsed = true;
+          } catch (rpcError) {
+            // Log and fallback to direct inserts
+            await supabase.from('ai_generation_logs').insert({ job_id: job.id, level: 'warn', message: 'RPC admin_bulk_upsert_questions failed; using direct insert fallback', context: { error: rpcError?.message || String(rpcError), quiz_id: quiz.id } });
+            await insertQuestionsDirect(supabase, quiz.id, finalItems, 'replace');
+          }
 
           // Success
           await supabase.from('ai_generation_jobs').update({ status: 'completed', provider_name: p.name, quiz_id: quiz.id }).eq('id', job.id);
-          await supabase.from('ai_generation_logs').insert({ job_id: job.id, level: 'info', message: `Quiz created for ${category}`, context: { quiz_id: quiz.id, slot_start: s.start.toISOString() } });
+          await supabase.from('ai_generation_logs').insert({ job_id: job.id, level: 'info', message: `Quiz created for ${category}`, context: { quiz_id: quiz.id, slot_start: s.start.toISOString(), used_rpc: rpcUsed } });
           success = true;
           break;
         } catch (e: any) {
