@@ -904,6 +904,22 @@ function AutomationPanel() {
 	const [providers, setProviders] = React.useState([]);
 	const [provForm, setProvForm] = React.useState({ id: null, name: '', api_key_enc: '', priority: 1, enabled: true });
 
+	// Reset quota flags for enabled providers (useful after temporary rate limits)
+	const resetQuotaFlags = async () => {
+		if (!supabase) return;
+		try {
+			const { error } = await supabase
+				.from('ai_providers')
+				.update({ quota_exhausted: false, last_error: null })
+				.eq('enabled', true);
+			if (error) throw error;
+			toast({ title: 'Quota flags reset', description: 'Enabled providers can be retried now.' });
+			load();
+		} catch (e) {
+			toast({ title: 'Reset failed', description: e.message, variant: 'destructive' });
+		}
+	};
+
 	const load = React.useCallback(async () => {
 		if (!supabase) return; setLoading(true);
 		try {
@@ -1023,6 +1039,7 @@ function AutomationPanel() {
 				<div className="flex items-center gap-3 flex-wrap">
 					<h3 className="font-semibold">Providers</h3>
 					<Button size="sm" variant="outline" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</Button>
+					<Button size="sm" variant="outline" onClick={resetQuotaFlags}>Reset quota flags</Button>
 				</div>
 				{/* Move Add/Edit Provider form to the top */}
 				<form onSubmit={saveProvider} className="space-y-3 bg-gray-50 border border-gray-200 rounded-lg p-4 max-w-3xl">
