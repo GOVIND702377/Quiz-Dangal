@@ -366,7 +366,7 @@ export default function Admin() {
 				<div className="mb-6 text-sm text-amber-600">Supabase env keys missing. Read-only UI only.</div>
 			)}
 			<div className="flex gap-2 mb-6 flex-wrap">
-				{['overview','rewards','approvals','notifications'].map(t=> (
+				{['overview','automation','rewards','approvals','notifications'].map(t=> (
 					<button key={t} onClick={()=>setTab(t)} className={`px-3 py-1.5 rounded border text-sm transition-colors ${t===tab? 'bg-indigo-600 text-white border-indigo-600':'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'}`}>{t}</button>
 				))}
 			</div>
@@ -618,6 +618,9 @@ export default function Admin() {
 			)}
 			{tab==='notifications' && (
 				<NotificationsPanel />
+			)}
+			{tab==='automation' && (
+				<AutomationPanel />
 			)}
 			{tab==='rewards' && (
 				<RewardsPanel />
@@ -888,6 +891,194 @@ function NotificationsPanel() {
 					{!list.length && !loading && <div className="text-xs text-gray-500">No notifications yet.</div>}
 				</div>
 			</section>
+		</div>
+	);
+}
+
+// ---------------- Automation (AI) Panel ----------------
+function AutomationPanel() {
+	const { toast } = useToast();
+	const [loading, setLoading] = React.useState(false);
+	const [saving, setSaving] = React.useState(false);
+	const [settings, setSettings] = React.useState({ is_enabled: true, cadence_min: 10, live_window_min: 7, cleanup_days: 3, categories: ['opinion','gk','sports','movies'], alert_emails: ['quizdangalofficial@gmail.com'] });
+	const [providers, setProviders] = React.useState([]);
+	const [provForm, setProvForm] = React.useState({ id: null, name: '', api_key_enc: '', priority: 1, enabled: true });
+
+	const load = React.useCallback(async () => {
+		if (!supabase) return; setLoading(true);
+		try {
+			const [{ data: setRow, error: sErr }, { data: provs, error: pErr }] = await Promise.all([
+				supabase.from('ai_settings').select('*').eq('id', 1).maybeSingle(),
+				supabase.from('ai_providers').select('*').order('enabled', { ascending: false }).order('priority', { ascending: true }).order('id', { ascending: true }),
+			]);
+			if (sErr) throw sErr; if (pErr) throw pErr;
+			if (setRow) setSettings({
+				is_enabled: !!setRow.is_enabled,
+				cadence_min: setRow.cadence_min ?? 10,
+				live_window_min: setRow.live_window_min ?? 7,
+				cleanup_days: setRow.cleanup_days ?? 3,
+				categories: Array.isArray(setRow.categories) ? setRow.categories : ['opinion','gk','sports','movies'],
+				alert_emails: Array.isArray(setRow.alert_emails) ? setRow.alert_emails : ['quizdangalofficial@gmail.com'],
+			});
+			setProviders(provs || []);
+		} catch (e) {
+			toast({ title: 'Load failed', description: e.message, variant: 'destructive' });
+		} finally { setLoading(false); }
+	}, [toast]);
+
+	React.useEffect(() => { load(); }, [load]);
+
+	const saveSettings = async (e) => {
+		e?.preventDefault?.(); if (!supabase) return; setSaving(true);
+		try {
+			const payload = {
+				id: 1,
+				is_enabled: !!settings.is_enabled,
+				cadence_min: Number(settings.cadence_min || 10),
+				live_window_min: Number(settings.live_window_min || 7),
+				categories: settings.categories,
+				cleanup_days: Number(settings.cleanup_days || 3),
+				alert_emails: settings.alert_emails,
+			};
+			const { error } = await supabase.from('ai_settings').upsert(payload, { onConflict: 'id' });
+			if (error) throw error;
+			toast({ title: 'Settings saved' });
+		} catch (e) { toast({ title: 'Save failed', description: e.message, variant: 'destructive' }); }
+		finally { setSaving(false); }
+	};
+
+	const toggleProvider = async (p) => {
+		if (!supabase) return;
+		const { error } = await supabase.from('ai_providers').update({ enabled: !p.enabled }).eq('id', p.id);
+		if (error) toast({ title: 'Toggle failed', description: error.message, variant: 'destructive' }); else { toast({ title: p.enabled ? 'Disabled' : 'Enabled' }); load(); }
+	};
+
+	const saveProvider = async (e) => {
+		e?.preventDefault?.(); if (!supabase) return;
+		try {
+			const base = {
+				name: String(provForm.name || '').trim(),
+				api_key_enc: String(provForm.api_key_enc || '').trim() || null,
+				priority: Number(provForm.priority || 1),
+				enabled: !!provForm.enabled,
+			};
+			if (!base.name) throw new Error('Provider name required');
+			let resp;
+			if (provForm.id) resp = await supabase.from('ai_providers').update(base).eq('id', provForm.id).select().single();
+			else resp = await supabase.from('ai_providers').insert([base]).select().single();
+			if (resp.error) throw resp.error;
+			toast({ title: provForm.id ? 'Provider updated' : 'Provider added' });
+			setProvForm({ id: null, name: '', api_key_enc: '', priority: 1, enabled: true });
+			load();
+		} catch (e) { toast({ title: 'Save failed', description: e.message, variant: 'destructive' }); }
+	};
+
+	const editProvider = (p) => setProvForm({ id: p.id, name: p.name || '', api_key_enc: p.api_key_enc || '', priority: p.priority || 1, enabled: !!p.enabled });
+
+	return (
+		<div className="space-y-6">
+			<h2 className="text-lg font-semibold">AI Automation</h2>
+			<p className="text-sm text-gray-600">Auto-generate quizzes backend-only. Configure cadence, categories, alert emails, and API providers with failover.</p>
+
+			<form onSubmit={saveSettings} className="space-y-3 bg-gray-50 border border-gray-200 rounded-lg p-4 max-w-3xl">
+				<div className="flex items-center gap-2">
+					<input id="is_enabled" type="checkbox" checked={!!settings.is_enabled} onChange={e=> setSettings(s=> ({ ...s, is_enabled: e.target.checked }))} />
+					<label htmlFor="is_enabled" className="text-sm">Enabled</label>
+				</div>
+				<div className="grid md:grid-cols-4 gap-3">
+					<div>
+						<Label>Cadence (min)</Label>
+						<Input type="number" min={1} max={60} value={settings.cadence_min} onChange={e=> setSettings(s=> ({ ...s, cadence_min: e.target.valueAsNumber || 10 }))} />
+					</div>
+					<div>
+						<Label>Live window (min)</Label>
+						<Input type="number" min={5} max={180} value={settings.live_window_min} onChange={e=> setSettings(s=> ({ ...s, live_window_min: e.target.valueAsNumber || 7 }))} />
+					</div>
+					<div>
+						<Label>Cleanup days</Label>
+						<Input type="number" min={1} max={30} value={settings.cleanup_days} onChange={e=> setSettings(s=> ({ ...s, cleanup_days: e.target.valueAsNumber || 3 }))} />
+					</div>
+					<div>
+						<Label>Categories (comma)</Label>
+						<Input value={(settings.categories || []).join(', ')} onChange={e=> setSettings(s=> ({ ...s, categories: e.target.value.split(',').map(x=> x.trim()).filter(Boolean) }))} />
+					</div>
+				</div>
+				<div>
+					<Label>Alert emails (comma)</Label>
+					<Input value={(settings.alert_emails || []).join(', ')} onChange={e=> setSettings(s=> ({ ...s, alert_emails: e.target.value.split(',').map(x=> x.trim()).filter(Boolean) }))} />
+				</div>
+				<div className="flex gap-2">
+					<Button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Settings'}</Button>
+					<Button type="button" variant="outline" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</Button>
+				</div>
+			</form>
+
+			<div className="space-y-3">
+				<div className="flex items-center gap-3 flex-wrap">
+					<h3 className="font-semibold">Providers</h3>
+					<Button size="sm" variant="outline" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</Button>
+				</div>
+				{/* Move Add/Edit Provider form to the top */}
+				<form onSubmit={saveProvider} className="space-y-3 bg-gray-50 border border-gray-200 rounded-lg p-4 max-w-3xl">
+					<h4 className="font-medium">{provForm.id ? 'Edit Provider' : 'Add Provider'}</h4>
+					<div className="grid md:grid-cols-4 gap-3">
+						<div className="md:col-span-2">
+							<Label>Name</Label>
+							<Input value={provForm.name} onChange={e=> setProvForm(f=> ({ ...f, name: e.target.value }))} placeholder="e.g. openai" />
+						</div>
+						<div>
+							<Label>Priority</Label>
+							<Input type="number" value={provForm.priority} onChange={e=> setProvForm(f=> ({ ...f, priority: e.target.valueAsNumber || 1 }))} />
+						</div>
+						<div className="flex items-center gap-2">
+							<input id="prov_enabled" type="checkbox" checked={!!provForm.enabled} onChange={e=> setProvForm(f=> ({ ...f, enabled: e.target.checked }))} />
+							<label htmlFor="prov_enabled" className="text-sm">Enabled</label>
+						</div>
+						<div className="md:col-span-4">
+							<Label>API Key (stored server-side)</Label>
+							<Input value={provForm.api_key_enc} onChange={e=> setProvForm(f=> ({ ...f, api_key_enc: e.target.value }))} placeholder="sk-..." />
+						</div>
+					</div>
+					<div className="flex gap-2">
+						<Button type="submit">{provForm.id ? 'Update' : 'Add'}</Button>
+						<Button type="button" variant="outline" onClick={()=> setProvForm({ id: null, name: '', api_key_enc: '', priority: 1, enabled: true })}>Reset</Button>
+					</div>
+				</form>
+				<div className="overflow-x-auto rounded border border-gray-200">
+					<table className="min-w-full text-sm">
+						<thead className="bg-gray-100">
+							<tr>
+								<th className="p-2 text-left">Name</th>
+								<th className="p-2 text-left">Priority</th>
+								<th className="p-2 text-left">Enabled</th>
+								<th className="p-2 text-left">Quota</th>
+								<th className="p-2 text-left">Last Error</th>
+								<th className="p-2 text-left">Actions</th>
+							</tr>
+						</thead>
+						<tbody>
+							{providers.map((p)=> (
+								<tr key={p.id} className="border-t border-gray-200">
+									<td className="p-2">{p.name}</td>
+									<td className="p-2">{p.priority}</td>
+									<td className="p-2">{p.enabled ? 'Yes' : 'No'}</td>
+									<td className="p-2">{p.quota_exhausted ? 'Exhausted' : 'OK'}</td>
+									<td className="p-2 max-w-[300px] truncate" title={p.last_error || ''}>{p.last_error || '—'}</td>
+									<td className="p-2">
+										<div className="flex gap-2 flex-wrap">
+											<Button size="sm" variant="outline" onClick={()=> editProvider(p)}>Edit</Button>
+											<Button size="sm" variant="outline" onClick={()=> toggleProvider(p)}>{p.enabled ? 'Disable' : 'Enable'}</Button>
+										</div>
+									</td>
+								</tr>
+							))}
+							{!providers.length && (
+								<tr><td colSpan={6} className="p-4 text-center text-gray-500">No providers</td></tr>
+							)}
+						</tbody>
+					</table>
+				</div>
+			</div>
 		</div>
 	);
 }

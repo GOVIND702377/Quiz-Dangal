@@ -11,6 +11,10 @@ coverage
 *.sql
 !supabase/migrations/*.sql
 !supabase/sql/*.sql
+*.env
+*.env.local
+supabase/sql/*.sql
+!supabase/sql/README.md
 *.sqlite
 *.db
 *.db-wal
