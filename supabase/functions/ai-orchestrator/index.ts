@@ -1,6 +1,7 @@
 // @ts-nocheck
 // deno-lint-ignore-file no-explicit-any
 // AI Orchestrator Edge Function
+// redeploy-bump: config sync
 // Schedules and generates quizzes backend-only with provider failover and alerting
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";

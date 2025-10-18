@@ -1,0 +1,4 @@
+[functions]
+# We authenticate this endpoint using an out-of-band X-Cron-Secret header.
+# Disable JWT verification so GitHub Actions can call it without an auth token.
+verify_jwt = false

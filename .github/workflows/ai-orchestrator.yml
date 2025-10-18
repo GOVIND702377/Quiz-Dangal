@@ -17,8 +17,9 @@ jobs:
       group: ai-orchestrator-generate
       cancel-in-progress: true
     env:
-      FUNCTION_URL: https://gcheopiqayyptfxowulv.functions.supabase.co/ai-orchestrator
+  FUNCTION_URL: https://gcheopiqayyptfxowulv.supabase.co/functions/v1/ai-orchestrator
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
       - name: Validate secrets
         run: |
@@ -30,7 +31,9 @@ jobs:
         run: |
           set -e
           http_code=$(curl -sS -o resp.json -w "%{http_code}" -X POST "$FUNCTION_URL" \
-            -H "X-Cron-Secret: $CRON_SECRET" -H "Content-Type: application/json" -d '{}')
+            -H "X-Cron-Secret: $CRON_SECRET" \
+            -H "Authorization: Bearer $ANON_KEY" -H "apikey: $ANON_KEY" \
+            -H "Content-Type: application/json" -d '{}')
           echo "HTTP $http_code"
           cat resp.json || true
           test "$http_code" -ge 200 && test "$http_code" -lt 300
@@ -43,8 +46,9 @@ jobs:
       group: ai-orchestrator-cleanup
       cancel-in-progress: true
     env:
-      FUNCTION_URL: https://gcheopiqayyptfxowulv.functions.supabase.co/ai-orchestrator?task=cleanup
+  FUNCTION_URL: https://gcheopiqayyptfxowulv.supabase.co/functions/v1/ai-orchestrator?task=cleanup
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
       - name: Validate secrets
         run: |
@@ -56,7 +60,9 @@ jobs:
         run: |
           set -e
           http_code=$(curl -sS -o resp.json -w "%{http_code}" -X POST "$FUNCTION_URL" \
-            -H "X-Cron-Secret: $CRON_SECRET" -H "Content-Type: application/json" -d '{}')
+            -H "X-Cron-Secret: $CRON_SECRET" \
+            -H "Authorization: Bearer $ANON_KEY" -H "apikey: $ANON_KEY" \
+            -H "Content-Type: application/json" -d '{}')
           echo "HTTP $http_code"
           cat resp.json || true
           test "$http_code" -ge 200 && test "$http_code" -lt 300
