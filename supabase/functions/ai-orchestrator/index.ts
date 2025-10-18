@@ -285,6 +285,7 @@ serve(async (req: Request) => {
   const now = new Date();
   const cadence = Number(settings.cadence_min || 10);
   const liveMin = Number(settings.live_window_min || 7);
+  const startOffsetSec = Math.max(0, Number(settings.start_offset_sec || 10));
   const slotStart = alignToCadence(now, cadence);
   const nextSlotStart = new Date(slotStart.getTime() + cadence * 60_000);
 
@@ -302,6 +303,15 @@ serve(async (req: Request) => {
     ];
 
     for (const s of slots) {
+      // Skip current slot if we're too close or past start (to avoid start-time edit locks)
+      const leadMs = s.start.getTime() - Date.now();
+      if (leadMs <= startOffsetSec * 1000) {
+        // Only skip for the first slot (current). The second (next) will have enough lead time.
+        if (s.start.getTime() === slotStart.getTime()) {
+          await supabase.from('ai_generation_logs').insert({ level: 'info', message: 'skip current slot (insufficient lead time)', context: { category, slot_start: s.start.toISOString(), lead_ms: leadMs } });
+          continue;
+        }
+      }
       // Insert or get existing job for each slot
       let job: any = null;
       try {
@@ -415,8 +425,8 @@ serve(async (req: Request) => {
               prize_type: 'coins',
               prizes: [101, 71, 51],
               prize_pool: 101 + 71 + 51,
-              start_time: s.start.toISOString(),
-              end_time: s.end.toISOString(),
+              start_time: new Date(s.start.getTime() + startOffsetSec * 1000).toISOString(),
+              end_time: new Date(s.end.getTime() + startOffsetSec * 1000).toISOString(),
               is_ai_generated: true,
             })
             .select('*')
