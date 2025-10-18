@@ -146,14 +146,15 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
 
     // Perplexity AI (OpenAI-compatible-ish chat completions)
     if (provider === 'perplexity' || provider === 'pplx' || provider === 'perplexity-ai') {
-      const resp = await fetch('https://api.perplexity.ai/chat/completions', {
+      async function pplxCall(model: string) {
+        const resp = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          model: 'llama-3.1-70b-instruct',
+          body: JSON.stringify({
+          model,
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: prompt + '\nRespond with JSON only.' },
@@ -162,10 +163,21 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
           max_tokens: 2000,
         }),
       });
-      const status = resp.status;
+        return resp;
+      }
+      let resp = await pplxCall('sonar-pro');
+      let status = resp.status;
       if (!resp.ok) {
         const txt = await resp.text().catch(() => '');
-        return { ok: false, error: txt || `http_${status}`, status };
+        // If invalid model, retry with a safe default
+        if (/invalid model/i.test(txt || '') || status === 400) {
+          resp = await pplxCall('sonar');
+          status = resp.status;
+        }
+        if (!resp.ok) {
+          const t2 = await resp.text().catch(() => '');
+          return { ok: false, error: t2 || txt || `http_${status}`, status };
+        }
       }
       const data = await resp.json();
       const content = data?.choices?.[0]?.message?.content;
