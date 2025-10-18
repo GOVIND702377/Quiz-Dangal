@@ -10,14 +10,16 @@ on:
 
 jobs:
   generate:
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '*/1 * * * *'
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '*/1 * * * *') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
       group: ai-orchestrator-generate
       cancel-in-progress: true
     env:
-  FUNCTION_URL: https://gcheopiqayyptfxowulv.supabase.co/functions/v1/ai-orchestrator
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      FUNCTION_URL: ${{ secrets.SUPABASE_URL }}/functions/v1/ai-orchestrator
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
       ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
@@ -25,6 +27,10 @@ jobs:
         run: |
           if [ -z "$CRON_SECRET" ]; then
             echo "CRON_SECRET not set as a repo secret" >&2
+            exit 1
+          fi
+          if [ -z "$SUPABASE_URL" ] || [ -z "$ANON_KEY" ]; then
+            echo "SUPABASE_URL or SUPABASE_ANON_KEY not set" >&2
             exit 1
           fi
       - name: POST to ai-orchestrator (run)
@@ -39,14 +45,17 @@ jobs:
           test "$http_code" -ge 200 && test "$http_code" -lt 300
 
   cleanup:
-    if: github.event_name == 'workflow_dispatch' || github.event.schedule == '0 22 * * *'
+    if: >-
+      ${/* Include cleanup on manual dispatch or matching schedule */''}
+      ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'schedule' && github.event.schedule == '0 22 * * *') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
       group: ai-orchestrator-cleanup
       cancel-in-progress: true
     env:
-  FUNCTION_URL: https://gcheopiqayyptfxowulv.supabase.co/functions/v1/ai-orchestrator?task=cleanup
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      FUNCTION_URL: ${{ secrets.SUPABASE_URL }}/functions/v1/ai-orchestrator?task=cleanup
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
       ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
     steps:
@@ -54,6 +63,10 @@ jobs:
         run: |
           if [ -z "$CRON_SECRET" ]; then
             echo "CRON_SECRET not set as a repo secret" >&2
+            exit 1
+          fi
+          if [ -z "$SUPABASE_URL" ] || [ -z "$ANON_KEY" ]; then
+            echo "SUPABASE_URL or SUPABASE_ANON_KEY not set" >&2
             exit 1
           fi
       - name: POST to ai-orchestrator (cleanup)

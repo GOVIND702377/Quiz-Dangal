@@ -900,7 +900,7 @@ function AutomationPanel() {
 	const { toast } = useToast();
 	const [loading, setLoading] = React.useState(false);
 	const [saving, setSaving] = React.useState(false);
-	const [settings, setSettings] = React.useState({ is_enabled: true, cadence_min: 10, live_window_min: 7, cleanup_days: 3, categories: ['opinion','gk','sports','movies'], alert_emails: ['quizdangalofficial@gmail.com'] });
+	const [settings, setSettings] = React.useState({ is_enabled: true, cadence_min: 10, live_window_min: 7, start_offset_sec: 15, cleanup_days: 3, categories: ['opinion','gk','sports','movies'], alert_emails: ['quizdangalofficial@gmail.com'] });
 	const [providers, setProviders] = React.useState([]);
 	const [provForm, setProvForm] = React.useState({ id: null, name: '', api_key_enc: '', priority: 1, enabled: true });
 
@@ -916,6 +916,7 @@ function AutomationPanel() {
 				is_enabled: !!setRow.is_enabled,
 				cadence_min: setRow.cadence_min ?? 10,
 				live_window_min: setRow.live_window_min ?? 7,
+				start_offset_sec: setRow.start_offset_sec ?? 15,
 				cleanup_days: setRow.cleanup_days ?? 3,
 				categories: Array.isArray(setRow.categories) ? setRow.categories : ['opinion','gk','sports','movies'],
 				alert_emails: Array.isArray(setRow.alert_emails) ? setRow.alert_emails : ['quizdangalofficial@gmail.com'],
@@ -936,6 +937,7 @@ function AutomationPanel() {
 				is_enabled: !!settings.is_enabled,
 				cadence_min: Number(settings.cadence_min || 10),
 				live_window_min: Number(settings.live_window_min || 7),
+				start_offset_sec: Number(settings.start_offset_sec ?? 15),
 				categories: settings.categories,
 				cleanup_days: Number(settings.cleanup_days || 3),
 				alert_emails: settings.alert_emails,
@@ -985,7 +987,7 @@ function AutomationPanel() {
 					<input id="is_enabled" type="checkbox" checked={!!settings.is_enabled} onChange={e=> setSettings(s=> ({ ...s, is_enabled: e.target.checked }))} />
 					<label htmlFor="is_enabled" className="text-sm">Enabled</label>
 				</div>
-				<div className="grid md:grid-cols-4 gap-3">
+								<div className="grid md:grid-cols-5 gap-3">
 					<div>
 						<Label>Cadence (min)</Label>
 						<Input type="number" min={1} max={60} value={settings.cadence_min} onChange={e=> setSettings(s=> ({ ...s, cadence_min: e.target.valueAsNumber || 10 }))} />
@@ -995,10 +997,14 @@ function AutomationPanel() {
 						<Input type="number" min={5} max={180} value={settings.live_window_min} onChange={e=> setSettings(s=> ({ ...s, live_window_min: e.target.valueAsNumber || 7 }))} />
 					</div>
 					<div>
+										<Label>Start offset (sec)</Label>
+										<Input type="number" min={0} max={120} value={settings.start_offset_sec} onChange={e=> setSettings(s=> ({ ...s, start_offset_sec: Math.max(0, e.target.valueAsNumber ?? 15) }))} />
+									</div>
+									<div>
 						<Label>Cleanup days</Label>
 						<Input type="number" min={1} max={30} value={settings.cleanup_days} onChange={e=> setSettings(s=> ({ ...s, cleanup_days: e.target.valueAsNumber || 3 }))} />
 					</div>
-					<div>
+									<div className="md:col-span-2">
 						<Label>Categories (comma)</Label>
 						<Input value={(settings.categories || []).join(', ')} onChange={e=> setSettings(s=> ({ ...s, categories: e.target.value.split(',').map(x=> x.trim()).filter(Boolean) }))} />
 					</div>

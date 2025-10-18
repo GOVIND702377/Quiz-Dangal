@@ -230,6 +230,36 @@ async function insertQuestionsDirect(supabase: any, quizId: string, items: any[]
   }
 }
 
+// Lightweight text normalizer and in-payload dedupe for question texts
+function normText(s: string): string {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/\([^)]*\)/g, '') // remove bracket translations
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ') // drop punctuation
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function dedupeItems(items: any[]): { unique: any[]; removed: number } {
+  const seen = new Set<string>();
+  const unique: any[] = [];
+  let removed = 0;
+  for (const it of items) {
+    const key = normText(it?.question_text ?? '');
+    if (!key) continue;
+    if (seen.has(key)) { removed++; continue; }
+    seen.add(key);
+    unique.push({
+      question_text: String(it?.question_text || '').trim(),
+      options: (Array.isArray(it?.options) ? it.options : []).map((op: any) => ({
+        option_text: String(op?.option_text || '').trim(),
+        is_correct: !!op?.is_correct,
+      })),
+    });
+  }
+  return { unique, removed };
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("", { status: 204, headers: { ...makeCorsHeaders(req) } });
@@ -384,8 +414,19 @@ serve(async (req: Request) => {
         .limit(5);
       const avoidTitles = (recent || []).map((r: any) => String(r.title || '').trim()).filter(Boolean);
 
+      // Fetch recent question stems (48h) to discourage repetition
+      const { data: recentQs } = await supabase
+        .from('questions')
+        .select('question_text, created_at')
+        .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
+        .limit(50);
+      const avoidStems = (recentQs || [])
+        .map((q: any) => normText(q?.question_text || ''))
+        .filter(Boolean)
+        .slice(0, 25);
+
       // Hindi + English prompt with quality and uniqueness constraints
-      const prompt = [
+      const basePrompt = [
         `You are a Quiz Generator. Create exactly 10 multiple-choice questions for the category: ${category}.`,
         `Each question MUST be bilingual: Hindi main text + (English translation in brackets).`,
         `Title: unique, catchy, and clearly related to the category, also bilingual (Hindi + (English)). Avoid generic titles.`,
@@ -395,62 +436,95 @@ serve(async (req: Request) => {
         `For non-opinion categories (sports, gk, movies): ensure factual correctness and exactly one correct option per question.`,
         `Prefer trending topics in India when reasonable (news, recent releases, viral subjects).`,
         `Avoid duplication with recent quizzes. Do NOT reuse or paraphrase these recent titles: ${avoidTitles.length ? avoidTitles.join(' | ') : 'None'}.`,
+        `${avoidStems.length ? `Avoid repeating these recent question ideas: ${avoidStems.join(' | ')}` : ''}`,
         `Avoid options like 'All of the above' or 'None of the above'. Use clear, distinct choices.`,
         `Return STRICT JSON with this shape: { title: string, items: Array<{ question_text: string, options: Array<{ option_text: string, is_correct: boolean }> }> }`,
         `Make sure there are exactly 10 items and exactly 4 options in each item.`
       ].join('\n');
+      let prompt = basePrompt;
 
       for (const p of providers || []) {
         const apiKey = p.api_key_enc || '';
         try {
-          const resp = await callProvider(p.name, apiKey, prompt);
-          if (!resp?.ok) {
-            // Detect quota/unauthorized for provider
-            if (resp?.status === 429 || /rate.?limit|quota/i.test(resp?.error || '')) {
-              await supabase.from('ai_providers').update({ last_error: 'rate_limited', last_error_at: new Date().toISOString(), quota_exhausted: true }).eq('id', p.id);
-              await sendAlert(supabase, settings.alert_emails || [], `AI provider quota exhausted (${p.name})`, `Provider ${p.name} returned 429/rate limit. Marked as quota_exhausted.`);
-            } else if (resp?.status === 401 || resp?.status === 403 || /unauthorized|invalid api/i.test(resp?.error || '')) {
-              await supabase.from('ai_providers').update({ last_error: 'unauthorized', last_error_at: new Date().toISOString() }).eq('id', p.id);
+          let attempt = 0;
+          let finalItems: any[] | null = null;
+          let payload: any = null;
+          let lastErrLocal: string | null = null;
+          let usedPrompt = prompt;
+
+          while (attempt < 2 && !finalItems) {
+            attempt++;
+            const resp = await callProvider(p.name, apiKey, usedPrompt);
+            if (!resp?.ok) {
+              // Detect quota/unauthorized for provider
+              if (resp?.status === 429 || /rate.?limit|quota/i.test(resp?.error || '')) {
+                await supabase.from('ai_providers').update({ last_error: 'rate_limited', last_error_at: new Date().toISOString(), quota_exhausted: true }).eq('id', p.id);
+                await sendAlert(supabase, settings.alert_emails || [], `AI provider quota exhausted (${p.name})`, `Provider ${p.name} returned 429/rate limit. Marked as quota_exhausted.`);
+              } else if (resp?.status === 401 || resp?.status === 403 || /unauthorized|invalid api/i.test(resp?.error || '')) {
+                await supabase.from('ai_providers').update({ last_error: 'unauthorized', last_error_at: new Date().toISOString() }).eq('id', p.id);
+              }
+              lastErrLocal = resp?.error || 'provider returned no data';
+              break; // provider hard failure for this provider
             }
-            throw new Error(resp?.error || 'provider returned no data');
-          }
-          const payload = resp.payload;
+            payload = resp.payload;
 
-          // Normalize and validate payload strictly
-          const rawItems = Array.isArray(payload.items) ? payload.items : [];
-          if (rawItems.length !== 10) throw new Error('invalid item count (need exactly 10)');
-          const normalized = rawItems.map((it: any) => ({
-            question_text: String(it?.question_text ?? '').trim(),
-            options: (Array.isArray(it?.options) ? it.options : []).map((op: any) => ({
-              option_text: String(op?.option_text ?? '').trim(),
-              is_correct: !!op?.is_correct,
-            })),
-          }));
-          // Exactly 4 options per question
-          if (!normalized.every((q: any) => Array.isArray(q.options) && q.options.length === 4 && q.question_text.length > 0 && q.options.every((o: any) => o.option_text.length > 0))) {
-            throw new Error('invalid options shape (need exactly 4 options with non-empty text)');
-          }
-
-          const isOpinion = String(category).toLowerCase() === 'opinion';
-          let finalItems = normalized;
-          if (isOpinion) {
-            // Force no-correct for opinion quizzes
-            finalItems = finalItems.map((q: any) => ({
-              question_text: q.question_text,
-              options: q.options.map((o: any) => ({ option_text: o.option_text, is_correct: false })),
+            // Normalize and validate payload strictly
+            const rawItems = Array.isArray(payload.items) ? payload.items : [];
+            if (rawItems.length !== 10) {
+              lastErrLocal = 'invalid item count (need exactly 10)';
+              usedPrompt = basePrompt + '\nRETRY: Ensure exactly 10 unique items. No duplicates.';
+              continue;
+            }
+            const normalized = rawItems.map((it: any) => ({
+              question_text: String(it?.question_text ?? '').trim(),
+              options: (Array.isArray(it?.options) ? it.options : []).map((op: any) => ({
+                option_text: String(op?.option_text ?? '').trim(),
+                is_correct: !!op?.is_correct,
+              })),
             }));
-          } else {
-            // Non-opinion: enforce exactly one correct per question (normalize if needed)
-            const ok = finalItems.every((q: any) => q.options.filter((o: any) => o.is_correct === true).length === 1);
-            if (!ok) {
-              const before = finalItems;
-              finalItems = normalizeCorrectness(finalItems);
-              const stillBad = finalItems.some((q: any) => q.options.filter((o: any) => o.is_correct === true).length !== 1);
-              if (stillBad) throw new Error('failed to normalize correctness to single true');
-              // Log that normalization occurred for visibility
-              await supabase.from('ai_generation_logs').insert({ job_id: job.id, level: 'warn', message: 'normalized correctness to single true', context: { category, slot_start: s.start.toISOString() } });
+            // In-payload dedupe
+            const { unique, removed } = dedupeItems(normalized);
+            if (removed > 0) {
+              await supabase.from('ai_generation_logs').insert({ job_id: job.id, level: 'warn', message: 'dedupe removed duplicate questions within payload', context: { removed, category } });
             }
+            if (unique.length !== 10) {
+              lastErrLocal = 'dedupe reduced items below 10';
+              usedPrompt = basePrompt + `\nRETRY: Provide completely different 10 questions.`;
+              continue;
+            }
+            // Exactly 4 options per question
+            const shapeOk = unique.every((q: any) => Array.isArray(q.options) && q.options.length === 4 && q.question_text.length > 0 && q.options.every((o: any) => o.option_text.length > 0));
+            if (!shapeOk) {
+              lastErrLocal = 'invalid options shape (need exactly 4 options with non-empty text)';
+              usedPrompt = basePrompt + '\nRETRY: Ensure exactly 4 options with non-empty text for each question.';
+              continue;
+            }
+
+            const isOpinion = String(category).toLowerCase() === 'opinion';
+            let itemsCandidate = unique;
+            if (isOpinion) {
+              // Force no-correct for opinion quizzes
+              itemsCandidate = itemsCandidate.map((q: any) => ({
+                question_text: q.question_text,
+                options: q.options.map((o: any) => ({ option_text: o.option_text, is_correct: false })),
+              }));
+            } else {
+              // Non-opinion: enforce exactly one correct per question (normalize if needed)
+              const ok = itemsCandidate.every((q: any) => q.options.filter((o: any) => o.is_correct === true).length === 1);
+              if (!ok) {
+                itemsCandidate = normalizeCorrectness(itemsCandidate);
+                const stillBad = itemsCandidate.some((q: any) => q.options.filter((o: any) => o.is_correct === true).length !== 1);
+                if (stillBad) {
+                  lastErrLocal = 'failed to normalize correctness to single true';
+                  usedPrompt = basePrompt + '\nRETRY: Exactly one correct option per question.';
+                  continue;
+                }
+                await supabase.from('ai_generation_logs').insert({ job_id: job.id, level: 'warn', message: 'normalized correctness to single true', context: { category, slot_start: s.start.toISOString() } });
+              }
+            }
+            finalItems = itemsCandidate;
           }
+          if (!finalItems) throw new Error(lastErrLocal || 'provider returned no data');
 
           // Create quiz row
           const title = (payload.title && String(payload.title).trim()) || `${category.toUpperCase()} Quiz (Bilingual)`;
