@@ -980,7 +980,7 @@ function AutomationPanel() {
 	return (
 		<div className="space-y-6">
 			<h2 className="text-lg font-semibold">AI Automation</h2>
-			<p className="text-sm text-gray-600">Auto-generate quizzes backend-only. Configure cadence, categories, alert emails, and API providers with failover.</p>
+			<p className="text-sm text-gray-600">Auto-generate quizzes backend-only. Configure cadence (minutes) and live window (minutes). For 5-minute quizzes with 5-minute gaps, set cadence=10 and live window=5. Each quiz has 4 options per question.</p>
 
 			<form onSubmit={saveSettings} className="space-y-3 bg-gray-50 border border-gray-200 rounded-lg p-4 max-w-3xl">
 				<div className="flex items-center gap-2">

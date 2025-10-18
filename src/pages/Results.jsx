@@ -7,7 +7,7 @@ import { getPrizeDisplay, shouldAllowClientCompute, safeComputeResultsIfDue } fr
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { Trophy, Users, ArrowLeft, Share2, Sparkles } from 'lucide-react';
+import { Trophy, Users, ArrowLeft, Share2, Sparkles, ListChecks, BookOpenCheck } from 'lucide-react';
 import { normalizeReferralCode, saveReferralCode } from '@/lib/referralStorage';
 import SEO from '@/components/SEO';
 
@@ -26,6 +26,9 @@ const Results = () => {
   const [didRefetchAfterCountdown, setDidRefetchAfterCountdown] = useState(false);
   const [posterBlob, setPosterBlob] = useState(null); // cache composed poster for quick share
   const [participantsCount, setParticipantsCount] = useState(0);
+  // Q&A review for non-opinion categories
+  const [qaItems, setQaItems] = useState([]); // [{ id, question_text, options: [{id, option_text, is_correct, isSelected}] }]
+  const [showQA, setShowQA] = useState(false);
   // no ShareSheet dialog anymore; direct share only
   const isAdmin = userProfile?.role === 'admin';
 
@@ -50,7 +53,7 @@ const Results = () => {
         .eq('id', quizId)
         .single();
       if (quizError) throw quizError;
-      setQuiz(quizData || null);
+  setQuiz(quizData || null);
 
       // Participation check (non-blocking): we still show public results if available
       let amParticipant = false;
@@ -125,7 +128,7 @@ const Results = () => {
         setTimeLeftMs(null);
       }
 
-      // Normalize structure to what UI expects: rank, score, profiles
+  // Normalize structure to what UI expects: rank, score, profiles
       // leaderboard items: { user_id, display_name, score, rank }
       const normalized = (Array.isArray(leaderboard) ? leaderboard : [])
         .map((entry, idx) => ({
@@ -154,6 +157,50 @@ const Results = () => {
         const pre = Number(rec?.pre_joined ?? 0);
         setParticipantsCount(joined + pre);
       } catch { /* ignore */ }
+
+      // Fetch Q&A review for non-opinion categories (publicly visible after end)
+      try {
+        const category = (quizData?.category || '').toLowerCase();
+        const isOpinion = category === 'opinion';
+        if (!isOpinion && quizId) {
+          // Load all questions with options and correctness
+          const { data: qrows, error: qerr } = await supabase
+            .from('questions')
+            .select('id, question_text, options ( id, option_text, is_correct )')
+            .eq('quiz_id', quizId)
+            .order('id');
+          if (qerr) throw qerr;
+          let selectionsMap = new Map();
+          if (user?.id && Array.isArray(qrows) && qrows.length > 0) {
+            const qids = qrows.map(q => q.id);
+            const { data: uans } = await supabase
+              .from('user_answers')
+              .select('question_id, selected_option_id')
+              .in('question_id', qids)
+              .eq('user_id', user.id);
+            if (Array.isArray(uans)) {
+              selectionsMap = new Map(uans.map(r => [r.question_id, r.selected_option_id]));
+            }
+          }
+          const mapped = (qrows || []).map(q => ({
+            id: q.id,
+            question_text: q.question_text,
+            options: (q.options || []).map(o => ({
+              id: o.id,
+              option_text: o.option_text,
+              is_correct: !!o.is_correct,
+              isSelected: selectionsMap.get(q.id) === o.id,
+            })),
+          }));
+          setQaItems(mapped);
+        } else {
+          setQaItems([]);
+        }
+      } catch (e) {
+        // If RLS prevents reading correctness, just skip Q&A review
+        if (import.meta.env.DEV) console.debug('Q&A review unavailable:', e?.message || e);
+        setQaItems([]);
+      }
 
       // Enrich top entries with avatar/username from profiles (non-blocking)
       try {
@@ -669,7 +716,7 @@ const Results = () => {
                   <div className="text-[11px] sm:text-xs text-slate-300 truncate">Out of {results.length} participants</div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 sm:gap-5 shrink-0">
+              <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                 <div className="flex flex-col items-end min-w-[60px]">
                   <span className="uppercase text-[9px] sm:text-[10px] tracking-wide text-slate-400">Score</span>
                   <span className="text-[15px] sm:text-base font-bold text-emerald-300 leading-tight">{userRank.score}</span>
@@ -679,6 +726,69 @@ const Results = () => {
                   <span className="text-[15px] sm:text-base font-bold text-purple-300 leading-tight">{userPrizeDisplay.formatted}</span>
                 </div>
               </div>
+            </div>
+            {(qaItems?.length || 0) > 0 && (
+              <div className="mt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowQA(v => !v)}
+                  className={`group relative inline-flex items-center gap-2 h-10 px-3.5 rounded-full border text-white text-[12px] font-semibold transition
+                    focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60
+                    ${showQA ? 'bg-emerald-600/15 border-emerald-400/40 shadow-[0_0_0_1px_rgba(16,185,129,0.25)]' : 'bg-slate-900/60 border-slate-700/60 hover:bg-slate-900/75 hover:shadow-[0_8px_22px_rgba(16,185,129,0.2)]'}`}
+                  title="View Questions & Answers"
+                  aria-expanded={showQA}
+                >
+                  <span className="absolute -inset-px rounded-full opacity-0 group-hover:opacity-100 transition" aria-hidden="true"
+                        style={{ background: 'conic-gradient(from 180deg at 50% 50%, rgba(16,185,129,0.18), rgba(6,182,212,0.14), rgba(16,185,129,0.18))' }}></span>
+                  <span className="relative inline-flex items-center justify-center rounded-full p-1.5 bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-[0_4px_14px_rgba(6,182,212,0.35)]">
+                    <BookOpenCheck className="w-3.5 h-3.5" />
+                  </span>
+                  <span className="relative">Questions &amp; Answers</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {showQA && (qaItems?.length || 0) > 0 && (
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 mb-5">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm font-semibold text-white flex items-center gap-2"><ListChecks className="w-4 h-4 text-emerald-300"/>Questions & Answers</div>
+              <button
+                type="button"
+                onClick={() => setShowQA(false)}
+                className="text-[11px] sm:text-xs text-slate-300 hover:text-white"
+              >Close</button>
+            </div>
+            <div className="space-y-3">
+              {qaItems.map((q, idx) => (
+                <div key={q.id} className="rounded-lg border border-slate-800 bg-slate-950/40 p-3">
+                  <div className="text-[13px] sm:text-sm font-semibold text-white mb-2">
+                    <span className="text-slate-400 mr-1">Q{idx + 1}.</span>{q.question_text}
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {q.options.map((o) => {
+                      const isCorrect = !!o.is_correct;
+                      const isSelected = !!o.isSelected;
+                      const base = 'px-2.5 py-2 rounded-md border text-[12px] sm:text-[13px]';
+                      const palette = isCorrect
+                        ? 'bg-emerald-600/20 border-emerald-500/30 text-emerald-200'
+                        : isSelected
+                          ? 'bg-rose-600/20 border-rose-500/35 text-rose-200'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-300';
+                      return (
+                        <div key={o.id} className={`${base} ${palette}`}>
+                          <div className="flex items-center gap-2">
+                            {isCorrect && <span className="text-emerald-300">✓</span>}
+                            {isSelected && !isCorrect && <span className="text-rose-300">•</span>}
+                            <span>{o.option_text}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -733,6 +843,8 @@ const Results = () => {
             })}
           </div>
         </div>
+
+        {/* Q&A rendered above leaderboard via toggle; duplicate section removed */}
 
         {/* Spacer at bottom is handled by pb-24 on wrapper */}
       </div>

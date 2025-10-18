@@ -41,6 +41,24 @@ export function useQuizEngine(quizId, navigate) {
     if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
   }, []);
 
+  // Finalize (partial submit) on route unmount if user leaves mid-quiz without submitting
+  useEffect(() => {
+    return () => {
+      try {
+        if (quiz && quizState === 'active' && participantStatus !== 'completed' && user?.id) {
+          // Mark completed with whatever answers were saved so far
+          supabase
+            .from('quiz_participants')
+            .update({ status: 'completed' })
+            .eq('user_id', user.id)
+            .eq('quiz_id', quizId)
+            .then(() => { /* noop */ })
+            .catch(() => { /* ignore */ });
+        }
+      } catch { /* ignore */ }
+    };
+  }, [quiz, quizId, quizState, participantStatus, user?.id]);
+
   // Retry queue helpers
   const scheduleRetry = useCallback(() => {
     if (retryTimerRef.current || retryQueueRef.current.length === 0) return;
@@ -216,19 +234,35 @@ export function useQuizEngine(quizId, navigate) {
       
       try {
         if (!joined || participantStatus === 'pre_joined') {
-          const { error } = await supabase.rpc('join_quiz', { p_quiz_id: quizId });
-          if (error) {
-            // Silently handle if already joined or completed
-            if (error.message?.includes('already') || error.message?.includes('completed')) {
-              console.log('User already joined or completed quiz');
-              setJoined(true);
-              setParticipantStatus('joined');
-            } else {
-              throw error;
+          let joinOk = false; let lastErr = null;
+          for (let attempt = 0; attempt < 2 && !joinOk; attempt++) {
+            const { error } = await supabase.rpc('join_quiz', { p_quiz_id: quizId });
+            if (!error) { joinOk = true; break; }
+            lastErr = error;
+            const msg = String(error.message || '').toLowerCase();
+            if (msg.includes('not active')) {
+              // Grace: wait briefly and retry once
+              await new Promise(r => setTimeout(r, 1500));
+              continue;
             }
-          } else {
+            if (msg.includes('already') || msg.includes('completed')) {
+              joinOk = true;
+              break;
+            }
+            break; // other errors: do not loop
+          }
+          if (joinOk) {
             setJoined(true);
             setParticipantStatus('joined');
+          } else if (lastErr) {
+            // As a fallback, pre-join so the user is tracked and reminded
+            const { error: pjErr } = await supabase.rpc('pre_join_quiz', { p_quiz_id: quizId });
+            if (!pjErr) {
+              setJoined(true);
+              setParticipantStatus('pre_joined');
+            } else {
+              throw lastErr;
+            }
           }
         }
         if (questions.length === 0) await loadQuestions();

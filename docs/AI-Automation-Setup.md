@@ -20,7 +20,7 @@ Follow these steps to enable backend-only AI quiz generation. No API keys are co
 - Cleanup: Daily, call with `?task=cleanup` and the same secret header.
 
 4) Configure in Admin Panel
-- Settings defaults: cadence_min=10, live_window_min=7, cleanup_days=3.
+- Settings defaults: cadence_min=10, live_window_min=7, cleanup_days=3. For 5-minute quizzes with a 5-minute gap set cadence_min=10 and live_window_min=5.
 - Categories: e.g., opinion,gk,sports,movies.
 - Alert emails: your ops addresses.
 - Providers: add names `openai`, `groq`, or `anthropic` (or `claude`) with priority; paste API keys. You can disable/enable providers anytime.
@@ -28,4 +28,4 @@ Follow these steps to enable backend-only AI quiz generation. No API keys are co
 Notes
 - If providers fail, the orchestrator does NOT create any fallback quiz. It logs the error and sends alert emails.
 - Opinion category produces no correct answers; other categories enforce exactly one correct option per question.
-- Two slots are maintained per category: current and next (7-min live + 3-min gap when cadence=10).
+- Three slots are maintained per category: current (skipped if too close), next, and next-next. Example: with cadence=10 and live_window_min=5, slots look like 1:00–1:05 (live), 1:10–1:15 (upcoming), and 1:20–1:25 (next upcoming).

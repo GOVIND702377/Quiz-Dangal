@@ -136,8 +136,20 @@ const CategoryQuizzes = () => {
       const isActive = st && et && now >= st && now < et;
       const isUpcoming = st && now < st;
       const rpc = isUpcoming ? 'pre_join_quiz' : (isActive ? 'join_quiz' : 'pre_join_quiz');
-  const { error } = await supabase.rpc(rpc, { p_quiz_id: q.id });
-  if (error) throw error; // removed unused data variable
+      const { error } = await supabase.rpc(rpc, { p_quiz_id: q.id });
+      if (error) {
+        const msg = String(error.message || '').toLowerCase();
+        if (rpc === 'join_quiz' && (msg.includes('not active') || msg.includes('bad request') || msg.includes('400'))) {
+          // Grace fallback: pre-join so user is registered and reminded
+          const { error: pjErr } = await supabase.rpc('pre_join_quiz', { p_quiz_id: q.id });
+          if (!pjErr) {
+            setJoinedMap(prev => ({ ...prev, [q.id]: 'pre' }));
+            toast({ title: 'Pre-joined!', description: 'We will remind you before start.' });
+            return;
+          }
+        }
+        throw error; // other errors
+      }
       // Update UI state immediately so button shows JOINED without refresh
       setJoinedMap(prev => ({ ...prev, [q.id]: isActive ? 'joined' : 'pre' }));
       if (isUpcoming) {
@@ -292,7 +304,7 @@ const CategoryQuizzes = () => {
                     <div className="flex-1 min-w-0">
                       {/* Title Row */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        <div className="truncate font-semibold text-slate-100 text-base sm:text-lg">{q.title}</div>
+                        <div className="w-full font-semibold text-slate-100 text-base sm:text-lg whitespace-normal break-words leading-snug pr-12 sm:pr-16">{q.title}</div>
                         <span className={statusBadge(isActive ? 'active' : (isUpcoming ? 'upcoming' : 'finished'))}>{isActive ? 'active' : (isUpcoming ? 'upcoming' : 'finished')}</span>
                         {myStatus && (
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${isActive ? 'bg-emerald-500/15 text-emerald-300 border-emerald-700/40' : 'bg-indigo-500/15 text-indigo-300 border-indigo-700/40'}`}>
