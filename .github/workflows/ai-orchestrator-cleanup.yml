@@ -35,10 +35,51 @@ jobs:
       - name: POST to ai-orchestrator (cleanup)
         run: |
           set -e
-          http_code=$(curl -sS -o resp.json -w "%{http_code}" -X POST "$FUNCTION_URL" \
-            -H "X-Cron-Secret: $CRON_SECRET" \
-            -H "Authorization: Bearer $ANON_KEY" -H "apikey: $ANON_KEY" \
-            -H "Content-Type: application/json" -d '{}')
-          echo "HTTP $http_code"
-          cat resp.json || true
-          test "$http_code" -ge 200 && test "$http_code" -lt 300
+          MAX_TRIES=5
+          attempt=1
+          success=0
+          while [ $attempt -le $MAX_TRIES ]; do
+            echo "Attempt $attempt/$MAX_TRIES..."
+            set +e
+            http_code=$(curl -sS -o resp.json -w "%{http_code}" -X POST "$FUNCTION_URL" \
+              --connect-timeout 8 --max-time 25 \
+              -H "X-Cron-Secret: $CRON_SECRET" \
+              -H "Authorization: Bearer $ANON_KEY" -H "apikey: $ANON_KEY" \
+              -H "Content-Type: application/json" -d '{}')
+            curl_exit=$?
+            set -e
+            echo "curl exit: $curl_exit | HTTP: $http_code"
+            if [ $curl_exit -eq 0 ] && [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+              success=1
+              break
+            fi
+            if [ $attempt -lt $MAX_TRIES ]; then
+              delay=$(( (2 ** attempt) + (RANDOM % 3) ))
+              echo "Transient error. Retrying in ${delay}s..."
+              sleep $delay
+            fi
+            attempt=$((attempt + 1))
+          done
+          echo "Final HTTP: $http_code"; cat resp.json || true
+          test $success -eq 1
+
+  auto-rerun:
+    name: Auto rerun on failure
+    needs: [cleanup]
+    if: failure() && github.run_attempt < 3
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Re-run this workflow (attempt ${{ github.run_attempt + 1 }})
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            core.info(`Re-running workflow run ${context.runId} (attempt ${context.runAttempt})`)
+            await github.rest.actions.reRunWorkflow({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            })

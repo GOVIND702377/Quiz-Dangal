@@ -36,18 +36,38 @@ jobs:
             echo "SUPABASE_URL or SUPABASE_ANON_KEY not set" >&2
             exit 1
           fi
-      - name: POST to ai-orchestrator (run)
+      - name: POST to ai-orchestrator (run) with retries
         run: |
           set -e
           URL="$FUNCTION_URL?limit=2"
-          http_code=$(curl --retry 2 --retry-delay 2 --max-time 25 --connect-timeout 5 \
-            -sS -o resp.json -w "%{http_code}" -X POST "$URL" \
-            -H "X-Cron-Secret: $CRON_SECRET" \
-            -H "Authorization: Bearer $ANON_KEY" -H "apikey: $ANON_KEY" \
-            -H "Content-Type: application/json" -d '{}')
-          echo "HTTP $http_code"
-          cat resp.json || true
-          test "$http_code" -ge 200 && test "$http_code" -lt 300
+          MAX_TRIES=5
+          attempt=1
+          success=0
+          while [ $attempt -le $MAX_TRIES ]; do
+            echo "Attempt $attempt/$MAX_TRIES..."
+            set +e
+            http_code=$(curl -sS -o resp.json -w "%{http_code}" -X POST "$URL" \
+              --connect-timeout 8 --max-time 25 \
+              -H "X-Cron-Secret: $CRON_SECRET" \
+              -H "Authorization: Bearer $ANON_KEY" -H "apikey: $ANON_KEY" \
+              -H "Content-Type: application/json" -d '{}')
+            curl_exit=$?
+            set -e
+            echo "curl exit: $curl_exit | HTTP: $http_code"
+            if [ $curl_exit -eq 0 ] && [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+              success=1
+              break
+            fi
+            # Retry on curl network errors or 5xx / 429 from server
+            if [ $attempt -lt $MAX_TRIES ]; then
+              delay=$(( (2 ** attempt) + (RANDOM % 3) ))
+              echo "Transient error. Retrying in ${delay}s..."
+              sleep $delay
+            fi
+            attempt=$((attempt + 1))
+          done
+          echo "Final HTTP: $http_code"; cat resp.json || true
+          test $success -eq 1
 
   cleanup:
     if: >-
@@ -73,14 +93,75 @@ jobs:
             echo "SUPABASE_URL or SUPABASE_ANON_KEY not set" >&2
             exit 1
           fi
-      - name: POST to ai-orchestrator (cleanup)
+      - name: POST to ai-orchestrator (cleanup) with retries
         run: |
           set -e
-          http_code=$(curl --retry 2 --retry-delay 2 --max-time 25 --connect-timeout 5 \
-            -sS -o resp.json -w "%{http_code}" -X POST "$FUNCTION_URL" \
-            -H "X-Cron-Secret: $CRON_SECRET" \
-            -H "Authorization: Bearer $ANON_KEY" -H "apikey: $ANON_KEY" \
-            -H "Content-Type: application/json" -d '{}')
-          echo "HTTP $http_code"
-          cat resp.json || true
-          test "$http_code" -ge 200 && test "$http_code" -lt 300
+          MAX_TRIES=5
+          attempt=1
+          success=0
+          while [ $attempt -le $MAX_TRIES ]; do
+            echo "Attempt $attempt/$MAX_TRIES..."
+            set +e
+            http_code=$(curl -sS -o resp.json -w "%{http_code}" -X POST "$FUNCTION_URL" \
+              --connect-timeout 8 --max-time 25 \
+              -H "X-Cron-Secret: $CRON_SECRET" \
+              -H "Authorization: Bearer $ANON_KEY" -H "apikey: $ANON_KEY" \
+              -H "Content-Type: application/json" -d '{}')
+            curl_exit=$?
+            set -e
+            echo "curl exit: $curl_exit | HTTP: $http_code"
+            if [ $curl_exit -eq 0 ] && [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+              success=1
+              break
+            fi
+            if [ $attempt -lt $MAX_TRIES ]; then
+              delay=$(( (2 ** attempt) + (RANDOM % 3) ))
+              echo "Transient error. Retrying in ${delay}s..."
+              sleep $delay
+            fi
+            attempt=$((attempt + 1))
+          done
+          echo "Final HTTP: $http_code"; cat resp.json || true
+          test $success -eq 1
+
+  auto-rerun-generate:
+    name: Auto rerun (generate)
+    needs: [generate]
+    if: needs.generate.result == 'failure' && github.run_attempt < 3
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Re-run this workflow (attempt ${{ github.run_attempt + 1 }})
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            core.info(`Re-running workflow run ${context.runId} (attempt ${context.runAttempt})`)
+            await github.rest.actions.reRunWorkflow({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            })
+
+  auto-rerun-cleanup:
+    name: Auto rerun (cleanup)
+    needs: [cleanup]
+    if: needs.cleanup.result == 'failure' && github.run_attempt < 3
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Re-run this workflow (attempt ${{ github.run_attempt + 1 }})
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            core.info(`Re-running workflow run ${context.runId} (attempt ${context.runAttempt})`)
+            await github.rest.actions.reRunWorkflow({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            })
