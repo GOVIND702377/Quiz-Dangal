@@ -243,8 +243,10 @@ serve(async (req) => {
       headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) },
     });
   } catch (error) {
-    console.error("admin-upsert-questions error", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : String(error) }), {
+    // Avoid leaking stack traces or internal details in responses
+    const safeMsg = error instanceof Error ? error.message : 'internal_error';
+    console.error("admin-upsert-questions error", safeMsg);
+    return new Response(JSON.stringify({ error: 'internal_error' }), {
       status: 500,
       headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) },
     });

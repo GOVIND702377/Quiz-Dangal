@@ -6,11 +6,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  permissions:
-    contents: read
   cleanup:
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: none
+      actions: none
+      checks: none
+      packages: none
+      deployments: none
+      security-events: none
     concurrency:
       group: ai-orchestrator-cleanup
       cancel-in-progress: true

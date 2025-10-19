@@ -12,6 +12,20 @@ const warnings = [];
 const success = [];
 
 console.log('🔍 Running SEO verification checks...\n');
+#!/usr/bin/env node
+/**
+ * SEO Verification Script for Quiz Dangal
+ * Checks common SEO issues before deployment
+ */
+
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
+
+const errors = [];
+const warnings = [];
+const success = [];
+
+console.log('🔍 Running SEO verification checks...\n');
 
 // Check 1: Sitemap exists and is valid
 try {
@@ -20,31 +34,47 @@ try {
     errors.push('❌ sitemap.xml not found in public/');
   } else {
     const sitemap = readFileSync(sitemapPath, 'utf-8');
-    if (!sitemap.includes('https://quizdangal.com/')) {
-      errors.push('❌ sitemap.xml does not contain quizdangal.com URLs');
+    // Extract all <loc> entries and ensure they belong to quizdangal.com
+    const locs = Array.from(sitemap.matchAll(/<loc>\s*([^<\s][^<]*)\s*<\/loc>/g)).map(m => m[1]);
+    if (locs.length === 0) {
+      errors.push('❌ sitemap.xml appears to have no <loc> entries');
     } else {
-      // Parse <lastmod> values and warn only if any is truly in the future
-      try {
-        const rx = /<lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/g;
-        const now = new Date();
-        const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-        let m;
-        let futureCount = 0;
-        while ((m = rx.exec(sitemap)) !== null) {
-          const dateStr = m[1];
-          const t = Date.parse(dateStr + 'T00:00:00Z');
-          if (Number.isFinite(t) && t > todayUTC) {
-            futureCount++;
+      const badHosts = [];
+      for (const raw of locs) {
+        try {
+          const u = new URL(raw.trim());
+          const hostOk = /(^|\.)quizdangal\.com$/i.test(u.hostname);
+          if (!hostOk) badHosts.push(u.hostname);
+        } catch {
+          badHosts.push('(invalid-url)');
+        }
+      }
+      if (badHosts.length > 0) {
+        errors.push(`❌ sitemap.xml contains non-quizdangal URLs (e.g., ${badHosts[0]})`);
+      } else {
+        // Parse <lastmod> values and warn only if any is truly in the future
+        try {
+          const rx = /<lastmod>(\d{4}-\d{2}-\d{2})<\/lastmod>/g;
+          const now = new Date();
+          const todayUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+          let m;
+          let futureCount = 0;
+          while ((m = rx.exec(sitemap)) !== null) {
+            const dateStr = m[1];
+            const t = Date.parse(dateStr + 'T00:00:00Z');
+            if (Number.isFinite(t) && t > todayUTC) {
+              futureCount++;
+            }
           }
+          if (futureCount > 0) {
+            warnings.push(`⚠️  sitemap.xml has ${futureCount} future lastmod date(s)`);
+          } else {
+            success.push('✅ sitemap.xml is valid');
+          }
+        } catch (e) {
+          // If parse fails, do not block; just provide a soft warning
+          warnings.push('⚠️  Unable to fully parse lastmod dates from sitemap.xml');
         }
-        if (futureCount > 0) {
-          warnings.push(`⚠️  sitemap.xml has ${futureCount} future lastmod date(s)`);
-        } else {
-          success.push('✅ sitemap.xml is valid');
-        }
-      } catch (e) {
-        // If parse fails, do not block; just provide a soft warning
-        warnings.push('⚠️  Unable to fully parse lastmod dates from sitemap.xml');
       }
     }
   }
@@ -76,7 +106,6 @@ try {
     errors.push('❌ index.html not found');
   } else {
     const index = readFileSync(indexPath, 'utf-8');
-    
     // Check for essential meta tags
     if (!index.includes('<meta name="description"')) {
       warnings.push('⚠️  index.html missing meta description');
@@ -90,7 +119,6 @@ try {
     if (!index.includes('<h1')) {
       warnings.push('⚠️  index.html missing H1 tag in noscript');
     }
-    
     if (warnings.length === 0) {
       success.push('✅ index.html has proper meta tags');
     }
@@ -164,5 +192,7 @@ if (errors.length > 0) {
   process.exit(0);
 } else {
   console.log('✅ All SEO checks passed! Ready to deploy.\n');
+  process.exit(0);
+}
   process.exit(0);
 }

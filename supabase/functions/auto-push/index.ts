@@ -139,7 +139,9 @@ serve(async (req) => {
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (e: any) {
-    console.error('auto-push error:', e);
-    return new Response(JSON.stringify({ error: e?.message || String(e) }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    // Log minimal error to avoid leaking stack traces
+    const safe = e?.message || 'internal_error';
+    console.error('auto-push error:', safe);
+    return new Response(JSON.stringify({ error: 'internal_error' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
   }
 });
