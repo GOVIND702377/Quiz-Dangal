@@ -223,12 +223,13 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ message: "Notifications sent successfully." }), { status: 200, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } });
   } catch (e: any) {
-    console.error("Main error:", e);
+    const safe = e?.message || 'internal_error';
+    console.error("send-notifications error:", safe);
     try {
-      return new Response(JSON.stringify({ error: e?.message || String(e) }), { status: 500, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } });
+      return new Response(JSON.stringify({ error: 'internal_error' }), { status: 500, headers: { "Content-Type": "application/json", ...makeCorsHeaders(req) } });
     } catch (corsErr) {
       // Fallback if even CORS headers fail
-      return new Response(JSON.stringify({ error: "Internal server error" }), { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
+      return new Response(JSON.stringify({ error: "internal_error" }), { status: 500, headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" } });
     }
   }
 });

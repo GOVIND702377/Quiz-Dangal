@@ -47,26 +47,8 @@ function isAllowed(filePath) {
   return true;
 }
 
-/** Strip comments to reduce false positives on documentation text */
-function stripComments(content, ext) {
-  try {
-    if (ext === '.js' || ext === '.mjs' || ext === '.cjs') {
-      // Remove /* */ block comments and // line comments (basic, not perfect)
-      return content
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/(^|\s)\/\/.*$/gm, '$1');
-    }
-    if (ext === '.css') {
-      return content.replace(/\/\*[\s\S]*?\*\//g, '');
-    }
-    if (ext === '.html' || ext === '.htm') {
-      return content.replace(/<!--([\s\S]*?)-->/g, '');
-    }
-    return content;
-  } catch {
-    return content;
-  }
-}
+// Intentionally do not strip comments to avoid partial sanitization pitfalls flagged by CodeQL.
+// We scan the raw text to ensure multi-character tokens are not incompletely sanitized.
 
 function snippetAround(content, index, len = 60) {
   const start = Math.max(0, index - len);
@@ -94,13 +76,12 @@ async function main() {
       continue; // binary or unreadable
     }
     if (!isAllowed(file)) continue;
-    const ext = path.extname(file).toLowerCase();
-    const sanitized = stripComments(content, ext);
     for (const { name, regex } of PATTERNS) {
-      regex.lastIndex = 0; // reset
-      const match = regex.exec(sanitized);
-      if (match) {
-        findings.push({ file, rule: name, snippet: snippetAround(sanitized, match.index) });
+      // Ensure global flag for exhaustive scanning
+      const rx = regex.global ? regex : new RegExp(regex.source, regex.flags + 'g');
+      const matches = Array.from(content.matchAll(rx));
+      for (const m of matches) {
+        findings.push({ file, rule: name, snippet: snippetAround(content, m.index ?? 0) });
       }
     }
   }
