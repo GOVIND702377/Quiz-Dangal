@@ -12,21 +12,6 @@ const warnings = [];
 const success = [];
 
 console.log('🔍 Running SEO verification checks...\n');
-#!/usr/bin/env node
-/**
- * SEO Verification Script for Quiz Dangal
- * Checks common SEO issues before deployment
- */
-
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-
-const errors = [];
-const warnings = [];
-const success = [];
-
-console.log('🔍 Running SEO verification checks...\n');
-
 // Check 1: Sitemap exists and is valid
 try {
   const sitemapPath = join(process.cwd(), 'public', 'sitemap.xml');
@@ -194,5 +179,4 @@ if (errors.length > 0) {
   console.log('✅ All SEO checks passed! Ready to deploy.\n');
   process.exit(0);
 }
-  process.exit(0);
-}
+
