@@ -39,7 +39,9 @@ jobs:
       - name: POST to ai-orchestrator (run)
         run: |
           set -e
-          http_code=$(curl -sS -o resp.json -w "%{http_code}" -X POST "$FUNCTION_URL" \
+          URL="$FUNCTION_URL?limit=2"
+          http_code=$(curl --retry 2 --retry-delay 2 --max-time 25 --connect-timeout 5 \
+            -sS -o resp.json -w "%{http_code}" -X POST "$URL" \
             -H "X-Cron-Secret: $CRON_SECRET" \
             -H "Authorization: Bearer $ANON_KEY" -H "apikey: $ANON_KEY" \
             -H "Content-Type: application/json" -d '{}')
@@ -74,7 +76,8 @@ jobs:
       - name: POST to ai-orchestrator (cleanup)
         run: |
           set -e
-          http_code=$(curl -sS -o resp.json -w "%{http_code}" -X POST "$FUNCTION_URL" \
+          http_code=$(curl --retry 2 --retry-delay 2 --max-time 25 --connect-timeout 5 \
+            -sS -o resp.json -w "%{http_code}" -X POST "$FUNCTION_URL" \
             -H "X-Cron-Secret: $CRON_SECRET" \
             -H "Authorization: Bearer $ANON_KEY" -H "apikey: $ANON_KEY" \
             -H "Content-Type: application/json" -d '{}')

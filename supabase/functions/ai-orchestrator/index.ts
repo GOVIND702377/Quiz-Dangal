@@ -13,6 +13,19 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
   ?? "";
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
+// Small utility: fetch with timeout to avoid long hangs that cause 504s at the gateway
+async function fetchWithTimeout(input: string | URL, init: RequestInit & { timeoutMs?: number } = {}) {
+  const { timeoutMs = 20_000, ...rest } = init as any;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), Math.max(1_000, Number(timeoutMs)));
+  try {
+    const resp = await fetch(input, { ...rest, signal: controller.signal });
+    return resp;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 // Simple email sender via PostgREST RPC or SMTP webhook
 async function sendAlert(supabase: any, emails: string[], subject: string, body: string) {
   try {
@@ -60,7 +73,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
 
   try {
     if (provider === 'openai') {
-      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+      const resp = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -75,6 +88,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
           ],
           temperature: 0.6,
         }),
+        timeoutMs: 20_000,
       });
       const status = resp.status;
       if (!resp.ok) {
@@ -88,7 +102,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
     }
 
     if (provider === 'groq') {
-      const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      const resp = await fetchWithTimeout('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -102,6 +116,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
           ],
           temperature: 0.6,
         }),
+        timeoutMs: 20_000,
       });
       const status = resp.status;
       if (!resp.ok) {
@@ -117,7 +132,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
     }
 
     if (provider === 'anthropic' || provider === 'claude' || provider === 'anthropic-claude') {
-      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      const resp = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
           'x-api-key': apiKey,
@@ -131,6 +146,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
           max_tokens: 2000,
           temperature: 0.6,
         }),
+        timeoutMs: 20_000,
       });
       const status = resp.status;
       if (!resp.ok) {
@@ -147,7 +163,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
     // Perplexity AI (OpenAI-compatible-ish chat completions)
     if (provider === 'perplexity' || provider === 'pplx' || provider === 'perplexity-ai') {
       async function pplxCall(model: string) {
-        const resp = await fetch('https://api.perplexity.ai/chat/completions', {
+        const resp = await fetchWithTimeout('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${apiKey}`,
@@ -162,6 +178,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
           temperature: 0.6,
           max_tokens: 2000,
         }),
+        timeoutMs: 20_000,
       });
         return resp;
       }
@@ -374,8 +391,10 @@ serve(async (req: Request) => {
 
   try {
       // Optional task override via query param: ?task=cleanup
-      const url = new URL(req.url);
-      const task = url.searchParams.get('task') || 'run';
+  const url = new URL(req.url);
+  const task = url.searchParams.get('task') || 'run';
+  const maxJobsParam = url.searchParams.get('limit');
+  const maxJobs = Math.max(1, Math.min(6, Number(maxJobsParam || 3))); // cap to keep runs short
 
       // Load settings
       const { data: settingsRow, error: sErr } = await supabase.from('ai_settings').select('*').eq('id', 1).maybeSingle();
@@ -440,6 +459,7 @@ serve(async (req: Request) => {
 
   const categories: string[] = settings.categories || [];
 
+  let jobsBudget = maxJobs;
   for (const category of categories) {
     // Maintain up to two future upcoming quizzes in addition to the current slot
     const slots = [
@@ -449,6 +469,7 @@ serve(async (req: Request) => {
     ];
 
   for (const s of slots) {
+      if (jobsBudget <= 0) break;
       // Skip current slot if we're too close or past start (to avoid start-time edit locks)
       const leadMs = s.start.getTime() - Date.now();
       if (leadMs <= startOffsetSec * 1000) {
@@ -667,6 +688,7 @@ serve(async (req: Request) => {
           await supabase.from('ai_generation_jobs').update({ status: 'completed', provider_name: p.name, quiz_id: quiz.id }).eq('id', job.id);
           await supabase.from('ai_generation_logs').insert({ job_id: job.id, level: 'info', message: `Quiz created for ${category}`, context: { quiz_id: quiz.id, slot_start: s.start.toISOString(), used_rpc: rpcUsed } });
           success = true;
+          jobsBudget -= 1;
           break;
         } catch (e: any) {
           lastErr = e?.message || String(e);
