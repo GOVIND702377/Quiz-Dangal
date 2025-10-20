@@ -19,6 +19,7 @@ async function fetchWithTimeout(input: string | URL, init: RequestInit & { timeo
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), Math.max(1_000, Number(timeoutMs)));
   try {
+  const runSummary = { attempted: 0, completed: 0, failed: 0, completedJobs: [] as any[], failedJobs: [] as any[] };
     const resp = await fetch(input, { ...rest, signal: controller.signal });
     return resp;
   } finally {
@@ -516,6 +517,8 @@ serve(async (req: Request) => {
         // Someone else claimed this job
         continue;
       }
+      // Count this as an attempted job when we successfully claim it
+      runSummary.attempted += 1;
 
       // Provider selection: enabled, not quota_exhausted, lowest priority, then id
       const { data: providers } = await supabase
@@ -691,6 +694,8 @@ serve(async (req: Request) => {
           await supabase.from('ai_generation_jobs').update({ status: 'completed', provider_name: p.name, quiz_id: quiz.id }).eq('id', job.id);
           await supabase.from('ai_generation_logs').insert({ job_id: job.id, level: 'info', message: `Quiz created for ${category}`, context: { quiz_id: quiz.id, slot_start: s.start.toISOString(), used_rpc: rpcUsed } });
           success = true;
+          runSummary.completed += 1;
+          runSummary.completedJobs.push({ id: job.id, category, slot_start: s.start.toISOString(), quiz_id: quiz.id, provider: p.name });
           jobsBudget -= 1;
           break;
         } catch (e: any) {
@@ -707,11 +712,13 @@ serve(async (req: Request) => {
       if (!success) {
         await supabase.from('ai_generation_jobs').update({ status: 'failed', error: lastErr || 'all providers failed' }).eq('id', job.id);
         await sendAlert(supabase, settings.alert_emails || [], `AI quiz generation failed (${category})`, lastErr || 'All providers failed');
+        runSummary.failed += 1;
+        runSummary.failedJobs.push({ id: job.id, category, slot_start: s.start.toISOString(), error: lastErr || 'all providers failed' });
       }
     }
   }
 
-    return new Response(JSON.stringify({ ok: true }), { headers: jsonHeaders(req) });
+    return new Response(JSON.stringify({ ok: true, summary: runSummary }), { headers: jsonHeaders(req) });
   } catch (e: any) {
     await logUnhandled(e);
     return new Response(JSON.stringify({ ok: false, error: 'internal_error' }), { status: 500, headers: jsonHeaders(req) });
