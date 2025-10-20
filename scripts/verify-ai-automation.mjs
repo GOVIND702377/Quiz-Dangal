@@ -68,13 +68,21 @@ async function main() {
 
   // 2) Providers
   try {
-    const { data, error } = await sb.from('ai_providers').select('id,name,enabled,priority,quota_exhausted').order('priority', { ascending: true });
+    const { data, error } = await sb
+      .from('ai_providers')
+      .select('id,name,enabled,priority,quota_exhausted,last_error,last_error_at')
+      .order('priority', { ascending: true });
     if (error) throw error;
     const enabled = (data || []).filter(p => p.enabled && !p.quota_exhausted);
-    if (!enabled.length) {
-      log('providers', 'WARN', 'No enabled providers (or all quota_exhausted)');
-    } else {
-      log('providers', 'PASS', enabled.map(p => `${p.name}#${p.id}(p${p.priority})`).join(', '));
+    if (!enabled.length) log('providers', 'WARN', 'No enabled providers (or all quota_exhausted)');
+    else log('providers', 'PASS', enabled.map(p => `${p.name}#${p.id}(p${p.priority})`).join(', '));
+    // Show last_error summary if present
+    const errs = (data || []).filter(p => p.last_error);
+    if (errs.length) {
+      console.log('\nProvider last_error:');
+      for (const p of errs) {
+        console.log(`- ${p.name}#${p.id}: ${p.last_error} @ ${p.last_error_at || '-'}${p.quota_exhausted ? ' (quota_exhausted)' : ''}`);
+      }
     }
   } catch (e) {
     log('providers', 'FAIL', e.message);
@@ -116,6 +124,48 @@ async function main() {
     }
   } catch (e) {
     log('logs', 'FAIL', e.message);
+  }
+
+  // 4b) Errors/Warns in last 24h
+  try {
+    const since24 = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await sb
+      .from('ai_generation_logs')
+      .select('created_at,level,message')
+      .gte('created_at', since24)
+      .in('level', ['warn','error'])
+      .order('created_at', { ascending: false })
+      .limit(30);
+    if (error) throw error;
+    if (data?.length) {
+      console.log('\nWarn/Error logs (24h):');
+      for (const r of data) console.log(`- ${r.created_at} [${r.level}] ${r.message}`);
+    } else {
+      log('warn/error logs (24h)', 'PASS', 'none');
+    }
+  } catch (e) {
+    log('warn/error logs (24h)', 'FAIL', e.message);
+  }
+
+  // 4c) Failed jobs in last 24h
+  try {
+    const since24 = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await sb
+      .from('ai_generation_jobs')
+      .select('id,category,slot_start,status,error,created_at')
+      .eq('status', 'failed')
+      .gte('created_at', since24)
+      .order('created_at', { ascending: false })
+      .limit(20);
+    if (error) throw error;
+    if (data?.length) {
+      console.log('\nFailed jobs (24h):');
+      for (const j of data) console.log(`- #${j.id} ${j.category} @ ${j.slot_start} -> ${j.error || 'no error'}`);
+    } else {
+      log('failed jobs (24h)', 'PASS', 'none');
+    }
+  } catch (e) {
+    log('failed jobs (24h)', 'FAIL', e.message);
   }
 
   // 5) Quizzes created in last 2h
