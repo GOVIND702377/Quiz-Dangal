@@ -1,8 +1,7 @@
-name: AI Orchestrator - Generate
+name: AI Orchestrator - Generate (manual)
 
 on:
-  schedule:
-    - cron: '*/1 * * * *'
+  # Keep this manual to avoid double-triggering alongside ai-orchestrator.yml
   workflow_dispatch:
 
 jobs:

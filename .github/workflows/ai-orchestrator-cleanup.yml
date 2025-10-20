@@ -1,8 +1,7 @@
-name: AI Orchestrator - Cleanup
+name: AI Orchestrator - Cleanup (manual)
 
 on:
-  schedule:
-    - cron: '0 22 * * *'
+  # Keep this manual to avoid duplicate cleanup with ai-orchestrator.yml
   workflow_dispatch:
 
 jobs:

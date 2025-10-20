@@ -396,7 +396,7 @@ serve(async (req: Request) => {
   const maxJobsParam = url.searchParams.get('limit');
   const maxJobs = Math.max(1, Math.min(6, Number(maxJobsParam || 3))); // cap to keep runs short
 
-      // Load settings
+  // Load settings
       const { data: settingsRow, error: sErr } = await supabase.from('ai_settings').select('*').eq('id', 1).maybeSingle();
       if (sErr) throw sErr;
       const settings = settingsRow || { is_enabled: false };
@@ -438,6 +438,8 @@ serve(async (req: Request) => {
         return new Response(JSON.stringify({ ok: true, task: 'cleanup', count: ids.length }), { headers: jsonHeaders(req) });
       }
     if (!settings.is_enabled) {
+      // Log once in case automation was toggled off, to make it visible in logs
+      try { await supabase.from('ai_generation_logs').insert({ level: 'info', message: 'ai automation disabled', context: { when: new Date().toISOString() } }); } catch (_) { /* noop */ }
       return new Response(JSON.stringify({ ok: true, message: 'disabled' }), { headers: jsonHeaders(req) });
     }
 
@@ -479,16 +481,15 @@ serve(async (req: Request) => {
           continue;
         }
       }
-      // Insert or get existing job for each slot
+      // Insert or get existing job for each slot (idempotent)
       let job: any = null;
-      try {
-        const iresp = await supabase
-          .from('ai_generation_jobs')
-          .insert({ category, slot_start: s.start.toISOString(), slot_end: s.end.toISOString(), status: 'queued' })
-          .select('*')
-          .single();
-        job = iresp.data;
-      } catch (_e) {
+      const iresp = await supabase
+        .from('ai_generation_jobs')
+        .insert({ category, slot_start: s.start.toISOString(), slot_end: s.end.toISOString(), status: 'queued' })
+        .select('*')
+        .single();
+      if (iresp.error) {
+        // Likely unique(category, slot_start) violation from a previous run; fetch existing row
         const gresp = await supabase
           .from('ai_generation_jobs')
           .select('*')
@@ -496,6 +497,8 @@ serve(async (req: Request) => {
           .eq('slot_start', s.start.toISOString())
           .maybeSingle();
         job = gresp.data;
+      } else {
+        job = iresp.data;
       }
 
       if (!job) continue;
