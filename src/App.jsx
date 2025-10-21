@@ -141,9 +141,12 @@ function App() {
             ) : !authUser ? (
               <>
                 {/* Public pages accessible without login */}
-                {/* Homepage: Open Login directly */}
-                <Route path="/" element={<Login />} />
+                {/* Homepage: Show public Home for indexability */}
+                <Route path="/" element={<Home />} />
                 {policyRoutes}
+                {/* Publicly accessible category pages for SEO */}
+                <Route path="/category/:slug" element={<Page><CategoryQuizzes /></Page>} />
+                <Route path="/category/:slug/" element={<Page><CategoryQuizzes /></Page>} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/login" element={<Login />} />
                 {/* For unknown routes when logged out, send users and bots to home */}

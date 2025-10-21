@@ -61,11 +61,11 @@ export default function ReferEarnInfo() {
         <h2 className="text-2xl font-semibold text-white">Inviting Tips</h2>
         <ul className="list-disc pl-6 text-slate-300 space-y-2 max-w-3xl">
           <li>Send your link with a short message: what Quiz Dangal is and why it’s fun.</li>
-          <li>Ask friends to try <a href="/opinion-quiz-app" className="text-indigo-300 underline">Opinion Quizzes</a> first—they’re quick and easy to start.</li>
-          <li>Share leaderboard screenshots to create friendly competition. Check the <a href="/leaderboards" className="text-indigo-300 underline">Leaderboards</a> anytime.</li>
+          <li>Ask friends to try <a href="/opinion-quiz-app/" className="text-indigo-300 underline">Opinion Quizzes</a> first—they’re quick and easy to start.</li>
+          <li>Share leaderboard screenshots to create friendly competition. Check the <a href="/leaderboards/" className="text-indigo-300 underline">Leaderboards</a> anytime.</li>
         </ul>
 
-        <p className="text-slate-300 max-w-3xl">If you’re new, learn our scoring and strategy basics on <a href="/play-win-quiz-app" className="text-indigo-300 underline">Play & Win</a>. Then invite your group and climb the ranks together.</p>
+  <p className="text-slate-300 max-w-3xl">If you’re new, learn our scoring and strategy basics on <a href="/play-win-quiz-app/" className="text-indigo-300 underline">Play & Win</a>. Then invite your group and climb the ranks together.</p>
 
         <div className="rounded-xl bg-slate-900/60 border border-slate-700/60 p-4">
           <h3 className="text-lg font-semibold text-white mb-2">Why Refer?</h3>

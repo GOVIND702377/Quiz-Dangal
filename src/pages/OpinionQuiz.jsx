@@ -59,7 +59,7 @@ export default function OpinionQuiz() {
         </ul>
 
         <h2 className="text-2xl font-semibold text-white">Next Steps</h2>
-        <p className="text-slate-300 max-w-3xl">After you try a few opinion rounds, switch to our <a href="/play-win-quiz-app" className="text-indigo-300 underline">Play & Win</a> format to chase higher scores. Don’t forget to invite your friends via <a href="/refer-earn-quiz-app" className="text-indigo-300 underline">Refer & Earn</a> and check the <a href="/leaderboards" className="text-indigo-300 underline">Leaderboards</a> to see where you stand.</p>
+  <p className="text-slate-300 max-w-3xl">After you try a few opinion rounds, start playing live categories: <a href="/category/opinion/" className="text-indigo-300 underline">Opinion</a>, <a href="/category/gk/" className="text-indigo-300 underline">GK</a>, <a href="/category/sports/" className="text-indigo-300 underline">Sports</a>, and <a href="/category/movies/" className="text-indigo-300 underline">Movies</a>. You can also switch to our <a href="/play-win-quiz-app/" className="text-indigo-300 underline">Play & Win</a> format to chase higher scores. Don’t forget to invite your friends via <a href="/refer-earn-quiz-app/" className="text-indigo-300 underline">Refer & Earn</a> and check the <a href="/leaderboards/" className="text-indigo-300 underline">Leaderboards</a> to see where you stand.</p>
 
         <div className="rounded-xl bg-slate-900/60 border border-slate-700/60 p-4">
           <h3 className="text-lg font-semibold text-white mb-2">Highlights</h3>

@@ -201,7 +201,7 @@ const Home = () => {
                   onJoin={handleJoinQuiz}
                   index={i}
                   joiningId={joiningId}
-                  navigateTo={(slug) => navigate(`/category/${slug}`)}
+                  navigateTo={(slug) => navigate(`/category/${slug}/`)}
                 />
               ))}
           </div>

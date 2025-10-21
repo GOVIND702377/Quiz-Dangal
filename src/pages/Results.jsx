@@ -585,7 +585,9 @@ const Results = () => {
           <p className="text-slate-300 mb-4">{errorMessage}</p>
           <div className="flex justify-center gap-3">
             <Button variant="brand" onClick={handleRetry}>Retry</Button>
-            <Button variant="white" onClick={() => navigate('/my-quizzes')}>Back</Button>
+            <Button variant="white" onClick={() => navigate('/my-quizzes/')}>
+              Back
+            </Button>
           </div>
         </div>
       </div>
@@ -852,7 +854,10 @@ const Results = () => {
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-900/90 backdrop-blur supports-[backdrop-filter]:bg-slate-900/70 shadow-[0_-6px_24px_rgba(0,0,0,0.35)]">
           <div className="max-w-4xl mx-auto px-3 sm:px-4" style={{ paddingTop: 10, paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}>
             <div className="grid grid-cols-3 gap-2 items-center">
-              <button onClick={() => navigate('/my-quizzes')} className="col-span-1 inline-flex items-center justify-center gap-2 h-12 px-3 rounded-lg text-sm font-semibold bg-slate-800/85 text-white border border-slate-700 hover:bg-slate-800 active:translate-y-px transition w-full min-w-0">
+              <button
+                onClick={() => navigate('/my-quizzes/')}
+                className="col-span-1 inline-flex items-center justify-center gap-2 h-12 px-3 rounded-lg text-sm font-semibold bg-slate-800/85 text-white border border-slate-700 hover:bg-slate-800 active:translate-y-px transition w-full min-w-0"
+              >
                 <ArrowLeft className="w-5 h-5" aria-hidden="true" />
                 <span className="truncate">Back</span>
               </button>

@@ -63,7 +63,7 @@ export default function PlayWinQuiz() {
         </ul>
 
         <h2 className="text-2xl font-semibold text-white">What You Can Do Next</h2>
-        <p className="text-slate-300 max-w-3xl">New to Quiz Dangal? Start with the basics on our <a href="/opinion-quiz-app" className="text-indigo-300 underline">Opinion Quiz</a> explainer, then invite your friends to play using our <a href="/refer-earn-quiz-app" className="text-indigo-300 underline">Refer & Earn</a> program. You can also browse the <a href="/leaderboards" className="text-indigo-300 underline">Leaderboards</a> to see top players and aim for the next milestone.</p>
+  <p className="text-slate-300 max-w-3xl">New to Quiz Dangal? Start with the basics on our <a href="/opinion-quiz-app/" className="text-indigo-300 underline">Opinion Quiz</a> explainer. Then jump into categories: <a href="/category/opinion/" className="text-indigo-300 underline">Opinion</a>, <a href="/category/gk/" className="text-indigo-300 underline">GK</a>, <a href="/category/sports/" className="text-indigo-300 underline">Sports</a>, <a href="/category/movies/" className="text-indigo-300 underline">Movies</a>. Invite friends via <a href="/refer-earn-quiz-app/" className="text-indigo-300 underline">Refer & Earn</a>, and browse the <a href="/leaderboards/" className="text-indigo-300 underline">Leaderboards</a> to see top players.</p>
 
         <div className="rounded-xl bg-slate-900/60 border border-slate-700/60 p-4">
           <h3 className="text-lg font-semibold text-white mb-2">Quick Highlights</h3>
