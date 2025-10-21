@@ -51,7 +51,7 @@ const ContactUs = () => {
       <SEO
         title="Contact Us – Quiz Dangal"
         description="Get in touch with the Quiz Dangal support team for help, partnerships, and media inquiries."
-        canonical="https://quizdangal.com/contact-us"
+  canonical="https://quizdangal.com/contact-us/"
         alternateLocales={['hi_IN','en_US']}
         keywords={['quiz dangal contact', 'quiz dangal support', 'quiz dangal phone', 'quiz dangal email']}
       />

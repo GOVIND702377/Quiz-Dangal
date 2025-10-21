@@ -2,7 +2,7 @@ import React from 'react';
 import SEO from '@/components/SEO';
 
 export default function ReferEarnInfo() {
-  const canonical = 'https://quizdangal.com/refer-earn-quiz-app';
+  const canonical = 'https://quizdangal.com/refer-earn-quiz-app/';
   const faqSchema = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',

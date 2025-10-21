@@ -2,7 +2,7 @@ import React from 'react';
 import SEO from '@/components/SEO';
 
 export default function PlayWinQuiz() {
-  const canonical = 'https://quizdangal.com/play-win-quiz-app';
+  const canonical = 'https://quizdangal.com/play-win-quiz-app/';
   const faqSchema = {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',

@@ -199,7 +199,7 @@ export default function Profile() {
       <SEO
         title="Your Quiz Dangal Profile"
         description="View and manage your Quiz Dangal profile details, quiz preferences, and account settings."
-        canonical="https://quizdangal.com/profile"
+  canonical="https://quizdangal.com/profile/"
         robots="noindex, nofollow"
       />
       <div className="mx-auto w-full px-3 sm:px-4 pt-3 pb-24 max-w-3xl space-y-3 overflow-x-hidden">

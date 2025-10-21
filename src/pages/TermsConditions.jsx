@@ -106,7 +106,7 @@ const TermsConditions = () => {
         <SEO
           title="Terms & Conditions – Quiz Dangal"
           description="Terms & Conditions for using Quiz Dangal – eligibility, gameplay rules, rewards, and fair play policies."
-          canonical="https://quizdangal.com/terms-conditions"
+          canonical="https://quizdangal.com/terms-conditions/"
           alternateLocales={['hi_IN','en_US']}
           keywords={[
             'quiz dangal terms',

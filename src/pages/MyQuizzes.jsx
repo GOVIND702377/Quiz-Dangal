@@ -393,7 +393,7 @@ const MyQuizzes = () => {
       <SEO
         title="My Quizzes – Quiz Dangal"
         description="Track the quizzes you have joined, monitor live rounds, and revisit completed contests on Quiz Dangal."
-        canonical="https://quizdangal.com/my-quizzes"
+  canonical="https://quizdangal.com/my-quizzes/"
         robots="noindex, nofollow"
       />
       <div className="container mx-auto px-4 py-4">

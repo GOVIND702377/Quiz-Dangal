@@ -225,7 +225,7 @@ export default function Redemptions() {
       <SEO
         title="Redemptions – Quiz Dangal"
         description="View and manage your reward redemptions on Quiz Dangal."
-        canonical="https://quizdangal.com/redemptions"
+  canonical="https://quizdangal.com/redemptions/"
         robots="noindex, nofollow"
       />
       <div className="relative mx-auto max-w-5xl px-4 py-6">

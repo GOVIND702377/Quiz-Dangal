@@ -323,7 +323,7 @@ export default function Admin() {
 			<>
 				<Helmet>
 					<meta name="robots" content="noindex, nofollow" />
-					<link rel="canonical" href="https://quizdangal.com/admin" />
+					<link rel="canonical" href="https://quizdangal.com/admin/" />
 				</Helmet>
 				<div className="min-h-screen flex items-center justify-center px-4">
 				<div className="bg-white border border-gray-200 rounded-2xl p-6 max-w-md w-full text-center shadow-sm">
@@ -359,7 +359,7 @@ export default function Admin() {
 		<div className="container mx-auto p-6 max-w-5xl bg-white text-gray-900 rounded-2xl shadow-sm">
 			<Helmet>
 				<meta name="robots" content="noindex, nofollow" />
-				<link rel="canonical" href="https://quizdangal.com/admin" />
+				<link rel="canonical" href="https://quizdangal.com/admin/" />
 			</Helmet>
 			<h1 className="text-2xl font-bold mb-6 text-gray-900">Admin Dashboard</h1>
 			{!hasSupabaseConfig && (

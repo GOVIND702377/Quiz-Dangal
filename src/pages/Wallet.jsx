@@ -85,7 +85,7 @@ const Wallet = () => {
       <SEO
         title="Wallet – Quiz Dangal"
         description="View your Quiz Dangal wallet balance, recent transactions, and referral earnings."
-        canonical="https://quizdangal.com/wallet"
+  canonical="https://quizdangal.com/wallet/"
         robots="noindex, nofollow"
       />
       {/* Soft gradient mesh backdrop */}
