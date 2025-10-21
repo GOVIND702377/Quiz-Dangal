@@ -29,6 +29,11 @@ const ROUTES = [
   { path: '/contact-us', title: 'Contact Us – Quiz Dangal', description: 'Get in touch with the Quiz Dangal team for support, partnership, or feedback.' },
   { path: '/terms-conditions', title: 'Terms & Conditions – Quiz Dangal', description: 'Read Quiz Dangal’s terms and conditions.' },
   { path: '/privacy-policy', title: 'Privacy Policy – Quiz Dangal', description: 'Learn how Quiz Dangal collects and protects your data.' },
+  // Category landing pages (indexable)
+  { path: '/category/opinion', title: 'Opinion Quizzes – Quiz Dangal', description: 'Play opinion-based quizzes. Share your take, compare with others, and earn coins as you play.' },
+  { path: '/category/gk', title: 'GK Quizzes – Quiz Dangal', description: 'Sharpen your general knowledge with live and upcoming GK quizzes on Quiz Dangal.' },
+  { path: '/category/sports', title: 'Sports Quizzes – Quiz Dangal', description: 'Test your sports knowledge with live and upcoming quizzes on cricket, football and more.' },
+  { path: '/category/movies', title: 'Movie Quizzes – Quiz Dangal', description: 'Bollywood & Hollywood movie quizzes—play live rounds and win coins.' },
 ];
 
 const distDir = path.resolve('dist');

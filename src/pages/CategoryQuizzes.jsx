@@ -207,7 +207,7 @@ const CategoryQuizzes = () => {
         title={`${meta.title} – Quiz Dangal`}
         description={`Active and upcoming quizzes in ${meta.title}.`}
         canonical={canonical}
-        robots="noindex, nofollow"
+        robots="index, follow"
       />
       <span className="hidden" aria-hidden>{tick}</span>
       {/* Hero Header */}

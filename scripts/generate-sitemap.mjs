@@ -16,6 +16,11 @@ const ROUTES = [
   { path: '/play-win-quiz-app', changefreq: 'weekly', priority: 0.7, source: 'src/pages/PlayWinQuiz.jsx' },
   { path: '/opinion-quiz-app', changefreq: 'weekly', priority: 0.7, source: 'src/pages/OpinionQuiz.jsx' },
   { path: '/refer-earn-quiz-app', changefreq: 'weekly', priority: 0.7, source: 'src/pages/ReferEarnInfo.jsx' },
+  // Category landing pages
+  { path: '/category/opinion', changefreq: 'daily', priority: 0.7, source: 'src/pages/CategoryQuizzes.jsx' },
+  { path: '/category/gk', changefreq: 'daily', priority: 0.7, source: 'src/pages/CategoryQuizzes.jsx' },
+  { path: '/category/sports', changefreq: 'daily', priority: 0.6, source: 'src/pages/CategoryQuizzes.jsx' },
+  { path: '/category/movies', changefreq: 'daily', priority: 0.6, source: 'src/pages/CategoryQuizzes.jsx' },
   // NOTE: '/refer' is an internal referral landing for authenticated users; exclude from sitemap
   { path: '/about-us', changefreq: 'monthly', priority: 0.6, source: 'src/pages/AboutUs.jsx' },
   { path: '/contact-us', changefreq: 'monthly', priority: 0.6, source: 'src/pages/ContactUs.jsx' },
