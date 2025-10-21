@@ -41,7 +41,10 @@ const srcIndex = path.join(distDir, 'index.html');
 
 function toUrl(loc) {
   if (!loc || loc === '/') return HOST + '/';
-  return `${HOST.replace(/\/$/, '')}${loc}`;
+  let out = `${HOST.replace(/\/$/, '')}${loc}`;
+  // If this is a directory-like route (no file extension), add trailing slash to match GitHub Pages
+  if (!/\.[a-z0-9]+$/i.test(loc) && !out.endsWith('/')) out += '/';
+  return out;
 }
 
 function replaceHead(html, { title, description, url, robots }) {

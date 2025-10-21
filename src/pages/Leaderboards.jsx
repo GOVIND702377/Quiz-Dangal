@@ -94,8 +94,8 @@ export default function Leaderboards() {
     <div className="relative">
       <SEO
         title="Leaderboards – Quiz Dangal | Top Quiz Players"
-        description="See the top players on Quiz Dangal leaderboards. Compete in daily opinion and knowledge quizzes, win coins, and climb ranks."
-  canonical="https://quizdangal.com/leaderboards"
+    description="See the top players on Quiz Dangal leaderboards. Compete in daily opinion and knowledge quizzes, win coins, and climb ranks."
+    canonical="https://quizdangal.com/leaderboards/"
         alternateLocales={['hi_IN','en_US']}
         keywords={[ 'quiz leaderboard','top quiz players','quizdangal leaderboard','daily quiz rankings' ]}
       />

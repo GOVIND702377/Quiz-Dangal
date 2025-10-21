@@ -10,73 +10,73 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://quizdangal.com/" />
   </url>
   <url>
-    <loc>https://quizdangal.com/leaderboards</loc>
-    <lastmod>2025-10-17</lastmod>
+    <loc>https://quizdangal.com/leaderboards/</loc>
+    <lastmod>2025-10-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://quizdangal.com/play-win-quiz-app</loc>
+    <loc>https://quizdangal.com/play-win-quiz-app/</loc>
     <lastmod>2025-10-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://quizdangal.com/opinion-quiz-app</loc>
+    <loc>https://quizdangal.com/opinion-quiz-app/</loc>
     <lastmod>2025-10-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://quizdangal.com/refer-earn-quiz-app</loc>
+    <loc>https://quizdangal.com/refer-earn-quiz-app/</loc>
     <lastmod>2025-10-17</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://quizdangal.com/category/opinion</loc>
+    <loc>https://quizdangal.com/category/opinion/</loc>
     <lastmod>2025-10-21</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://quizdangal.com/category/gk</loc>
+    <loc>https://quizdangal.com/category/gk/</loc>
     <lastmod>2025-10-21</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://quizdangal.com/category/sports</loc>
+    <loc>https://quizdangal.com/category/sports/</loc>
     <lastmod>2025-10-21</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://quizdangal.com/category/movies</loc>
+    <loc>https://quizdangal.com/category/movies/</loc>
     <lastmod>2025-10-21</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://quizdangal.com/about-us</loc>
+    <loc>https://quizdangal.com/about-us/</loc>
     <lastmod>2025-10-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://quizdangal.com/contact-us</loc>
+    <loc>https://quizdangal.com/contact-us/</loc>
     <lastmod>2025-10-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://quizdangal.com/terms-conditions</loc>
+    <loc>https://quizdangal.com/terms-conditions/</loc>
     <lastmod>2025-10-17</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://quizdangal.com/privacy-policy</loc>
+    <loc>https://quizdangal.com/privacy-policy/</loc>
     <lastmod>2025-10-17</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.5</priority>

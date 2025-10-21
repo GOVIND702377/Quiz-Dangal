@@ -199,7 +199,7 @@ const CategoryQuizzes = () => {
     .filter(ts => ts && ts > nowHeader)
     .sort((a,b) => a - b)[0] || null;
 
-  const canonical = typeof window !== 'undefined' ? `${window.location.origin}/category/${slug}` : 'https://quizdangal.com/category';
+  const canonical = typeof window !== 'undefined' ? `${window.location.origin}/category/${slug}/` : 'https://quizdangal.com/category/';
 
   return (
     <div className="container mx-auto px-4 py-3 text-foreground">

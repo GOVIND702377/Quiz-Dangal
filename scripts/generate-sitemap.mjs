@@ -39,9 +39,11 @@ const formatDate = (date) => {
 const today = formatDate(new Date());
 
 const toUrl = (loc) => {
-  if (!loc) return HOST;
+  if (!loc) return HOST + '/';
   if (loc.startsWith('http://') || loc.startsWith('https://')) return loc;
-  return `${HOST.replace(/\/$/, '')}${loc.startsWith('/') ? '' : '/'}${loc}`;
+  let out = `${HOST.replace(/\/$/, '')}${loc.startsWith('/') ? '' : '/'}${loc}`;
+  if (!/\.[a-z0-9]+$/i.test(loc) && !out.endsWith('/')) out += '/';
+  return out;
 };
 
 async function resolveLastModified(route) {
