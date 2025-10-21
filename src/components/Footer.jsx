@@ -7,18 +7,20 @@ const Footer = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Use trailing slashes to avoid 301s on first load (GitHub Pages serves directories with a slash)
   const navItems = [
     { icon: Home, label: 'Home', path: '/' },
-    { icon: Medal, label: 'Leaderboards', path: '/leaderboards' },
-    { icon: Trophy, label: 'My Quizzes', path: '/my-quizzes' },
-    { icon: Wallet, label: 'Wallet', path: '/wallet' },
-    { icon: User, label: 'Profile', path: '/profile' },
+    { icon: Medal, label: 'Leaderboards', path: '/leaderboards/' },
+    { icon: Trophy, label: 'My Quizzes', path: '/my-quizzes/' },
+    { icon: Wallet, label: 'Wallet', path: '/wallet/' },
+    { icon: User, label: 'Profile', path: '/profile/' },
   ];
 
   // Refined active palette inspired by the logo's ring and trophy
   // Home: Blue, Leaderboards: Pink, My Quizzes: Purple, Wallet: Gold, Profile: Indigo
+  const stripSlash = (p = '') => (p === '/' ? '/' : p.replace(/\/+$/, ''));
   const activeColor = (path) => {
-    switch (path) {
+    switch (stripSlash(path)) {
       case '/': return 'text-accent-d';        // blue
       case '/leaderboards': return 'text-accent-a'; // pink/fuchsia
       case '/my-quizzes': return 'text-accent-c';   // purple
@@ -34,7 +36,7 @@ const Footer = () => {
         <div className="flex items-center justify-around py-2 px-2 sm:px-4">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path;
+            const isActive = stripSlash(location.pathname) === stripSlash(item.path);
 
             return (
               <button

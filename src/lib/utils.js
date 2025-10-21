@@ -55,15 +55,22 @@ export function formatTimeOnly(value, opts = {}) {
 // Map route paths to lazy page importers so we can prefetch on hover/focus.
 const routePrefetchMap = {
 	'/wallet': () => import('@/pages/Wallet'),
+	'/wallet/': () => import('@/pages/Wallet'),
 	'/profile': () => import('@/pages/Profile'),
+	'/profile/': () => import('@/pages/Profile'),
 	'/leaderboards': () => import('@/pages/Leaderboards'),
+	'/leaderboards/': () => import('@/pages/Leaderboards'),
 	'/my-quizzes': () => import('@/pages/MyQuizzes'),
+	'/my-quizzes/': () => import('@/pages/MyQuizzes'),
 };
 
 const warmed = new Set();
 export function prefetchRoute(path) {
 	try {
-		const loader = routePrefetchMap[path];
+		const norm = (p) => (p === '/' ? '/' : String(p || '').replace(/\/+$/, ''));
+		const normalized = norm(path);
+		const candidates = [path, normalized, `${normalized}/`];
+		const loader = candidates.map((p) => routePrefetchMap[p]).find(Boolean);
 		if (!loader || warmed.has(path)) return;
 		// Use requestIdleCallback if available to avoid jank
 		const run = () => loader().catch(() => {});

@@ -39,14 +39,14 @@ const NotificationsDebug = lazy(() => import('@/pages/NotificationsDebug'));
 // Reusable group of static public informational routes (as a fragment – not a component – so <Routes> accepts it)
 const policyRoutes = (
   <>
-    <Route path="/terms-conditions" element={<TermsConditions />} />
-    <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-    <Route path="/about-us" element={<AboutUs />} />
-    <Route path="/contact-us" element={<ContactUs />} />
-    <Route path="/play-win-quiz-app" element={<PlayWinQuiz />} />
-    <Route path="/opinion-quiz-app" element={<OpinionQuiz />} />
-    <Route path="/refer-earn-quiz-app" element={<ReferEarnInfo />} />
-    <Route path="/leaderboards" element={<Leaderboards />} />
+  <Route path="/terms-conditions/" element={<TermsConditions />} />
+  <Route path="/privacy-policy/" element={<PrivacyPolicy />} />
+  <Route path="/about-us/" element={<AboutUs />} />
+  <Route path="/contact-us/" element={<ContactUs />} />
+  <Route path="/play-win-quiz-app/" element={<PlayWinQuiz />} />
+  <Route path="/opinion-quiz-app/" element={<OpinionQuiz />} />
+  <Route path="/refer-earn-quiz-app/" element={<ReferEarnInfo />} />
+  <Route path="/leaderboards/" element={<Leaderboards />} />
   </>
 );
 
@@ -159,7 +159,9 @@ function App() {
             ) : (
               <>
                 <Route path="/quiz/:id" element={<Quiz />} />
+                {/* Accept both with and without trailing slash for category routes */}
                 <Route path="/category/:slug" element={<Page><CategoryQuizzes /></Page>} />
+                <Route path="/category/:slug/" element={<Page><CategoryQuizzes /></Page>} />
                 <Route path="/results/:id" element={<Results />} />
                 <Route path="/*" element={<MainLayout />} />
               </>
@@ -296,22 +298,22 @@ const MainLayout = () => {
         <Suspense fallback={<Fallback />}>
           <Routes>
             <Route path="/" element={<Page><Home /></Page>} />
-            <Route path="/my-quizzes" element={<Page><MyQuizzes /></Page>} />
-            <Route path="/wallet" element={<Page><Wallet /></Page>} />
-            <Route path="/profile" element={<Page><Profile /></Page>} />
-            <Route path="/leaderboards" element={<Page><Leaderboards /></Page>} />
-            <Route path="/refer" element={<Page><ReferEarn /></Page>} />
-            <Route path="/rewards" element={<Navigate to="/wallet" replace />} />
-            <Route path="/redemptions" element={<Page><Redemptions /></Page>} />
+            <Route path="/my-quizzes/" element={<Page><MyQuizzes /></Page>} />
+            <Route path="/wallet/" element={<Page><Wallet /></Page>} />
+            <Route path="/profile/" element={<Page><Profile /></Page>} />
+            <Route path="/leaderboards/" element={<Page><Leaderboards /></Page>} />
+            <Route path="/refer/" element={<Page><ReferEarn /></Page>} />
+            <Route path="/rewards" element={<Navigate to="/wallet/" replace />} />
+            <Route path="/redemptions/" element={<Page><Redemptions /></Page>} />
             {/* Reuse informational routes inside authenticated layout as well */}
-            <Route path="/about-us" element={<Page><AboutUs /></Page>} />
-            <Route path="/contact-us" element={<Page><ContactUs /></Page>} />
-            <Route path="/play-win-quiz-app" element={<Page><PlayWinQuiz /></Page>} />
-            <Route path="/opinion-quiz-app" element={<Page><OpinionQuiz /></Page>} />
-            <Route path="/refer-earn-quiz-app" element={<Page><ReferEarnInfo /></Page>} />
+            <Route path="/about-us/" element={<Page><AboutUs /></Page>} />
+            <Route path="/contact-us/" element={<Page><ContactUs /></Page>} />
+            <Route path="/play-win-quiz-app/" element={<Page><PlayWinQuiz /></Page>} />
+            <Route path="/opinion-quiz-app/" element={<Page><OpinionQuiz /></Page>} />
+            <Route path="/refer-earn-quiz-app/" element={<Page><ReferEarnInfo /></Page>} />
             <Route path="/debug/notifications" element={<Page><NotificationsDebug /></Page>} />
-            <Route path="/terms-conditions" element={<Page><TermsConditions /></Page>} />
-            <Route path="/privacy-policy" element={<Page><PrivacyPolicy /></Page>} />
+            <Route path="/terms-conditions/" element={<Page><TermsConditions /></Page>} />
+            <Route path="/privacy-policy/" element={<Page><PrivacyPolicy /></Page>} />
             <Route path="/admin" element={<AdminRoute><Page><Admin /></Page></AdminRoute>} />
             <Route path="/admin/users" element={<Navigate to="/admin?tab=users" replace />} />
             <Route path="/admin/leaderboards" element={<Navigate to="/admin?tab=leaderboards" replace />} />
