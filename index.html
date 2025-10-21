@@ -188,26 +188,54 @@
 			} catch (e) {}
 			var forceDevSW = false;
 			try { forceDevSW = localStorage.getItem('qd_sw_dev') === '1'; } catch (e) { forceDevSW = false; }
-			var shouldRegister = ('serviceWorker' in navigator) && (!isLocal || forceDevSW);
-			if (shouldRegister) {
-				window.addEventListener('load', function() {
-					navigator.serviceWorker.register('/sw.js').then(function(registration) {
-						console.log('SW registered:', registration);
-						registration.addEventListener('updatefound', function() {
-							var newWorker = registration.installing;
-							if (!newWorker) return;
-							newWorker.addEventListener('statechange', function() {
-								if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-									try { newWorker.postMessage({ type: 'SKIP_WAITING' }); } catch (e) {}
-									window.location.reload();
-								}
-							});
-						});
-					}).catch(function(err) {
-						console.log('SW registration failed:', err);
-					});
+			function isLikelyAutomation() {
+				try {
+					var ua = (navigator.userAgent || navigator.vendor || '').toLowerCase();
+					if (/googlebot|bingbot|duckduckbot|baiduspider|yandex|lighthouse|pagespeed|headless|crawler|spider|bot|wrsparams/.test(ua)) return true;
+					if (navigator.webdriver === true) return true;
+					if (document.prerendering === true) return true;
+				} catch (e) {}
+				return false;
+			}
+
+			var canSW = ('serviceWorker' in navigator) && window.isSecureContext;
+			var shouldRegister = canSW && (!isLocal || forceDevSW) && !isLikelyAutomation();
+			if (!shouldRegister) return;
+
+			function preflight(url) {
+				return fetch(url, { cache: 'no-store' }).then(function(res) {
+					if (!res.ok) throw new Error('sw.js fetch failed: ' + res.status);
+					var ct = (res.headers.get('content-type') || '').toLowerCase();
+					if (!/javascript|application\/javascript|text\/javascript/.test(ct)) {
+						throw new Error('sw.js unexpected content-type: ' + ct);
+					}
+					return true;
 				});
 			}
+
+			window.addEventListener('load', function() {
+				var swUrl = '/sw.js';
+				preflight(swUrl).then(function() {
+					return navigator.serviceWorker.register(swUrl, { scope: '/', updateViaCache: 'none' });
+				}).then(function(registration) {
+					console.log('SW registered:', registration);
+					registration.addEventListener('updatefound', function() {
+						var newWorker = registration.installing;
+						if (!newWorker) return;
+						newWorker.addEventListener('statechange', function() {
+							if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+								try { newWorker.postMessage({ type: 'SKIP_WAITING' }); } catch (e) {}
+								// Avoid hard reload loops; refresh softly when visible
+								try {
+									if (document.visibilityState === 'visible') window.location.reload();
+								} catch (e) {}
+							}
+						});
+					});
+				}).catch(function(err) {
+					console.warn('SW disabled:', err && (err.message || err));
+				});
+			});
 		})();
 	</script>
 </body>
