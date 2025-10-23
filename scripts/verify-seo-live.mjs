@@ -60,13 +60,25 @@ async function fetchFollow(url, ua, maxRedirects = 5) {
   let current = url
   for (let i = 0; i <= maxRedirects; i++) {
     const resp = await fetchOnce(current, ua)
-    chain.push({ url: current, status: resp.status, location: resp.headers?.location || null })
-    if (resp.status >= 300 && resp.status < 400 && resp.headers?.location) {
-      const { url: nextUrl, error } = sanitizeRedirect(current, resp.headers.location)
-      if (error) {
-        return { final: current, response: { status: 0, headers: {}, body: '', error }, chain }
+    const locationHeader = resp.headers?.location || null
+    let sanitized = null
+    if (locationHeader) {
+      sanitized = sanitizeRedirect(current, locationHeader)
+    }
+    chain.push({
+      url: current,
+      status: resp.status,
+      location: sanitized?.url || null,
+      blocked: sanitized?.error || null,
+    })
+    if (resp.status >= 300 && resp.status < 400 && locationHeader) {
+      if (sanitized?.error) {
+        return { final: current, response: { status: 0, headers: {}, body: '', error: sanitized.error }, chain }
       }
-      current = nextUrl
+      if (!sanitized?.url) {
+        return { final: current, response: { status: 0, headers: {}, body: '', error: 'redirect target rejected' }, chain }
+      }
+      current = sanitized.url
       continue
     }
     return { final: current, response: resp, chain }
@@ -109,7 +121,11 @@ async function main() {
     for (const ua of UAS) {
       const { final, response, chain } = await fetchFollow(url, ua)
       const issues = verdict(final, response, ua.name)
-      const chainStr = chain.map(c => `${c.status}${c.location?`→${c.location}`:''}`).join('  ')
+      const chainStr = chain.map(c => {
+        const arrow = c.location ? `→${c.location}` : ''
+        const blocked = c.blocked ? ` (blocked: ${c.blocked})` : ''
+        return `${c.status}${arrow}${blocked}`
+      }).join('  ')
       if (issues.length === 0) {
         console.log(`  ✅ ${ua.name}: chain[ ${chainStr} ] | final=${final} | X-Robots-Tag=${response.headers['x-robots-tag']||'-'} | meta-robots=${parseMetaRobots(response.body)||'-'}`)
       } else {
