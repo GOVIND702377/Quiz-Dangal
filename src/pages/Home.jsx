@@ -17,6 +17,103 @@ const HOME_TILES = [
   { title: 'Movies', slug: 'movies', icon: Clapperboard },
 ];
 
+const HOME_FAQ_ENTRIES = [
+  {
+    question: 'What is Quiz Dangal?',
+    answer: 'Quiz Dangal is India\'s daily quiz arena where you play opinion and knowledge rounds, earn coins, and climb leaderboards with friends.'
+  },
+  {
+    question: 'How can new pages get indexed quickly?',
+    answer: 'Submit https://quizdangal.com/sitemap.xml in Google Search Console, request indexing for key URLs, and keep internal links pointing to every new landing page.'
+  },
+  {
+    question: 'Does Quiz Dangal support the Google Play-style “Play & Win” format?',
+    answer: 'Yes. Our Play & Win quizzes run daily with live leaderboards, transparent scoring, and instant rewards for top performers.'
+  }
+];
+
+const HOME_FAQ_SCHEMA = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: HOME_FAQ_ENTRIES.map((item) => ({
+    '@type': 'Question',
+    name: item.question,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: item.answer,
+    },
+  })),
+};
+
+const HOME_JSON_LD = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'Quiz Dangal',
+    alternateName: ['QuizDangal', 'Quiz Dangal', 'QuizDangl'],
+    url: 'https://quizdangal.com/',
+    logo: 'https://quizdangal.com/android-chrome-512x512.png',
+    sameAs: [
+      'https://www.instagram.com/quizdangal',
+      'https://www.facebook.com/profile.php?id=61576614092243',
+      'https://x.com/quizdangal',
+    ],
+    contactPoint: [
+      {
+        '@type': 'ContactPoint',
+        contactType: 'customer support',
+        email: 'support@quizdangal.com',
+        availableLanguage: ['Hindi', 'English'],
+      },
+    ],
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'Quiz Dangal',
+    url: 'https://quizdangal.com/',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: 'https://quizdangal.com/search?q={search_term_string}',
+      'query-input': 'required name=search_term_string',
+    },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    name: 'Quiz Dangal',
+    url: 'https://quizdangal.com/',
+    applicationCategory: 'Game',
+    operatingSystem: 'Web',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'INR' },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SiteNavigationElement',
+    name: 'Play & Win Quiz App',
+    url: 'https://quizdangal.com/play-win-quiz-app/',
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SiteNavigationElement',
+    name: 'Opinion Quiz App',
+    url: 'https://quizdangal.com/opinion-quiz-app/',
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SiteNavigationElement',
+    name: 'Leaderboards',
+    url: 'https://quizdangal.com/leaderboards/',
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'SiteNavigationElement',
+    name: 'Refer & Earn',
+    url: 'https://quizdangal.com/refer-earn-quiz-app/',
+  },
+  HOME_FAQ_SCHEMA,
+];
+
 // (Removed duplicate streak badge & user header area as per request)
 
 // Gradients removed for minimal solid theme
@@ -166,12 +263,13 @@ const Home = () => {
     <div className="h-full relative overflow-hidden">
       <SEO
         title="Quiz Dangal – Play Quiz & Win Rewards | Opinion, GK, Sports, Movies"
-        description="Play daily opinion-based quizzes on Quiz Dangal. Win coins, climb leaderboards, and refer & earn with friends. India’s top play & win quiz app."
+        description="Quiz Dangal is India’s play-and-win quiz arena. Take opinion and GK quizzes daily, grow streaks, invite friends, and redeem coins for rewards."
         canonical="https://quizdangal.com/"
         keywords={[
-          'Quiz Dangal','quizdangal','quiz app','play quiz and win','opinion quiz','daily quiz India','refer and earn quiz','win rewards','leaderboards','online quiz contest'
+          'Quiz Dangal','quizdangal','quiz app','play quiz and win','opinion quiz','daily quiz india','refer and earn quiz','win rewards','leaderboards','online quiz contest'
         ]}
         alternateLocales={['hi_IN', 'en_US']}
+        jsonLd={HOME_JSON_LD}
       />
       <div className="relative z-10 h-full flex items-center justify-center px-4 mt-1 sm:mt-2 mb-6">
         <div className="w-full max-w-[420px]">
@@ -180,12 +278,20 @@ const Home = () => {
             className="text-center mb-4 animate-fade-up"
             style={{ '--fade-delay': '60ms' }}
           >
-            <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-indigo-200 via-fuchsia-200 to-pink-200 bg-clip-text text-transparent">
-              Brain games, real gains. Ready to shine?
+            <span className="inline-flex items-center justify-center px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-indigo-200/80 bg-indigo-500/15 border border-indigo-400/30 rounded-full">
+              Quiz Dangal Official
+            </span>
+            <h1 className="mt-2 text-2xl font-black tracking-tight text-white">
+              Play quizzes. Win rewards. Own the leaderboard.
             </h1>
-            <p className="text-[13px] text-slate-300/90 mt-1">
-              Compete, earn, repeat — where winners never chill out.
+            <p className="text-[13px] text-slate-300/90 mt-2">
+              Quiz Dangal is India&apos;s daily quiz arena where <strong className="text-slate-100/90">quizdangal</strong> players compete in Opinion, GK, Sports, and Movies rounds to earn coins and bragging rights.
             </p>
+            <ul className="mt-3 text-[12px] text-slate-300/90 space-y-1 text-left">
+              <li>• Transparent scoring with instant leaderboards</li>
+              <li>• Refer &amp; earn bonuses when friends join your squad</li>
+              <li>• Daily streaks, reminders, and progressive rewards</li>
+            </ul>
             <div className="mx-auto mt-2 h-[2px] w-24 rounded-full bg-gradient-to-r from-indigo-400/60 via-fuchsia-400/60 to-pink-400/60" />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -204,6 +310,15 @@ const Home = () => {
                   navigateTo={(slug) => navigate(`/category/${slug}/`)}
                 />
               ))}
+          </div>
+          <div className="mt-6 text-left bg-slate-900/60 border border-slate-700/60 rounded-xl p-4 space-y-3">
+            <h2 className="text-sm font-semibold text-white tracking-wide uppercase">Quiz Dangal FAQs</h2>
+            {HOME_FAQ_ENTRIES.map((item) => (
+              <div key={item.question}>
+                <p className="text-[13px] font-semibold text-indigo-200/90">{item.question}</p>
+                <p className="text-[12px] text-slate-300/85 mt-1">{item.answer}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>

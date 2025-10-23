@@ -20,7 +20,7 @@ const ROUTES = [
   // Add robots: 'noindex, follow' for the prerendered root shell so non-JS crawlers do not index it.
   // Update: Home page is public-facing and should be indexable for discovery.
   // Serve robots: 'index, follow' so crawlers can index the landing page from the static HTML.
-  { path: '/', title: 'Quiz Dangal – Play Quiz & Win | Refer & Earn', description: 'Play India’s favorite quiz app. Compete in opinion & GK quizzes, climb leaderboards, and Refer & Earn coins. Fast rounds, fair scoring, real rewards—start free today.', robots: 'index, follow' },
+  { path: '/', title: 'Quiz Dangal – Play Quiz & Win | Refer & Earn', description: 'Quiz Dangal is India’s play-and-win quiz arena. Play daily opinion, GK, sports, and movie quizzes, grow streaks, invite friends, and redeem rewards.', robots: 'index, follow' },
   { path: '/leaderboards', title: 'Leaderboards – Quiz Dangal | Top Quiz Players', description: 'See the top players on Quiz Dangal leaderboards. Compete in daily opinion and knowledge quizzes, win coins, and climb ranks.' },
   { path: '/play-win-quiz-app', title: 'Play & Win – Quiz Dangal | How It Works', description: 'Play daily quizzes, climb leaderboards, and win rewards. Opinion-based and GK quizzes made for India – start free on Quiz Dangal.' },
   { path: '/opinion-quiz-app', title: 'Opinion Quiz – Quiz Dangal | Fun & Fast Rounds', description: 'Try quick, low-pressure opinion quizzes on Quiz Dangal. Share your take, compare with others, and earn coins as you play.' },
