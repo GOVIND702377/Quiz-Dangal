@@ -36,6 +36,25 @@ function fetchOnce(url, ua) {
   })
 }
 
+function sanitizeRedirect(currentUrl, locationHeader) {
+  if (!locationHeader || typeof locationHeader !== 'string') return null
+  try {
+    const resolved = new URL(locationHeader, currentUrl)
+    const protocol = resolved.protocol.toLowerCase()
+    if (protocol !== 'https:' && protocol !== 'http:') {
+      return { error: `Blocked redirect with unsupported protocol: ${protocol}` }
+    }
+    const originHost = new URL(currentUrl).host
+    const resolvedHost = resolved.host
+    if (resolvedHost !== originHost) {
+      return { error: `Blocked cross-origin redirect to ${resolvedHost}` }
+    }
+    return { url: resolved.toString() }
+  } catch (err) {
+    return { error: `Invalid redirect target: ${err.message}` }
+  }
+}
+
 async function fetchFollow(url, ua, maxRedirects = 5) {
   const chain = []
   let current = url
@@ -43,12 +62,11 @@ async function fetchFollow(url, ua, maxRedirects = 5) {
     const resp = await fetchOnce(current, ua)
     chain.push({ url: current, status: resp.status, location: resp.headers?.location || null })
     if (resp.status >= 300 && resp.status < 400 && resp.headers?.location) {
-      let next = resp.headers.location
-      if (next.startsWith('/')) {
-        const u = new URL(current)
-        next = `${u.protocol}//${u.host}${next}`
+      const { url: nextUrl, error } = sanitizeRedirect(current, resp.headers.location)
+      if (error) {
+        return { final: current, response: { status: 0, headers: {}, body: '', error }, chain }
       }
-      current = next
+      current = nextUrl
       continue
     }
     return { final: current, response: resp, chain }

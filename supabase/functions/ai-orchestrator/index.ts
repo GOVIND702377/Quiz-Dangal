@@ -19,7 +19,6 @@ async function fetchWithTimeout(input: string | URL, init: RequestInit & { timeo
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), Math.max(1_000, Number(timeoutMs)));
   try {
-  const runSummary = { attempted: 0, completed: 0, failed: 0, completedJobs: [] as any[], failedJobs: [] as any[] };
     const resp = await fetch(input, { ...rest, signal: controller.signal });
     return resp;
   } finally {
@@ -443,6 +442,8 @@ serve(async (req: Request) => {
       try { await supabase.from('ai_generation_logs').insert({ level: 'info', message: 'ai automation disabled', context: { when: new Date().toISOString() } }); } catch (_) { /* noop */ }
       return new Response(JSON.stringify({ ok: true, message: 'disabled' }), { headers: jsonHeaders(req) });
     }
+
+  const runSummary = { attempted: 0, completed: 0, failed: 0, completedJobs: [] as any[], failedJobs: [] as any[] };
 
   const now = new Date();
   const cadence = Number(settings.cadence_min || 10);
