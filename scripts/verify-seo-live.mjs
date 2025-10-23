@@ -12,6 +12,8 @@ const TARGETS = [
   'https://quizdangal.com/sitemap.xml'
 ]
 
+const ALLOWED_ORIGIN = new URL('https://quizdangal.com/')
+
 const UAS = [
   { name: 'Default', value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
   { name: 'Googlebot', value: 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)' }
@@ -109,7 +111,17 @@ function verdict(url, resp, uaName) {
   const meta = parseMetaRobots(resp.body || '')
   if (meta && meta.includes('noindex')) issues.push(`❌ ${uaName}: <meta name="robots" content="${meta}">`)
   const canon = parseCanonical(resp.body || '')
-  if (canon && !canon.startsWith('https://quizdangal.com')) issues.push(`⚠️ ${uaName}: canonical points off-domain -> ${canon}`)
+  if (canon) {
+    try {
+      const canonicalUrl = new URL(canon, ALLOWED_ORIGIN)
+      const sameOrigin = canonicalUrl.origin === ALLOWED_ORIGIN.origin
+      if (!sameOrigin) {
+        issues.push(`⚠️ ${uaName}: canonical points off-domain -> ${canonicalUrl.href}`)
+      }
+    } catch (err) {
+      issues.push(`⚠️ ${uaName}: canonical URL invalid -> ${canon} (${err.message})`)
+    }
+  }
   return issues
 }
 
