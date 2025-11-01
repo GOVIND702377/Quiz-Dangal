@@ -7,10 +7,11 @@ dist/stats.html
 coverage
 .DS_Store
 *.log
-# Ignore all SQL by default (including migrations and dumps)
+# Ignore all SQL by default (including dumps), but keep Supabase migrations tracked
 *.sql
 supabase/sql/*.sql
 !supabase/sql/README.md
+!supabase/migrations/**/*.sql
 
 # Env files
 *.env

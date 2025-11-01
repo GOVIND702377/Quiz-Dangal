@@ -2,7 +2,8 @@
 // Provides consistent logging with environment guard for non-critical info.
 // Errors always reported to console.error for visibility.
 
-const isDev = import.meta.env.DEV;
+const isTest = import.meta.env.MODE === 'test';
+const isDev = import.meta.env.DEV && !isTest; // suppress info/warn during tests
 
 function format(level, args) {
   try {

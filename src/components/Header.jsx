@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase } from '@/lib/customSupabaseClient';
 import { Coins, User } from 'lucide-react';
 import StreakModal from '@/components/StreakModal';
+import { prefetchRoute } from '@/lib/utils';
 // sound controls removed per requirement: keep header clean
 
 const Header = () => {
@@ -85,7 +86,7 @@ const Header = () => {
   <div className="container mx-auto px-2 sm:px-5 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             {/* Brand */}
-            <Link to="/" className="flex items-center gap-2 group">
+            <Link to="/" className="flex items-center gap-2 group" onMouseEnter={() => prefetchRoute('/')} onFocus={() => prefetchRoute('/')}>
               <img
                 src="/android-chrome-192x192.png"
                 alt="Quiz Dangal Logo"
@@ -110,6 +111,8 @@ const Header = () => {
               {!user && (
                 <Link
                   to="/login"
+                  onMouseEnter={() => prefetchRoute('/login')}
+                  onFocus={() => prefetchRoute('/login')}
                   aria-label="Log in to your account"
                   title="Sign in to Quiz Dangal"
                   className="group inline-flex items-center justify-center gap-2 rounded-2xl px-2 h-11 text-base font-semibold bg-gradient-to-br from-indigo-500 via-violet-500 to-fuchsia-500 text-white shadow-[0_8px_30px_-12px_rgba(99,102,241,0.36)] ring-1 ring-indigo-400/20 hover:scale-105 transform transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300/40 active:scale-95 mr-3"

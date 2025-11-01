@@ -115,12 +115,12 @@ export default function ResetPassword() {
         ) : (
           <form onSubmit={handleReset} className="space-y-4">
             <div>
-              <label className="block text-sm text-slate-200 mb-1">New Password</label>
-              <input type="password" className="w-full border border-slate-300 bg-white text-black rounded-lg px-3 py-2" value={pw1} onChange={(e) => setPw1(e.target.value)} placeholder="Enter new password" required />
+              <label htmlFor="new-password" className="block text-sm text-slate-200 mb-1">New Password</label>
+              <input id="new-password" type="password" className="w-full border border-slate-300 bg-white text-black rounded-lg px-3 py-2" value={pw1} onChange={(e) => setPw1(e.target.value)} placeholder="Enter new password" required />
             </div>
             <div>
-              <label className="block text-sm text-slate-200 mb-1">Confirm New Password</label>
-              <input type="password" className="w-full border border-slate-300 bg-white text-black rounded-lg px-3 py-2" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Re-enter new password" required />
+              <label htmlFor="confirm-password" className="block text-sm text-slate-200 mb-1">Confirm New Password</label>
+              <input id="confirm-password" type="password" className="w-full border border-slate-300 bg-white text-black rounded-lg px-3 py-2" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Re-enter new password" required />
             </div>
             {message && <div className="text-sm text-center text-slate-300">{message}</div>}
             <button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-600 hover:from-indigo-500 hover:to-fuchsia-700 text-white rounded-lg py-2.5 font-semibold">

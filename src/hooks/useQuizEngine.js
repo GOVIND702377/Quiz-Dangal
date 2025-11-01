@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { logger } from '@/lib/logger';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -351,7 +352,7 @@ export function useQuizEngine(quizId, navigate) {
     }
     if (participantStatus === 'completed') {
       // Silently return - user will see timer screen, no error
-      console.log('User already completed this quiz');
+      logger.info('User already completed this quiz');
       return;
     }
     
@@ -372,7 +373,7 @@ export function useQuizEngine(quizId, navigate) {
       if (error) {
         // Silently handle if already joined
         if (error.message?.includes('already') || error.message?.includes('completed')) {
-          console.log('User already joined this quiz');
+          logger.info('User already joined this quiz');
           setJoined(true);
           setParticipantStatus(isActive ? 'joined' : 'pre_joined');
           if (isActive) { 

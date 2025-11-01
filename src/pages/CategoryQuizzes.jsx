@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { m } from '@/lib/motion-lite';
 import { supabase } from '@/lib/customSupabaseClient';
 import { rateLimit } from '@/lib/security';
-import { formatDateOnly, formatTimeOnly, getPrizeDisplay } from '@/lib/utils';
+import { formatDateOnly, formatTimeOnly, getPrizeDisplay, prefetchRoute } from '@/lib/utils';
 import { useToast } from '@/components/ui/use-toast';
 import { Users, MessageSquare, Brain, Clapperboard, Clock, Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -121,13 +121,15 @@ const CategoryQuizzes = () => {
       navigate('/login');
       return;
     }
-    // Try to enable push notifications on first join/pre-join (non-blocking)
+    // Immediately reflect UI state
+    setJoiningId(q.id);
+    // Try to enable push notifications on first join/pre-join (fire-and-forget; don't block join)
     try {
       if (typeof Notification !== 'undefined' && Notification.permission !== 'granted' && !isSubscribed) {
-        await subscribeToPush();
+        // Do not await to avoid stalling join on desktop
+        Promise.resolve().then(() => subscribeToPush()).catch(() => {});
       }
     } catch { /* ignore push errors */ }
-    setJoiningId(q.id);
     try {
       // Determine by time window, not stored status
       const now = Date.now();
@@ -358,13 +360,17 @@ const CategoryQuizzes = () => {
                   {/* Bottom action: JOIN/JOINED button; card itself opens lobby */}
                   <div className="mt-3 flex">
                     <button
+                      type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (already) navigate(`/quiz/${q.id}`);
                         else handleJoin(q);
                       }}
+                      onMouseEnter={() => prefetchRoute('/quiz')}
+                      onFocus={() => prefetchRoute('/quiz')}
                       disabled={joiningId === q.id || !canJoin}
-                      className={`relative w-full px-4 py-2.5 rounded-lg text-sm sm:text-base font-extrabold border text-white transition focus:outline-none focus:ring-2 focus:ring-fuchsia-300 overflow-hidden ${btnDisabled ? 'opacity-80 cursor-not-allowed' : 'hover:scale-[1.015] active:scale-[0.99] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)]'} shadow-[0_8px_18px_rgba(139,92,246,0.4)] border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)]`}
+                      aria-disabled={btnDisabled}
+                      className={`relative z-20 pointer-events-auto w-full px-4 py-2.5 rounded-lg text-sm sm:text-base font-extrabold border text-white transition focus:outline-none focus:ring-2 focus:ring-fuchsia-300 overflow-hidden ${btnDisabled ? 'opacity-80 cursor-not-allowed' : 'hover:scale-[1.015] active:scale-[0.99] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)]'} shadow-[0_8px_18px_rgba(139,92,246,0.4)] border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)]`}
                     >
                       <span className="inline-flex items-center justify-center gap-2">
                         {already ? 'JOINED' : (joiningId === q.id ? 'JOINING…' : 'JOIN')}

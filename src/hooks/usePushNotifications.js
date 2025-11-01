@@ -56,6 +56,11 @@ export function usePushNotifications() {
     }
 
     try {
+      // If already denied, short-circuit with a friendly message
+      if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+        setError('Notifications permission was denied.');
+        return false;
+      }
       // Always ask for permission first so the native browser prompt can appear
       if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
         const perm = await Notification.requestPermission();

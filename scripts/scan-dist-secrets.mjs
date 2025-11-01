@@ -43,7 +43,8 @@ function shouldScan(filePath) {
 function isAllowed(filePath) {
   const rel = path.relative(root, filePath).replace(/\\/g, '/');
   // The public env-config.js contains only public keys and comments warning against service role keys
-  if (rel.endsWith('/dist/env-config.js')) return false; // do not flag this file
+  // Handle both absolute-like and relative paths on different platforms
+  if (rel === 'dist/env-config.js' || rel.endsWith('/dist/env-config.js')) return false; // do not flag this file
   return true;
 }
 

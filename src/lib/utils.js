@@ -54,14 +54,21 @@ export function formatTimeOnly(value, opts = {}) {
 // --- Route Prefetch Helper (dynamic import warming) ---
 // Map route paths to lazy page importers so we can prefetch on hover/focus.
 const routePrefetchMap = {
+	'/': () => import('@/pages/Home'),
+	'/home': () => import('@/pages/Home'),
+	'/quiz': () => import('@/pages/Quiz'),
 	'/wallet': () => import('@/pages/Wallet'),
-	'/wallet/': () => import('@/pages/Wallet'),
 	'/profile': () => import('@/pages/Profile'),
-	'/profile/': () => import('@/pages/Profile'),
 	'/leaderboards': () => import('@/pages/Leaderboards'),
-	'/leaderboards/': () => import('@/pages/Leaderboards'),
 	'/my-quizzes': () => import('@/pages/MyQuizzes'),
-	'/my-quizzes/': () => import('@/pages/MyQuizzes'),
+	'/login': () => import('@/pages/Login'),
+	'/about-us': () => import('@/pages/AboutUs'),
+	'/contact-us': () => import('@/pages/ContactUs'),
+	'/play-win-quiz-app': () => import('@/pages/PlayWinQuiz'),
+	'/opinion-quiz-app': () => import('@/pages/OpinionQuiz'),
+	'/refer-earn-quiz-app': () => import('@/pages/ReferEarnInfo'),
+	'/terms-conditions': () => import('@/pages/TermsConditions'),
+	'/privacy-policy': () => import('@/pages/PrivacyPolicy'),
 };
 
 const warmed = new Set();
@@ -69,15 +76,15 @@ export function prefetchRoute(path) {
 	try {
 		const norm = (p) => (p === '/' ? '/' : String(p || '').replace(/\/+$/, ''));
 		const normalized = norm(path);
-		const candidates = [path, normalized, `${normalized}/`];
-		const loader = candidates.map((p) => routePrefetchMap[p]).find(Boolean);
-		if (!loader || warmed.has(path)) return;
+		const candidates = [normalized, `${normalized}/`];
+		const loader = candidates.map((p) => routePrefetchMap[norm(p)]).find(Boolean);
+		if (!loader || warmed.has(normalized)) return;
 		// Use requestIdleCallback if available to avoid jank
 		const run = () => loader().catch(() => {});
 		if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-			window.requestIdleCallback(() => { run(); warmed.add(path); });
+			window.requestIdleCallback(() => { run(); warmed.add(normalized); });
 		} else {
-			setTimeout(() => { run(); warmed.add(path); }, 120);
+			setTimeout(() => { run(); warmed.add(normalized); }, 120);
 		}
 	} catch (e) { /* prefetch route failed – non critical */ }
 }

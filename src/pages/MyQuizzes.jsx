@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, Play, Loader2, Users, Award, Target, Sparkles, Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
-import { formatDateOnly, formatTimeOnly, getPrizeDisplay, shouldAllowClientCompute, safeComputeResultsIfDue } from '@/lib/utils';
+import { formatDateOnly, formatTimeOnly, getPrizeDisplay, shouldAllowClientCompute, safeComputeResultsIfDue, prefetchRoute } from '@/lib/utils';
 import SEO from '@/components/SEO';
 import { useToast } from '@/components/ui/use-toast';
 // Match Category status badge visuals
@@ -397,7 +397,7 @@ const MyQuizzes = () => {
   canonical="https://quizdangal.com/my-quizzes/"
         robots="noindex, nofollow"
       />
-      <div className="container mx-auto px-4 py-4">
+  <div className="container mx-auto px-4 py-4 pt-12 sm:pt-16">
   <m.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden">
           <h1 className="text-2xl font-bold heading-gradient text-shadow mb-4 text-center">My Quizzes</h1>
 
@@ -501,8 +501,11 @@ const MyQuizzes = () => {
                       {/* Bottom action: big JOIN/JOINED or PLAY button */}
                       <div className="mt-3 flex">
                         <button
+                          type="button"
                           onClick={(e) => { e.stopPropagation(); navigate(`/quiz/${quiz.id}`); }}
-                          className="relative w-full px-4 py-2.5 rounded-lg text-sm sm:text-base font-extrabold border border-violet-500/40 text-white shadow-[0_8px_18px_rgba(139,92,246,0.4)] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)] hover:scale-[1.015] active:scale-[0.99] transition focus:outline-none focus:ring-2 focus:ring-fuchsia-300 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)] overflow-hidden"
+                          onMouseEnter={() => prefetchRoute('/quiz')}
+                          onFocus={() => prefetchRoute('/quiz')}
+                          className="relative z-20 pointer-events-auto w-full px-4 py-2.5 rounded-lg text-sm sm:text-base font-extrabold border border-violet-500/40 text-white shadow-[0_8px_18px_rgba(139,92,246,0.4)] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)] hover:scale-[1.015] active:scale-[0.99] transition focus:outline-none focus:ring-2 focus:ring-fuchsia-300 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)] overflow-hidden"
                         >
                           <span className="inline-flex items-center justify-center gap-2">
                             <Play className="w-5 h-5" /> PLAY

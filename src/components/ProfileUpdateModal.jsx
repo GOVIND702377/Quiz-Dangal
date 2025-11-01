@@ -263,15 +263,16 @@ const ProfileUpdateModal = ({ isOpen, onClose, isFirstTime = false }) => {
                                     {getUserInitials()}
                                 </AvatarFallback>
                             </Avatar>
-                            <label className="absolute bottom-0 right-0 bg-slate-900/80 border border-white/10 text-white p-1.5 rounded-full cursor-pointer hover:bg-slate-900/90 shadow transition-colors">
-                                <Camera className="w-3 h-3" />
-                                <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleAvatarChange}
-                                    className="hidden"
-                                />
+                            <label htmlFor="avatar-upload" aria-label="Change profile photo" className="absolute bottom-0 right-0 bg-slate-900/80 border border-white/10 text-white p-1.5 rounded-full cursor-pointer hover:bg-slate-900/90 shadow transition-colors">
+                                <Camera className="w-3 h-3" aria-hidden="true" />
                             </label>
+                            <input
+                                id="avatar-upload"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleAvatarChange}
+                                className="sr-only"
+                            />
                         </div>
                         <p className="text-xs text-white/60">Click camera to change photo</p>
                         {errors.avatar && (

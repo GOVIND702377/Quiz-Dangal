@@ -570,9 +570,10 @@ export default function Redemptions() {
                       {isVoucherReward ? (
                         <div className="flex flex-col gap-3">
                           <div>
-                            <label className="text-[11px] font-semibold text-slate-400 mb-1 block">{payoutLabel}</label>
+                            <label htmlFor="payout-identifier" className="text-[11px] font-semibold text-slate-400 mb-1 block">{payoutLabel}</label>
                             <input
                               ref={payoutInputRef}
+                              id="payout-identifier"
                               value={payoutIdentifier}
                               onChange={(e)=> setPayoutIdentifier(e.target.value)}
                               onFocus={()=> setInputFocused(true)}
@@ -587,7 +588,7 @@ export default function Redemptions() {
                       ) : (
                         <div className="flex flex-col sm:flex-row gap-3">
                           <div className="flex-1">
-                            <label className="text-[11px] font-semibold text-slate-400 mb-1 block">Payout Method</label>
+                            <span className="text-[11px] font-semibold text-slate-400 mb-1 block">Payout Method</span>
                             <div className="flex gap-2">
                               {['upi','phone'].map(ch => (
                                 <button key={ch} type="button" onClick={()=> setPayoutChannel(ch)} className={`px-3 py-1.5 rounded-md text-xs font-semibold border transition ${payoutChannel===ch? 'bg-indigo-600 text-white border-indigo-600':'bg-slate-800 text-slate-300 border-slate-600 hover:bg-slate-700'}`}>{ch.toUpperCase()}</button>
@@ -595,9 +596,10 @@ export default function Redemptions() {
                             </div>
                           </div>
                           <div className="flex-[2]">
-                            <label className="text-[11px] font-semibold text-slate-400 mb-1 block">{payoutLabel}</label>
+                            <label htmlFor="payout-identifier" className="text-[11px] font-semibold text-slate-400 mb-1 block">{payoutLabel}</label>
                             <input
                               ref={payoutInputRef}
+                              id="payout-identifier"
                               value={payoutIdentifier}
                               onChange={(e)=> setPayoutIdentifier(e.target.value)}
                               onFocus={()=> setInputFocused(true)}
