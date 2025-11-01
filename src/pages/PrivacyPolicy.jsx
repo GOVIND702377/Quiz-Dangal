@@ -74,7 +74,7 @@ const sections = [
 
 const PrivacyPolicy = () => {
   return (
-    <div className="min-h-screen text-slate-100">
+    <div className="min-h-screen pt-14 text-slate-100">
       <div className="container mx-auto px-4 py-6 space-y-8">
         <SEO
           title="Privacy Policy – Quiz Dangal"
@@ -100,7 +100,6 @@ const PrivacyPolicy = () => {
             At Quiz Dangal, we value your privacy and are committed to protecting your personal data. By using the app, you agree to this Privacy Policy.
           </p>
         </section>
-
         <div className="space-y-6">
           {sections.map((section, index) => {
             const baseDelay = 240 + index * 90;

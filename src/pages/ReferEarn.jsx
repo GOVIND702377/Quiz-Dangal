@@ -9,6 +9,37 @@ import { supabase } from '@/lib/customSupabaseClient';
 import { getSignedAvatarUrls } from '@/lib/avatar';
 
 const ReferEarn = () => {
+  // FAQ Schema for SEO
+  const faqSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: [
+      {
+        '@type': 'Question',
+        name: 'Refer & Earn ka bonus kab milta hai?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Jaise hi aapka refer kiya hua friend sign up karke eligible quizzes complete karta hai, dono ko bonus coins milte hain. System fraud detection ke saath automatic credit karta hai.'
+        }
+      },
+      {
+        '@type': 'Question',
+        name: 'Referral code kaise share karein?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Profile section me aapka code milta hai. Link ya code WhatsApp, Telegram ya kisi bhi social app par share karein. Friends ko invite caption bhi isi page par diya gaya hai.'
+        }
+      },
+      {
+        '@type': 'Question',
+        name: 'Kya ek user multiple referral codes use kar sakta hai?',
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: 'Nahi, har user sign-up ke waqt sirf ek referral code use kar sakta hai. Yeh rule spam ko rokne aur fair play ensure karne ke liye hai.'
+        }
+      }
+    ]
+  };
   const { user, userProfile } = useAuth();
   const [referralStats, setReferralStats] = useState({ total: 0, earnings: 0 });
   const [referralHistory, setReferralHistory] = useState([]);
@@ -34,36 +65,6 @@ Don’t scroll, hustle smartly 💯
 Referral Link:
 ${referralLink}`, [referralCode, referralLink]);
 
-    const faqSchema = {
-      '@context': 'https://schema.org',
-      '@type': 'FAQPage',
-      mainEntity: [
-        {
-          '@type': 'Question',
-          name: 'Refer & Earn ka bonus kab milta hai?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'Jaise hi aapka refer kiya hua friend sign up karke eligible quizzes complete karta hai, dono ko bonus coins milte hain. System fraud detection ke saath automatic credit karta hai.'
-          }
-        },
-        {
-          '@type': 'Question',
-          name: 'Referral code kaise share karein?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'Profile section me aapka code milta hai. Link ya code WhatsApp, Telegram ya kisi bhi social app par share karein. Friends ko invite caption bhi isi page par diya gaya hai.'
-          }
-        },
-        {
-          '@type': 'Question',
-          name: 'Kya ek user multiple referral codes use kar sakta hai?',
-          acceptedAnswer: {
-            '@type': 'Answer',
-            text: 'Nahi, har user sign-up ke waqt sirf ek referral code use kar sakta hai. Yeh rule spam ko rokne aur fair play ensure karne ke liye hai.'
-          }
-        }
-      ]
-    };
 
   useEffect(() => {
     let mounted = true;
@@ -231,7 +232,7 @@ ${referralLink}`, [referralCode, referralLink]);
         jsonLd={[faqSchema]}
       />
       {/* existing page content */}
-    <div className="min-h-screen">
+  <div className="min-h-screen pt-14">
       <div className="container mx-auto px-4 py-6 max-w-2xl text-slate-100">
         <div className="flex items-center gap-2 mb-3">
           <Gift className="w-6 h-6 text-emerald-300" />

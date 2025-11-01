@@ -264,7 +264,13 @@ export default function Admin() {
 			const end = q.end_time ? new Date(q.end_time).getTime() : null;
 			if (end !== null && now > end) finished.push(q); else active.push(q);
 		}
-		return { active, finished };
+		// Sort finished by end_time desc and limit to 10 entries
+		finished.sort((a,b)=>{
+			const ae = a.end_time ? new Date(a.end_time).getTime() : 0;
+			const be = b.end_time ? new Date(b.end_time).getTime() : 0;
+			return be - ae;
+		});
+		return { active, finished: finished.slice(0, 10) };
 	},[quizzes]);
 
 	// Pending redemptions state

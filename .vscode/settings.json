@@ -4,5 +4,6 @@
     "tailwindCSS.validate": true,
     "tailwindCSS.classAttributes": ["class", "className", "ngClass"],
     "tailwindCSS.experimental.configFile": "tailwind.config.js",
-    "CodeGPT.apiKey": "Anthropic"
+    "CodeGPT.apiKey": "Anthropic",
+    "javascript.autoClosingTags": false
 }

@@ -91,6 +91,14 @@ html, :host {
   border-color: hsl(var(--border));
 }
 
+/* Prevent white lines/gaps on any page */
+#root {
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
 html, body {
   font-family: 'Poppins', sans-serif;
   /* App-wide background tuned to screenshot: deep navy → desaturated purple with soft blooms */
@@ -103,9 +111,15 @@ html, body {
     radial-gradient(85% 75% at 35% 45%, rgba(72,102,204,0.18), rgba(72,102,204,0) 60%),
     /* base gradient: deep navy to muted purple */
     linear-gradient(145deg, #1b2342 0%, #2a2f4a 55%, #342a44 75%, #4a3550 100%);
+  background-attachment: fixed;
+  background-size: cover;
   color: #f7f9fc;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
 /* Smooth scrolling */

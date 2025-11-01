@@ -119,7 +119,7 @@ function App() {
     <ErrorBoundary>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <RouteChangeTracker />
-        <div className="min-h-screen flex flex-col relative text-gray-50 transition-all duration-300 ease-in-out">
+        <div className="min-h-screen flex flex-col relative text-gray-50 transition-all duration-300 ease-in-out" style={{ margin: 0, padding: 0 }}>
           <Helmet>
             <title>Quiz Dangal – Play Quizzes & Win | Refer & Earn</title>
             <meta name="description" content="Play opinion-based quizzes, climb leaderboards, win rewards, and refer friends to earn coins on Quiz Dangal." />
@@ -140,17 +140,11 @@ function App() {
               </>
             ) : !authUser ? (
               <>
-                {/* Public pages accessible without login */}
-                {/* Homepage: Show public Home for indexability */}
-                <Route path="/" element={<Home />} />
-                {policyRoutes}
-                {/* Publicly accessible category pages for SEO */}
-                <Route path="/category/:slug" element={<Page><CategoryQuizzes /></Page>} />
-                <Route path="/category/:slug/" element={<Page><CategoryQuizzes /></Page>} />
+                {/* Public pages accessible without login - with Header */}
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/login" element={<Login />} />
-                {/* For unknown routes when logged out, send users and bots to home */}
-                <Route path="*" element={<Navigate to="/" replace />} />
+                {/* All other public routes get Header + Footer */}
+                <Route path="/*" element={<PublicLayout />} />
               </>
             ) : authUser.app_metadata?.provider === 'email' && !authUser.email_confirmed_at ? (
               <>
@@ -238,6 +232,30 @@ function RouteFocusWrapper({ children }) {
   );
 }
 
+// Public layout for non-authenticated users (Header only, no Footer)
+const PublicLayout = () => {
+  const isHome = typeof window !== 'undefined' && window.location && window.location.pathname === '/';
+  return (
+    <>
+      <Header />
+      <main className={`flex-1 ${isHome ? 'pt-6 sm:pt-8 pb-4' : 'pb-6 pt-4 sm:pt-6'}`} id="app-main" tabIndex="-1" role="main" aria-label="Application Content">
+        <Suspense fallback={<Fallback />}>
+          <Routes>
+            <Route path="/" element={<Page><Home /></Page>} />
+            {policyRoutes}
+            {/* Publicly accessible category pages for SEO */}
+            <Route path="/category/:slug" element={<Page><CategoryQuizzes /></Page>} />
+            <Route path="/category/:slug/" element={<Page><CategoryQuizzes /></Page>} />
+            {/* For unknown routes when logged out, send users and bots to home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
+      </main>
+      <PWAInstallButton />
+    </>
+  );
+};
+
 const MainLayout = () => {
   const { userProfile, loading: authLoading, hasSupabaseConfig } = useAuth();
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -297,7 +315,7 @@ const MainLayout = () => {
   return (
     <>
       <Header />
-  <main className={`flex-1 ${isHome ? 'pt-8 sm:pt-10 pb-24 overflow-hidden min-h-0' : 'pb-24 pt-4 sm:pt-6'}`} id="app-main" tabIndex="-1" role="main" aria-label="Application Content">
+  <main className={`flex-1 ${isHome ? 'pt-6 sm:pt-8 pb-24' : 'pb-24 pt-4 sm:pt-6'}`} id="app-main" tabIndex="-1" role="main" aria-label="Application Content">
         <Suspense fallback={<Fallback />}>
           <Routes>
             <Route path="/" element={<Page><Home /></Page>} />

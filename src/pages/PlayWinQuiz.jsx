@@ -45,7 +45,7 @@ export default function PlayWinQuiz() {
         jsonLd={[faqSchema]}
       />
       <div className="container mx-auto px-4 py-8 space-y-6">
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent">Play & Win Quiz App</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent pt-14">Play & Win Quiz App</h1>
         <p className="text-slate-300 max-w-3xl">Compete in daily quizzes, earn coins, and track your progress on live leaderboards. Quiz Dangal is built for India with opinion-based and GK rounds that are fun and fair. If you love short, exciting contests you can play between classes or on your daily commute, this guide explains how Play & Win works and how to improve your scores.</p>
 
         <h2 className="text-2xl font-semibold text-white">How Play & Win Works</h2>

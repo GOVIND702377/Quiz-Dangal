@@ -195,7 +195,7 @@ export default function Profile() {
   // Counters removed from UI as requested; backend maintains these fields
 
   return (
-    <div className="relative overflow-x-hidden">
+  <div className="relative pt-20 overflow-x-hidden">
       <SEO
         title="Your Quiz Dangal Profile"
         description="View and manage your Quiz Dangal profile details, quiz preferences, and account settings."

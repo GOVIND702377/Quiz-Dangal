@@ -662,7 +662,7 @@ const Results = () => {
             <div className="absolute inset-0 pointer-events-none" aria-hidden>
               <div className="absolute -inset-1 bg-[conic-gradient(var(--tw-gradient-stops))] from-indigo-500/12 via-fuchsia-500/10 to-cyan-500/12 blur-2xl"></div>
             </div>
-            <div className="relative">
+            <div className="relative pt-20">
               <div className="flex items-start justify-between gap-3 flex-nowrap">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2 text-slate-300 text-xs">

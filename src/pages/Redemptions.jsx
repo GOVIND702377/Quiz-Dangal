@@ -228,7 +228,7 @@ export default function Redemptions() {
   canonical="https://quizdangal.com/redemptions/"
         robots="noindex, nofollow"
       />
-      <div className="relative mx-auto max-w-5xl px-4 py-6">
+  <div className="relative pt-20 mx-auto max-w-5xl px-4 py-6">
       {/* background mesh */}
       <div className="absolute inset-0 -z-10 opacity-70 mix-blend-screen [background-image:radial-gradient(circle_at_18%_28%,rgba(56,189,248,0.25),rgba(0,0,0,0)60%),radial-gradient(circle_at_82%_72%,rgba(192,132,252,0.22),rgba(0,0,0,0)65%),radial-gradient(circle_at_50%_50%,rgba(244,114,182,0.15),rgba(0,0,0,0)55%)]" />
       {/* removed floating decorative icons for a cleaner layout */}

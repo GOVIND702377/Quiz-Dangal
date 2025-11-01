@@ -101,7 +101,7 @@ const highlights = [
 
 const TermsConditions = () => {
   return (
-    <div className="min-h-screen text-slate-100">
+    <div className="min-h-screen pt-14 text-slate-100">
       <div className="container mx-auto px-4 py-6 space-y-8">
         <SEO
           title="Terms & Conditions – Quiz Dangal"

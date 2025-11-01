@@ -41,10 +41,11 @@ const GoldTrophy = ({ size = 72, centered = false, fitParent = false }) => {
         <img
           src={src}
           alt="Trophy"
-      className="w-full h-full object-contain select-none"
-      style={{ backgroundColor: 'transparent', display: 'block' }}
+          className="w-full h-full object-contain select-none"
+          style={{ backgroundColor: 'transparent', display: 'block', maxWidth: '96px', maxHeight: '96px' }}
           loading="eager"
           decoding="async"
+          sizes="(max-width: 640px) 64px, 96px"
           onError={() => { const next = srcIdx + 1; if (next < sources.length) setSrcIdx(next); else setSrcIdx(-1); }}
         />
       ) : (
@@ -333,8 +334,8 @@ const MyQuizzes = () => {
                 >
                   <div className="rounded-3xl bg-slate-950/80 backdrop-blur border border-white/10 px-6 py-9">
                     {/* Trophy emblem */}
-                    <div className="mx-auto mb-4 w-24 h-24 rounded-full p-[2px] bg-gradient-to-b from-amber-400 to-amber-600">
-                      <div className="w-full h-full rounded-full grid place-items-center bg-slate-950/90 p-2">
+                    <div className="mx-auto mb-4 w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full p-[2px] bg-gradient-to-b from-amber-400 to-amber-600">
+                      <div className="w-full h-full rounded-full grid place-items-center bg-slate-950/90 p-1 sm:p-1.5 md:p-2">
                         <GoldTrophy centered fitParent />
                       </div>
                     </div>
@@ -544,13 +545,14 @@ const MyQuizzes = () => {
 
                 <div className="relative flex flex-col gap-2.5">
                   <div className="flex items-start justify-between gap-2.5">
-                    <div className="flex items-start gap-2.5 min-w-0">
-                      <span className="relative inline-flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400/25 via-fuchsia-500/22 to-indigo-500/25 ring-1 ring-amber-300/40 text-amber-200 shadow-[0_10px_20px_rgba(147,51,234,0.3)]">
+                    {/* Left: fixed icon column to avoid text overlap on small screens */}
+                    <div className="flex items-start gap-2.5 min-w-0 w-full">
+                      <span className="relative shrink-0 inline-flex h-10 w-10 sm:h-9 sm:w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400/25 via-fuchsia-500/22 to-indigo-500/25 ring-1 ring-amber-300/40 text-amber-200 shadow-[0_10px_20px_rgba(147,51,234,0.3)]">
                         <span className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/6 via-transparent to-transparent" aria-hidden />
                         {isResultOut ? <Trophy className="relative w-[18px] h-[18px]" strokeWidth={2.3} /> : <Clock className="relative w-[18px] h-[18px]" strokeWidth={2.1} />}
                       </span>
-                      <div className="min-w-0">
-                        <h3 className="truncate text-sm sm:text-base font-semibold text-white pr-6">{quiz.title}</h3>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm sm:text-base font-semibold text-white pr-2 break-words line-clamp-2">{quiz.title}</h3>
                         <p className="mt-0.5 text-[10px] sm:text-xs text-slate-400 leading-tight">Ended {endedAtLabel}</p>
                       </div>
                     </div>

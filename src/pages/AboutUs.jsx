@@ -36,7 +36,7 @@ const AboutUs = () => {
   ];
 
   return (
-  <div className="min-h-screen text-slate-100">
+  <div className="min-h-screen pt-14 text-slate-100">
       <div className="container mx-auto px-4 py-6 space-y-8">
       <SEO
         title="About Us – Quiz Dangal"
@@ -58,7 +58,7 @@ const AboutUs = () => {
         </p>
       </div>
 
-      <div className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-6 space-y-4 shadow-xl">
+          <div className="bg-gradient-to-br from-indigo-900/50 via-violet-900/40 to-fuchsia-900/40 backdrop-blur-xl border border-indigo-700/60 rounded-2xl p-6 space-y-4 shadow-xl pt-14">
   <h2 className="text-2xl font-bold bg-gradient-to-r from-violet-400 via-indigo-300 to-fuchsia-400 bg-clip-text text-transparent mb-4">Our Vision & Mission</h2>
   <p className="text-slate-300 leading-relaxed">
           We built Quiz Dangal with the mission to give everyone a fair chance to showcase their talent, challenge their mind, and win exciting rewards. Here, it’s not just about playing quizzes – it’s about learning, competing, and enjoying at the same time.

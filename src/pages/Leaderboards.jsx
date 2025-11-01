@@ -91,7 +91,7 @@ export default function Leaderboards() {
   const myRank = myIndex >= 0 ? myIndex + 1 : null;
 
   return (
-    <div className="relative">
+  <div className="relative pt-14">
       <SEO
         title="Leaderboards – Quiz Dangal | Top Quiz Players"
     description="See the top players on Quiz Dangal leaderboards. Compete in daily opinion and knowledge quizzes, win coins, and climb ranks."

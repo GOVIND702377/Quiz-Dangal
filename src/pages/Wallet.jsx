@@ -81,7 +81,7 @@ const Wallet = () => {
   };
 
   return (
-    <div className="relative mx-auto max-w-5xl px-4 py-6">
+  <div className="relative pt-20 mx-auto max-w-5xl px-4 py-6">
       <SEO
         title="Wallet – Quiz Dangal"
         description="View your Quiz Dangal wallet balance, recent transactions, and referral earnings."
