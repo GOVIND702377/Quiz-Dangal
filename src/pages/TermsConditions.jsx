@@ -20,7 +20,7 @@ const sections = [
     icon: Users,
     title: '1. Eligibility',
     content: [
-      'Users must be 13+ and provide accurate details.',
+      'Users must be 18 years or older and provide accurate details.',
       'One user, one account. No fake or duplicate accounts.',
     ],
   },
@@ -45,7 +45,8 @@ const sections = [
     title: '4. Rewards & Wallet',
     content: [
       'All quizzes are free to enter. Earn coins/rewards in your in-app wallet based on performance.',
-      'Withdrawals (if introduced later) may require KYC as per law.',
+      'Coins and rewards are for in-app use only and cannot be withdrawn as cash.',
+      'Rewards are non-refundable once credited to your account.',
     ],
   },
   {
@@ -90,6 +91,26 @@ const sections = [
       'We may update features, rewards, or terms. Continued use means acceptance.',
     ],
   },
+  {
+    icon: Shield,
+    title: '11. Legal Compliance & Game of Skill',
+    content: [
+      'Quiz Dangal is a game of skill where winners are determined by knowledge, accuracy, and speed.',
+      'This is NOT a game of chance or gambling.',
+      'Compliant with applicable Indian laws and regulations.',
+      'Users must be 18+ to participate in reward-based activities.',
+    ],
+  },
+  {
+    icon: CreditCard,
+    title: '12. Refund & Cancellation Policy',
+    content: [
+      'All quiz entries are currently free of charge.',
+      'No refunds applicable for free services.',
+      'Coins and rewards are non-refundable once credited to your account.',
+      'If paid features are introduced in the future, a detailed refund policy will be provided.',
+    ],
+  },
 ];
 
 const highlights = [
@@ -122,7 +143,7 @@ const TermsConditions = () => {
           </h1>
           <div className="flex items-center justify-center space-x-2 text-slate-300 mb-4">
             <Calendar className="w-4 h-4" />
-            <span className="text-sm">Last Updated: August 27, 2025</span>
+            <span className="text-sm">Last Updated: November 1, 2025</span>
           </div>
           <p className="text-lg text-slate-300 leading-relaxed">
             By using Quiz Dangal, you agree to these Terms. Please read them carefully.

@@ -18,7 +18,7 @@ const sections = [
     icon: Users,
     title: '1. Information We Collect',
     content: [
-      'We collect account details you provide (e.g., name, email), basic device/usage info for app functionality, and optional KYC only if withdrawals are introduced.',
+      'We collect account details you provide (e.g., name, email, username, mobile number), basic device/usage info for app functionality, and quiz performance data.',
     ],
   },
   {
@@ -53,7 +53,7 @@ const sections = [
     icon: EyeOff,
     title: "6. Children's Privacy",
     content: [
-      'For users 13+. We do not knowingly collect data from children under 13.',
+      'For users 18+. We do not knowingly collect data from individuals under 18 years of age.',
     ],
   },
   {
@@ -68,6 +68,27 @@ const sections = [
     title: '8. Changes to Privacy Policy',
     content: [
       'We may update this policy and will post changes in the app.',
+    ],
+  },
+  {
+    icon: Database,
+    title: '9. Data Retention',
+    content: [
+      'Account data is retained as long as your account is active. Inactive accounts (no login for 2+ years) may be archived. You can request account deletion anytime via support@quizdangal.com. Deletion is processed within 30 days, subject to legal obligations.',
+    ],
+  },
+  {
+    icon: Info,
+    title: '10. Third-Party Services',
+    content: [
+      'We use Supabase (database & authentication), Google Analytics (usage tracking), and Web Push (notifications). These services have their own privacy policies. We do not share personal data beyond what is necessary for app functionality.',
+    ],
+  },
+  {
+    icon: Shield,
+    title: '11. Advertising',
+    content: [
+      'We may display third-party advertisements (Google AdSense). Advertisers may use cookies to serve relevant ads. You can opt-out via Google Ad Settings. We do not control advertiser content.',
     ],
   },
 ];
@@ -94,7 +115,7 @@ const PrivacyPolicy = () => {
           </h1>
           <div className="flex items-center justify-center space-x-2 text-slate-300 mb-3">
             <Calendar className="w-4 h-4" />
-            <span className="text-sm">Effective Date: August 27, 2025</span>
+            <span className="text-sm">Last Updated: November 1, 2025</span>
           </div>
           <p className="text-lg text-slate-300 leading-relaxed max-w-3xl mx-auto">
             At Quiz Dangal, we value your privacy and are committed to protecting your personal data. By using the app, you agree to this Privacy Policy.
