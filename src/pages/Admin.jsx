@@ -1047,6 +1047,11 @@ function AutomationPanel() {
 					<Button size="sm" variant="outline" onClick={load} disabled={loading}>{loading ? 'Loading…' : 'Refresh'}</Button>
 					<Button size="sm" variant="outline" onClick={resetQuotaFlags}>Reset quota flags</Button>
 				</div>
+				{(providers.filter(p=>p.enabled && !p.quota_exhausted).length===0) && (
+					<div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
+						No enabled providers available. Add an AI provider (openai, groq, anthropic/claude, or perplexity) and set an API key. Alerts will only send if email is configured (RESEND_API_KEY/RESEND_FROM or admin_send_email RPC).
+					</div>
+				)}
 				{/* Move Add/Edit Provider form to the top */}
 				<form onSubmit={saveProvider} className="space-y-3 bg-gray-50 border border-gray-200 rounded-lg p-4 max-w-3xl">
 					<h4 className="font-medium">{provForm.id ? 'Edit Provider' : 'Add Provider'}</h4>

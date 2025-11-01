@@ -39,7 +39,9 @@ jobs:
       - name: POST to ai-orchestrator (run) with retries
         run: |
           set -e
-          URL="$FUNCTION_URL?limit=2"
+          # Increase job budget per tick so all categories have a fair chance
+          # ai-orchestrator caps at 6 internally; this requests the cap
+          URL="$FUNCTION_URL?limit=6"
           MAX_TRIES=5
           attempt=1
           success=0

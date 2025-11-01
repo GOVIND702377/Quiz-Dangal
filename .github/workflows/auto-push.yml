@@ -1,0 +1,63 @@
+name: Auto Push Notifications
+
+on:
+  schedule:
+    - cron: '*/2 * * * *'  # every 2 minutes
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  auto-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: auto-push
+      cancel-in-progress: true
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      FUNCTION_URL: ${{ secrets.SUPABASE_URL }}/functions/v1/auto-push
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+      ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - name: Validate secrets
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "CRON_SECRET not set as a repo secret" >&2
+            exit 1
+          fi
+          if [ -z "$SUPABASE_URL" ] || [ -z "$ANON_KEY" ]; then
+            echo "SUPABASE_URL or SUPABASE_ANON_KEY not set" >&2
+            exit 1
+          fi
+      - name: POST to auto-push
+        run: |
+          set -e
+          MAX_TRIES=5
+          attempt=1
+          success=0
+          while [ $attempt -le $MAX_TRIES ]; do
+            echo "Attempt $attempt/$MAX_TRIES..."
+            set +e
+            http_code=$(curl -sS -o resp.json -w "%{http_code}" -X POST "$FUNCTION_URL" \
+              --connect-timeout 8 --max-time 25 \
+              -H "X-Cron-Secret: $CRON_SECRET" \
+              -H "Authorization: Bearer $ANON_KEY" -H "apikey: $ANON_KEY" \
+              -H "Content-Type: application/json" -d '{}')
+            curl_exit=$?
+            set -e
+            echo "curl exit: $curl_exit | HTTP: $http_code"
+            if [ $curl_exit -eq 0 ] && [ "$http_code" -ge 200 ] && [ "$http_code" -lt 300 ]; then
+              success=1
+              break
+            fi
+            if [ $attempt -lt $MAX_TRIES ]; then
+              delay=$(( (2 ** attempt) + (RANDOM % 3) ))
+              echo "Transient error. Retrying in ${delay}s..."
+              sleep $delay
+            fi
+            attempt=$((attempt + 1))
+          done
+          echo "Final HTTP: $http_code"; cat resp.json || true
+          test $success -eq 1

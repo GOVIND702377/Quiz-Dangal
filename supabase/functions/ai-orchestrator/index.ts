@@ -34,7 +34,12 @@ async function sendAlert(supabase: any, emails: string[], subject: string, body:
     // Try an optional email RPC if present in your DB
     try {
       await supabase.rpc('admin_send_email', { p_to: emails, p_subject: subject, p_text: body });
-    } catch (_) { /* ignore if RPC doesn't exist */ }
+    } catch (rpcErr) {
+      // Log that admin_send_email RPC doesn't exist or failed
+      try {
+        await supabase.from('ai_generation_logs').insert({ level: 'warn', message: 'admin_send_email RPC failed or missing', context: { error: rpcErr?.message || String(rpcErr) } });
+      } catch (_) { /* ignore */ }
+    }
 
     // Fallback: use Resend API directly if configured
     try {
@@ -54,8 +59,15 @@ async function sendAlert(supabase: any, emails: string[], subject: string, body:
           const text = await resp.text().catch(() => '');
           await supabase.from('ai_generation_logs').insert({ level: 'error', message: 'Resend email failed', context: { status: resp.status, text } });
         }
+      } else {
+        // Neither RPC nor Resend may be available; surface missing email configuration explicitly
+        try {
+          await supabase.from('ai_generation_logs').insert({ level: 'warn', message: 'No email provider configured for alerts', context: { hint: 'Set RESEND_API_KEY/RESEND_FROM or implement admin_send_email RPC' } });
+        } catch (_) { /* ignore */ }
       }
-    } catch (_) { /* ignore email fallback errors */ }
+    } catch (e) { /* ignore email fallback errors but record minimal trace */
+      try { await supabase.from('ai_generation_logs').insert({ level: 'error', message: 'sendAlert fallback threw', context: { err: String(e?.message || e) } }); } catch { /* ignore */ }
+    }
   } catch (_) { /* noop */ }
 }
 
@@ -78,6 +90,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
@@ -107,6 +120,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
           model: 'llama-3.1-70b-versatile',
@@ -138,6 +152,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
           'x-api-key': apiKey,
           'anthropic-version': '2023-06-01',
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
           model: 'claude-3-haiku-20240307',
@@ -168,6 +183,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
         headers: {
           'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
           body: JSON.stringify({
           model,
@@ -464,15 +480,14 @@ serve(async (req: Request) => {
   const categories: string[] = settings.categories || [];
 
   let jobsBudget = maxJobs;
-  for (const category of categories) {
-    // Maintain up to two future upcoming quizzes in addition to the current slot
-    const slots = [
-      { start: slotStart, end: new Date(slotStart.getTime() + liveMin * 60_000) },
-      { start: nextSlotStart, end: new Date(nextSlotStart.getTime() + liveMin * 60_000) },
-      { start: nextNextSlotStart, end: new Date(nextNextSlotStart.getTime() + liveMin * 60_000) },
-    ];
-
+  // Fair scheduling: iterate slot-major, then categories (round-robin across categories per slot)
+  const slots = [
+    { start: slotStart, end: new Date(slotStart.getTime() + liveMin * 60_000) },
+    { start: nextSlotStart, end: new Date(nextSlotStart.getTime() + liveMin * 60_000) },
+    { start: nextNextSlotStart, end: new Date(nextNextSlotStart.getTime() + liveMin * 60_000) },
+  ];
   for (const s of slots) {
+    for (const category of categories) {
       if (jobsBudget <= 0) break;
       // Skip current slot if we're too close or past start (to avoid start-time edit locks)
       const leadMs = s.start.getTime() - Date.now();
@@ -698,7 +713,7 @@ serve(async (req: Request) => {
           runSummary.completed += 1;
           runSummary.completedJobs.push({ id: job.id, category, slot_start: s.start.toISOString(), quiz_id: quiz.id, provider: p.name });
           jobsBudget -= 1;
-          break;
+          if (jobsBudget <= 0) break;
         } catch (e: any) {
           lastErr = e?.message || String(e);
           await supabase
