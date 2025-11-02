@@ -15,7 +15,7 @@ const Results = () => {
   const { id: quizId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user, userProfile } = useAuth();
+  const { user, userProfile, refreshUserProfile } = useAuth();
   const [quiz, setQuiz] = useState(null);
   const [results, setResults] = useState([]);
   const [userRank, setUserRank] = useState(null);
@@ -145,6 +145,7 @@ const Results = () => {
         .sort((a, b) => b.score - a.score);
 
       setResults(normalized);
+      // Prize wallet refresh is handled by a separate effect once rank/prize are known
       if (normalized.length > 0 && didRefetchAfterCountdown) {
         setDidRefetchAfterCountdown(false);
       }
@@ -280,6 +281,20 @@ const Results = () => {
   const userPrizeVal = (userRank?.rank && Array.isArray(quiz?.prizes) && quiz.prizes[userRank.rank - 1]) ? quiz.prizes[userRank.rank - 1] : 0;
   const userPrizeDisplay = getPrizeDisplay(prizeType, userPrizeVal, { fallback: 0 });
 
+  // As soon as user has a prize decided, refresh profile so wallet updates without manual refresh
+  useEffect(() => {
+    try {
+      if (!user?.id) return;
+      if (!Array.isArray(quiz?.prizes)) return;
+      if (!userRank?.rank) return;
+      const prizeVal = quiz.prizes[userRank.rank - 1] || 0;
+      if (prizeVal > 0) {
+        // Fire-and-forget; AuthContext will update userProfile state
+        refreshUserProfile(user);
+      }
+    } catch { /* ignore */ }
+  }, [user?.id, userRank?.rank, quiz?.prizes, refreshUserProfile]);
+
   // Compose a dynamic Results poster (portrait-only) with strict flow and QR footer
   const generateComposedResultsPoster = async () => {
     try {
@@ -400,7 +415,8 @@ const Results = () => {
     const enableRealtime = (() => {
       try {
         const runtimeEnv = (typeof window !== 'undefined' && window.__QUIZ_DANGAL_ENV__) ? window.__QUIZ_DANGAL_ENV__ : {};
-        const raw = import.meta.env.VITE_ENABLE_REALTIME ?? runtimeEnv.VITE_ENABLE_REALTIME ?? (import.meta.env.DEV ? '0' : '0');
+        // Default ON so results and prizes reflect without manual refresh
+        const raw = import.meta.env.VITE_ENABLE_REALTIME ?? runtimeEnv.VITE_ENABLE_REALTIME ?? '1';
         const v = String(raw).toLowerCase();
         return v === '1' || v === 'true' || v === 'yes';
       } catch { return false; }

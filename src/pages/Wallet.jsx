@@ -49,6 +49,37 @@ const Wallet = () => {
       }
     };
     fetchTransactions();
+    // Realtime: update recent list when new transactions for this user arrive
+    if (user) {
+      let channel = null;
+      try {
+        channel = supabase
+          .channel(`tx-updates-${user.id}`, { config: { broadcast: { ack: false } } })
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` }, async () => {
+            try {
+              const { data } = await supabase
+                .from('transactions')
+                .select('*')
+                .eq('user_id', user.id)
+                .in('type', allowedTypes)
+                .not('type', 'is', null)
+                .not('amount', 'is', null)
+                .neq('amount', 0)
+                .order('created_at', { ascending: false })
+                .limit(10);
+              setTransactions(data || []);
+            } catch { /* ignore */ }
+          })
+          .subscribe((status) => {
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+              try { if (channel) supabase.removeChannel(channel); } catch { /* ignore */ }
+            }
+          });
+      } catch {
+        // ignore realtime subscription errors
+      }
+      return () => { try { if (channel) supabase.removeChannel(channel); } catch { /* ignore */ } };
+    }
   }, [user, allowedTypes]);
 
   const walletBalance = Number(userProfile?.wallet_balance || 0);

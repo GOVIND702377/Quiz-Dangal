@@ -122,6 +122,30 @@ function AuthProviderInner({ children }) {
         };
     }, []);
 
+    // Realtime: watch my profile row for wallet_balance and other updates; refresh locally on change
+    useEffect(() => {
+        if (!hasSupabaseConfig || !supabase) return;
+        if (!user?.id) return;
+        if (typeof window === 'undefined') return;
+
+        let channel = null;
+        try {
+            channel = supabase
+                .channel(`profile-updates-${user.id}`, { config: { broadcast: { ack: false } } })
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, async () => {
+                    try { await refreshUserProfile(user); } catch { /* ignore */ }
+                })
+                .subscribe((status) => {
+                    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+                        try { if (channel) supabase.removeChannel(channel); } catch { /* ignore */ }
+                    }
+                });
+        } catch {
+            // ignore realtime setup failures
+        }
+        return () => { try { if (channel) supabase.removeChannel(channel); } catch { /* ignore */ } };
+    }, [user?.id, user]);
+
     // Safety net: periodic session validation to recover from invalid/expired refresh tokens
     useEffect(() => {
         if (!user) return;

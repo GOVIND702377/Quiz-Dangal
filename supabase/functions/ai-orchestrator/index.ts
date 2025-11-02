@@ -16,6 +16,15 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
   ?? "";
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
+// Lightweight in-memory cache (persists across warm invocations only)
+const __CACHE = {
+  gemini: {
+    ts: 0,
+    // Map version -> discovered model names that support generateContent
+    byVersion: new Map<string, string[]>(),
+  },
+};
+
 // Small utility: fetch with timeout to avoid long hangs that cause 504s at the gateway
 async function fetchWithTimeout(input: string | URL, init: RequestInit & { timeoutMs?: number } = {}) {
   const { timeoutMs = 20_000, ...rest } = init as any;
@@ -118,9 +127,9 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
       const modelPref = (Deno.env.get('GEMINI_MODEL_PREFERENCE') || '').toLowerCase(); // e.g. 'flash' | 'pro'
       const versions = [primaryVersion, primaryVersion === 'v1' ? 'v1beta' : 'v1'];
 
-      // Cache to avoid repeated list calls in warm runtime
-      type GeminiModelInfo = { name: string; methods: string[] };
-      const dynamicList: GeminiModelInfo[] = [];
+  // Cache to avoid repeated list calls in warm runtime
+  type GeminiModelInfo = { name: string; methods: string[] };
+  const dynamicList: GeminiModelInfo[] = [];
 
       async function listModels(ver: string): Promise<GeminiModelInfo[]> {
         try {
@@ -155,9 +164,24 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
       // Else, discover via ListModels and rank. Always append a static safety list as fallback.
       let discovered: string[] = [];
       if (!envModel || envModel === 'auto' || envModel === 'detect') {
-        for (const ver of versions) {
-          const list = await listModels(ver);
-          for (const m of list) dynamicList.push(m);
+        const ttlMs = 10 * 60_000; // 10 minutes
+        const nowTs = Date.now();
+        const fresh = nowTs - (__CACHE.gemini.ts || 0) < ttlMs;
+        if (fresh && __CACHE.gemini.byVersion.size) {
+          for (const ver of versions) {
+            const cached = __CACHE.gemini.byVersion.get(ver) || [];
+            for (const n of cached) dynamicList.push({ name: n, methods: ['generateContent'] });
+          }
+        } else {
+          // Refresh cache from API
+          const newMap = new Map<string, string[]>();
+          for (const ver of versions) {
+            const list = await listModels(ver);
+            for (const m of list) dynamicList.push(m);
+            newMap.set(ver, Array.from(new Set(list.map((m: any) => m.name))));
+          }
+          __CACHE.gemini.byVersion = newMap;
+          __CACHE.gemini.ts = nowTs;
         }
         if (dynamicList.length) {
           discovered = Array.from(new Set(dynamicList
@@ -182,9 +206,11 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
         .concat(discovered)
         .concat(staticFallback)
         .filter((v, i, a) => a.indexOf(v) === i); // unique
+      // Keep candidate list reasonably small for performance
+      const limitedCandidates = candidates.slice(0, 8);
 
       for (const ver of versions) {
-        for (const model of candidates) {
+        for (const model of limitedCandidates) {
           try {
             const url = `${base.replace(/\/$/, '')}/${ver}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
             const resp = await fetchWithTimeout(url, {
