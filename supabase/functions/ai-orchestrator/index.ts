@@ -114,16 +114,74 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
     if (provider === 'gemini' || provider === 'google' || provider === 'googleai') {
       const base = Deno.env.get('GEMINI_API_BASE') || 'https://generativelanguage.googleapis.com';
       const primaryVersion = Deno.env.get('GEMINI_API_VERSION') || 'v1';
-      const envModel = Deno.env.get('GEMINI_DEFAULT_MODEL');
-      const candidates = (envModel ? [envModel] : []).concat([
+      const envModel = (Deno.env.get('GEMINI_DEFAULT_MODEL') || '').trim();
+      const modelPref = (Deno.env.get('GEMINI_MODEL_PREFERENCE') || '').toLowerCase(); // e.g. 'flash' | 'pro'
+      const versions = [primaryVersion, primaryVersion === 'v1' ? 'v1beta' : 'v1'];
+
+      // Cache to avoid repeated list calls in warm runtime
+      type GeminiModelInfo = { name: string; methods: string[] };
+      const dynamicList: GeminiModelInfo[] = [];
+
+      async function listModels(ver: string): Promise<GeminiModelInfo[]> {
+        try {
+          const url = `${base.replace(/\/$/, '')}/${ver}/models?key=${encodeURIComponent(apiKey)}`;
+          const resp = await fetchWithTimeout(url, { method: 'GET', headers: { 'Accept': 'application/json' }, timeoutMs: 15_000 });
+          if (!resp.ok) return [];
+          const data = await resp.json().catch(() => ({} as any));
+          const models = Array.isArray(data?.models) ? data.models : [];
+          return models.map((m: any) => ({ name: String(m?.name || ''), methods: Array.isArray(m?.supportedGenerationMethods) ? m.supportedGenerationMethods : [] }))
+            .filter((m: GeminiModelInfo) => m.name && m.methods.includes('generateContent'));
+        } catch { return []; }
+      }
+
+      function score(name: string): number {
+        // Prefer latest, flash, 2.0, then 1.5, then pro; de-prioritize 8b-lite if available
+        const n = name.toLowerCase();
+        let s = 0;
+        if (/-latest\b/.test(n)) s += 10;
+        if (n.includes('2.0')) s += 9;
+        if (n.includes('1.5')) s += 7;
+        if (n.includes('flash')) s += 5;
+        if (n.includes('pro')) s += 3;
+        if (/[\/-]8b/.test(n) || n.includes('lite')) s -= 2;
+        if (modelPref) {
+          if (modelPref === 'flash' && n.includes('flash')) s += 5;
+          if (modelPref === 'pro' && n.includes('pro')) s += 5;
+        }
+        return s;
+      }
+
+      // Build candidates: if env explicitly set and not 'auto', honor it first.
+      // Else, discover via ListModels and rank. Always append a static safety list as fallback.
+      let discovered: string[] = [];
+      if (!envModel || envModel === 'auto' || envModel === 'detect') {
+        for (const ver of versions) {
+          const list = await listModels(ver);
+          for (const m of list) dynamicList.push(m);
+        }
+        if (dynamicList.length) {
+          discovered = Array.from(new Set(dynamicList
+            .sort((a, b) => score(b.name) - score(a.name))
+            .map(m => m.name)));
+        }
+      }
+
+      const staticFallback = [
+        // Newer first
+        'gemini-2.0-flash',
+        'gemini-2.0-pro',
         'gemini-1.5-flash-latest',
         'gemini-1.5-flash',
         'gemini-1.5-pro-latest',
         'gemini-1.5-pro',
         'gemini-pro',
         'gemini-1.0-pro',
-      ]);
-      const versions = [primaryVersion, primaryVersion === 'v1' ? 'v1beta' : 'v1'];
+      ];
+      const baseCandidates = (envModel && envModel !== 'auto' && envModel !== 'detect') ? [envModel] : [];
+      const candidates = baseCandidates
+        .concat(discovered)
+        .concat(staticFallback)
+        .filter((v, i, a) => a.indexOf(v) === i); // unique
 
       for (const ver of versions) {
         for (const model of candidates) {
@@ -144,8 +202,9 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
             const status = resp.status;
             if (!resp.ok) {
               const txt = await resp.text().catch(() => '');
-              // Try next candidate on 404 (model not found) only
-              if (status === 404) continue;
+              if (status === 404) continue; // try next model on not found
+              // If the method isn't supported on v1, retry with v1beta via versions loop
+              if (status === 400 && /not supported|unsupported/i.test(txt || '')) continue;
               return { ok: false, error: txt || `http_${status}`, status } as any;
             }
             const data = await resp.json();
