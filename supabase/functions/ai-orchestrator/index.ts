@@ -112,34 +112,51 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
 
     // Google Gemini (Generative Language API)
     if (provider === 'gemini' || provider === 'google' || provider === 'googleai') {
-      const model = Deno.env.get('GEMINI_DEFAULT_MODEL') || 'gemini-1.5-flash-latest';
-      const version = Deno.env.get('GEMINI_API_VERSION') || 'v1';
       const base = Deno.env.get('GEMINI_API_BASE') || 'https://generativelanguage.googleapis.com';
-      const url = `${base.replace(/\/$/, '')}/${version}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const resp = await fetchWithTimeout(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [
-            { parts: [ { text: `${system}\n${prompt}\nRespond with JSON only.` } ] }
-          ],
-          generationConfig: { temperature: 0.6 },
-        }),
-        timeoutMs: 20_000,
-      });
-      const status = resp.status;
-      if (!resp.ok) {
-        const txt = await resp.text().catch(() => '');
-        return { ok: false, error: txt || `http_${status}`, status } as any;
+      const primaryVersion = Deno.env.get('GEMINI_API_VERSION') || 'v1';
+      const envModel = Deno.env.get('GEMINI_DEFAULT_MODEL');
+      const candidates = (envModel ? [envModel] : []).concat([
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro-latest',
+        'gemini-1.5-pro',
+        'gemini-pro',
+        'gemini-1.0-pro',
+      ]);
+      const versions = [primaryVersion, primaryVersion === 'v1' ? 'v1beta' : 'v1'];
+
+      for (const ver of versions) {
+        for (const model of candidates) {
+          try {
+            const url = `${base.replace(/\/$/, '')}/${ver}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+            const resp = await fetchWithTimeout(url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+              },
+              body: JSON.stringify({
+                contents: [ { parts: [ { text: `${system}\n${prompt}\nRespond with JSON only.` } ] } ],
+                generationConfig: { temperature: 0.6 },
+              }),
+              timeoutMs: 20_000,
+            });
+            const status = resp.status;
+            if (!resp.ok) {
+              const txt = await resp.text().catch(() => '');
+              // Try next candidate on 404 (model not found) only
+              if (status === 404) continue;
+              return { ok: false, error: txt || `http_${status}`, status } as any;
+            }
+            const data = await resp.json();
+            const content = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (!content) return { ok: false, error: 'empty_content', status } as any;
+            const cleaned = String(content).trim().replace(/^```json\n?|```$/g, '');
+            return { ok: true, payload: JSON.parse(cleaned), status } as any;
+          } catch (_) { /* try next candidate */ }
+        }
       }
-      const data = await resp.json();
-      const content = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      if (!content) return { ok: false, error: 'empty_content', status } as any;
-      const cleaned = String(content).trim().replace(/^```json\n?|```$/g, '');
-      return { ok: true, payload: JSON.parse(cleaned), status } as any;
+      return { ok: false, error: 'gemini_model_not_found', status: 404 } as any;
     }
 
     if (provider === 'openai') {
