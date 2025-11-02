@@ -477,6 +477,29 @@ function alignToCadence(d = new Date(), cadenceMin = 10) {
   return dt;
 }
 
+// IST blackout support: 00:00–08:00 IST no quizzes should start.
+const IST_OFFSET_MIN = 330; // UTC+5:30
+function toIST(d: Date): Date {
+  return new Date(d.getTime() + IST_OFFSET_MIN * 60_000);
+}
+function fromIST(d: Date): Date {
+  return new Date(d.getTime() - IST_OFFSET_MIN * 60_000);
+}
+function isInISTBlackout(d: Date): boolean {
+  const ist = toIST(d);
+  const h = ist.getHours();
+  return h >= 0 && h < 8; // 00:00 ≤ time < 08:00
+}
+function istEightAMUtcFor(dateRef: Date): Date {
+  const ist = toIST(dateRef);
+  ist.setHours(8, 0, 0, 0);
+  return fromIST(ist);
+}
+function isExactlyIST8am(d: Date): boolean {
+  const ist = toIST(d);
+  return ist.getHours() === 8 && ist.getMinutes() === 0;
+}
+
 function makeCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("Origin") ?? "*";
   return {
@@ -704,7 +727,15 @@ serve(async (req: Request) => {
   const cadence = Number(settings.cadence_min || 10);
   const liveMin = Number(settings.live_window_min || 7);
   const startOffsetSec = Math.max(0, Number(settings.start_offset_sec || 10));
-  const slotStart = alignToCadence(now, cadence);
+  // Base slot start aligned to cadence, but enforce blackout from 00:00–08:00 IST.
+  let slotStart = alignToCadence(now, cadence);
+  if (isInISTBlackout(slotStart)) {
+    // Shift base to today's 08:00 IST so we pre-create the morning quizzes if run overnight.
+    const shifted = istEightAMUtcFor(now);
+    // Align again to cadence for safety (08:00 aligns to 10m cadence by default)
+    slotStart = alignToCadence(shifted, cadence);
+    try { await supabase.from('ai_generation_logs').insert({ level: 'info', message: 'blackout window active; base shifted to 08:00 IST', context: { base_utc: slotStart.toISOString() } }); } catch { /* noop */ }
+  }
   const nextSlotStart = new Date(slotStart.getTime() + cadence * 60_000);
   const nextNextSlotStart = new Date(slotStart.getTime() + 2 * cadence * 60_000);
 
@@ -728,6 +759,11 @@ serve(async (req: Request) => {
   for (const s of slots) {
     for (const category of categories) {
       if (jobsBudget <= 0) break;
+      // Respect blackout window: skip any slot that falls in 00:00–08:00 IST
+      if (isInISTBlackout(s.start)) {
+        await supabase.from('ai_generation_logs').insert({ level: 'info', message: 'skip slot (IST blackout window)', context: { category, slot_start: s.start.toISOString() } });
+        continue;
+      }
       // Skip current slot if we're too close or past start (to avoid start-time edit locks)
       const leadMs = s.start.getTime() - Date.now();
       if (leadMs <= startOffsetSec * 1000) {
@@ -918,7 +954,10 @@ serve(async (req: Request) => {
           if (!finalItems) throw new Error(lastErrLocal || 'provider returned no data');
 
           // Create quiz row
-          const plannedStart = new Date(s.start.getTime() + startOffsetSec * 1000);
+          // If this is exactly the 08:00 IST slot, start exactly at 08:00 (no offset)
+          const plannedStart = isExactlyIST8am(s.start)
+            ? new Date(s.start)
+            : new Date(s.start.getTime() + startOffsetSec * 1000);
           const title = makeBilingualTitle(category, plannedStart, payload?.title);
           const { data: quiz, error: qErr } = await supabase
             .from('quizzes')
