@@ -293,7 +293,7 @@ const Results = () => {
         refreshUserProfile(user);
       }
     } catch { /* ignore */ }
-  }, [user?.id, userRank?.rank, quiz?.prizes, refreshUserProfile]);
+  }, [user, userRank?.rank, quiz?.prizes, refreshUserProfile]);
 
   // Compose a dynamic Results poster (portrait-only) with strict flow and QR footer
   const generateComposedResultsPoster = async () => {
