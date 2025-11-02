@@ -112,8 +112,10 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
 
     // Google Gemini (Generative Language API)
     if (provider === 'gemini' || provider === 'google' || provider === 'googleai') {
-      const model = Deno.env.get('GEMINI_DEFAULT_MODEL') || 'gemini-1.5-flash';
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const model = Deno.env.get('GEMINI_DEFAULT_MODEL') || 'gemini-1.5-flash-latest';
+      const version = Deno.env.get('GEMINI_API_VERSION') || 'v1';
+      const base = Deno.env.get('GEMINI_API_BASE') || 'https://generativelanguage.googleapis.com';
+      const url = `${base.replace(/\/$/, '')}/${version}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
       const resp = await fetchWithTimeout(url, {
         method: 'POST',
         headers: {
