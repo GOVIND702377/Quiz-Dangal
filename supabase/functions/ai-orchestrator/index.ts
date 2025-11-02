@@ -74,6 +74,17 @@ async function sendAlert(supabase: any, emails: string[], subject: string, body:
 // Provider invocation wrappers (extensible)
 type QuizPayload = { title: string; items: { question_text: string; options: { option_text: string; is_correct: boolean }[] }[] };
 type ProviderResult = { ok: true; payload: QuizPayload; status: number } | { ok: false; error: string; status: number };
+function detectProviderFromKey(apiKey: string): string | null {
+  const k = String(apiKey || '').trim();
+  if (!k) return null;
+  // Heuristics based on common prefixes
+  if (k.startsWith('pplx-')) return 'perplexity';
+  if (k.startsWith('gsk_')) return 'groq';
+  if (k.startsWith('sk-ant-')) return 'anthropic';
+  // Many providers use sk-; assume OpenAI if nothing more specific matches
+  if (k.startsWith('sk-')) return 'openai';
+  return null;
+}
 async function callProvider(name: string, apiKey: string, prompt: string): Promise<ProviderResult> {
   const provider = String(name || '').toLowerCase();
   if (!apiKey) return null;
@@ -84,6 +95,14 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
   No markdown, no code fences, no commentary.`;
 
   try {
+    // Auto-detect provider if name missing/unknown
+    if (!provider || provider === 'auto' || provider === 'any' || provider === 'unknown') {
+      const detected = detectProviderFromKey(apiKey);
+      if (detected) {
+        return await callProvider(detected, apiKey, prompt);
+      }
+    }
+
     if (provider === 'openai') {
       const resp = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -145,6 +164,100 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
       return { ok: true, payload: JSON.parse(cleaned), status };
     }
 
+    // OpenRouter (OpenAI-compatible)
+    if (provider === 'openrouter') {
+      const resp = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          // Model can be configured later; use a common default
+          model: 'openrouter/auto',
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: prompt + '\nRespond with JSON only.' },
+          ],
+          temperature: 0.6,
+        }),
+        timeoutMs: 20_000,
+      });
+      const status = resp.status;
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '');
+        return { ok: false, error: txt || `http_${status}`, status };
+      }
+      const data = await resp.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) return { ok: false, error: 'empty_content', status };
+      const cleaned = String(content).trim().replace(/^```json\n?|```$/g, '');
+      return { ok: true, payload: JSON.parse(cleaned), status };
+    }
+
+    // Together AI (OpenAI-compatible)
+    if (provider === 'together') {
+      const resp = await fetchWithTimeout('https://api.together.xyz/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo',
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: prompt + '\nRespond with JSON only.' },
+          ],
+          temperature: 0.6,
+        }),
+        timeoutMs: 20_000,
+      });
+      const status = resp.status;
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '');
+        return { ok: false, error: txt || `http_${status}`, status };
+      }
+      const data = await resp.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) return { ok: false, error: 'empty_content', status };
+      const cleaned = String(content).trim().replace(/^```json\n?|```$/g, '');
+      return { ok: true, payload: JSON.parse(cleaned), status };
+    }
+
+    // Mistral (OpenAI-compatible endpoint)
+    if (provider === 'mistral') {
+      const resp = await fetchWithTimeout('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'mistral-large-latest',
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: prompt + '\nRespond with JSON only.' },
+          ],
+          temperature: 0.6,
+        }),
+        timeoutMs: 20_000,
+      });
+      const status = resp.status;
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '');
+        return { ok: false, error: txt || `http_${status}`, status };
+      }
+      const data = await resp.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (!content) return { ok: false, error: 'empty_content', status };
+      const cleaned = String(content).trim().replace(/^```json\n?|```$/g, '');
+      return { ok: true, payload: JSON.parse(cleaned), status };
+    }
+
     if (provider === 'anthropic' || provider === 'claude' || provider === 'anthropic-claude') {
       const resp = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -181,9 +294,12 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
         const resp = await fetchWithTimeout('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
+          // Some gateways are picky; send both Authorization and X-API-Key and a UA
           'Authorization': `Bearer ${apiKey}`,
+          'X-API-Key': apiKey,
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'User-Agent': 'quizdangal-ai-orchestrator/1.0',
         },
           body: JSON.stringify({
           model,
@@ -220,6 +336,14 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
     }
   } catch (_) {
     return { ok: false, error: 'exception', status: 0 };
+  }
+  // Fallback: try known providers in sequence using the given key
+  const order = ['openai', 'groq', 'anthropic', 'perplexity', 'openrouter', 'together', 'mistral'];
+  for (const cand of order) {
+    try {
+      const res = await callProvider(cand, apiKey, prompt);
+      if (res?.ok) return res;
+    } catch { /* ignore and continue */ }
   }
   return { ok: false, error: 'unknown_provider', status: 0 };
 }
@@ -606,7 +730,14 @@ serve(async (req: Request) => {
                 await supabase.from('ai_providers').update({ last_error: 'rate_limited', last_error_at: new Date().toISOString(), quota_exhausted: true }).eq('id', p.id);
                 await sendAlert(supabase, settings.alert_emails || [], `AI provider quota exhausted (${p.name})`, `Provider ${p.name} returned 429/rate limit. Marked as quota_exhausted.`);
               } else if (resp?.status === 401 || resp?.status === 403 || /unauthorized|invalid api/i.test(resp?.error || '')) {
-                await supabase.from('ai_providers').update({ last_error: 'unauthorized', last_error_at: new Date().toISOString() }).eq('id', p.id);
+                // Disable this provider to avoid repeated failures; require admin to re-enable after fixing key
+                await supabase.from('ai_providers').update({ last_error: 'unauthorized', last_error_at: new Date().toISOString(), enabled: false }).eq('id', p.id);
+                await sendAlert(
+                  supabase,
+                  settings.alert_emails || [],
+                  `AI provider unauthorized (${p.name})`,
+                  `Provider ${p.name} returned ${resp?.status || '-'} unauthorized. Disabled provider. Please update API key and re-enable.`
+                );
               }
               lastErrLocal = resp?.error || 'provider returned no data';
               break; // provider hard failure for this provider

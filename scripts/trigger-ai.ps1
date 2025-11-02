@@ -2,7 +2,9 @@ param(
   [string]$ProjectRef = "gcheopiqayyptfxowulv",
   [ValidateSet('run','cleanup')][string]$Task = 'run',
   [string]$CronSecret = $env:CRON_SECRET,
-  [string]$AnonKey = $env:ANON_KEY
+  [string]$AnonKey = $env:ANON_KEY,
+  [int]$Retries = 3,
+  [int]$DelaySec = 2
 )
 
 if (-not $CronSecret) {
@@ -19,9 +21,19 @@ try {
     $headers['apikey'] = $AnonKey
   }
 
-  $resp = Invoke-WebRequest -Uri $url -Method POST -Headers $headers -Body '{}'
-  Write-Output "Status: $($resp.StatusCode)"
-  if ($resp.Content) { Write-Output $resp.Content }
+    $attempt = 0
+    while ($attempt -lt [Math]::Max(1,$Retries)) {
+      $attempt++
+      try {
+        $resp = Invoke-WebRequest -Uri $url -Method POST -Headers $headers -Body '{}' -TimeoutSec 30
+        Write-Output "Status: $($resp.StatusCode) (attempt $attempt/$Retries)"
+        if ($resp.Content) { Write-Output $resp.Content }
+        if ($resp.StatusCode -ge 200 -and $resp.StatusCode -lt 300) { break }
+      } catch {
+        Write-Warning "Invoke failed (attempt $attempt/$Retries): $($_.Exception.Message)"
+      }
+      if ($attempt -lt $Retries) { Start-Sleep -Seconds ([Math]::Max(1,$DelaySec)) }
+    }
 } catch {
   Write-Error $_
   exit 1
