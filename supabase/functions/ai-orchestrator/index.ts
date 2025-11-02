@@ -7,9 +7,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")
+  ?? Deno.env.get("PROJECT_SUPABASE_URL")
+  ?? "";
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
   ?? Deno.env.get("SUPABASE_SERVICE_ROLE")
+  ?? Deno.env.get("PROJECT_SERVICE_ROLE_KEY")
   ?? "";
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
@@ -78,9 +81,13 @@ function detectProviderFromKey(apiKey: string): string | null {
   const k = String(apiKey || '').trim();
   if (!k) return null;
   // Heuristics based on common prefixes
+  if (k.startsWith('AIza')) return 'gemini';
   if (k.startsWith('pplx-')) return 'perplexity';
   if (k.startsWith('gsk_')) return 'groq';
   if (k.startsWith('sk-ant-')) return 'anthropic';
+  if (k.startsWith('sk-or-v1-')) return 'openrouter';
+  if (k.startsWith('tga_') || k.startsWith('tga-') || k.startsWith('tg_') || k.startsWith('tg-')) return 'together';
+  if (k.startsWith('mistral-') || k.startsWith('mst-')) return 'mistral';
   // Many providers use sk-; assume OpenAI if nothing more specific matches
   if (k.startsWith('sk-')) return 'openai';
   return null;
@@ -101,6 +108,36 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
       if (detected) {
         return await callProvider(detected, apiKey, prompt);
       }
+    }
+
+    // Google Gemini (Generative Language API)
+    if (provider === 'gemini' || provider === 'google' || provider === 'googleai') {
+      const model = Deno.env.get('GEMINI_DEFAULT_MODEL') || 'gemini-1.5-flash';
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      const resp = await fetchWithTimeout(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [
+            { parts: [ { text: `${system}\n${prompt}\nRespond with JSON only.` } ] }
+          ],
+          generationConfig: { temperature: 0.6 },
+        }),
+        timeoutMs: 20_000,
+      });
+      const status = resp.status;
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '');
+        return { ok: false, error: txt || `http_${status}`, status } as any;
+      }
+      const data = await resp.json();
+      const content = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (!content) return { ok: false, error: 'empty_content', status } as any;
+      const cleaned = String(content).trim().replace(/^```json\n?|```$/g, '');
+      return { ok: true, payload: JSON.parse(cleaned), status } as any;
     }
 
     if (provider === 'openai') {
@@ -338,7 +375,7 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
     return { ok: false, error: 'exception', status: 0 };
   }
   // Fallback: try known providers in sequence using the given key
-  const order = ['openai', 'groq', 'anthropic', 'perplexity', 'openrouter', 'together', 'mistral'];
+  const order = ['gemini', 'openai', 'groq', 'anthropic', 'perplexity', 'openrouter', 'together', 'mistral'];
   for (const cand of order) {
     try {
       const res = await callProvider(cand, apiKey, prompt);
