@@ -901,7 +901,7 @@ function NotificationsPanel() {
 	);
 }
 
-// ---------------- Automation (AI) Panel ----------------
+// ---------------- Automation Panel ----------------
 function AutomationPanel() {
 	const { toast } = useToast();
 	const [loading, setLoading] = React.useState(false);
@@ -1001,8 +1001,8 @@ function AutomationPanel() {
 
 	return (
 		<div className="space-y-6">
-			<h2 className="text-lg font-semibold">AI Automation</h2>
-			<p className="text-sm text-gray-600">Auto-generate quizzes backend-only. Configure cadence (minutes) and live window (minutes). For 5-minute quizzes with 5-minute gaps, set cadence=10 and live window=5. Each quiz has 4 options per question.</p>
+			<h2 className="text-lg font-semibold">Automation</h2>
+			<p className="text-sm text-gray-600">Auto-generate quizzes from public sources (RSS/Wikipedia) without paid AI. Configure cadence (minutes) and live window (minutes). For 5-minute quizzes with 5-minute gaps, set cadence=10 and live window=5. Each quiz has 4 options per question.</p>
 
 			<form onSubmit={saveSettings} className="space-y-3 bg-gray-50 border border-gray-200 rounded-lg p-4 max-w-3xl">
 				<div className="flex items-center gap-2">
@@ -1049,7 +1049,7 @@ function AutomationPanel() {
 				</div>
 				{(providers.filter(p=>p.enabled && !p.quota_exhausted).length===0) && (
 					<div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
-						No enabled providers available. Add an AI provider (openai, groq, anthropic/claude, or perplexity) and set an API key. Alerts will only send if email is configured (RESEND_API_KEY/RESEND_FROM or admin_send_email RPC).
+						No enabled providers found. Add a provider named <code>rss</code> (or <code>feeds</code>/<code>noai</code>). API key is optional and can be left blank. If no provider is configured, backend uses a virtual <code>rss</code> provider automatically.
 					</div>
 				)}
 				{/* Move Add/Edit Provider form to the top */}
@@ -1058,7 +1058,7 @@ function AutomationPanel() {
 					<div className="grid md:grid-cols-4 gap-3">
 						<div className="md:col-span-2">
 							<Label>Name</Label>
-							<Input value={provForm.name} onChange={e=> setProvForm(f=> ({ ...f, name: e.target.value }))} placeholder="e.g. openai" />
+							<Input value={provForm.name} onChange={e=> setProvForm(f=> ({ ...f, name: e.target.value }))} placeholder="e.g. rss" />
 						</div>
 						<div>
 							<Label>Priority</Label>
@@ -1069,8 +1069,8 @@ function AutomationPanel() {
 							<label htmlFor="prov_enabled" className="text-sm">Enabled</label>
 						</div>
 						<div className="md:col-span-4">
-							<Label>API Key (stored server-side)</Label>
-							<Input value={provForm.api_key_enc} onChange={e=> setProvForm(f=> ({ ...f, api_key_enc: e.target.value }))} placeholder="sk-..." />
+							<Label>API Key (optional; stored server-side)</Label>
+							<Input value={provForm.api_key_enc} onChange={e=> setProvForm(f=> ({ ...f, api_key_enc: e.target.value }))} placeholder="leave blank for rss" />
 						</div>
 					</div>
 					<div className="flex gap-2">

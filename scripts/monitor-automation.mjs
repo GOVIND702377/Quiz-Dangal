@@ -95,14 +95,13 @@ async function main() {
     return;
   }
 
-  const subject = `AI Monitor: ${alerts.length} issue group(s)`;
+  const subject = `Automation Monitor: ${alerts.length} issue group(s)`;
   const text = alerts.join('\n\n');
 
   const recipients = process.env.ALERT_TO || env.ALERT_TO || '';
   if (!recipients) {
     console.warn('ALERT_TO not configured; printing alert summary instead:\n');
     console.log(text);
-    // Exit nonzero so CI can flag
     process.exit(1);
     return;
   }

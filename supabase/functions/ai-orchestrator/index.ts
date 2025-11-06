@@ -16,6 +16,12 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
   ?? "";
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
+// Optional: override LibreTranslate base URL (defaults to public instance)
+const LIBRE_TRANSLATE_URL = (Deno.env.get("LIBRE_TRANSLATE_URL") || "https://libretranslate.com").replace(/\/$/, "");
+
+// Simple in-memory cache for translations within warm runtime
+const __TRANS_CACHE = new Map<string, string>();
+
 // Lightweight in-memory cache (persists across warm invocations only)
 const __CACHE = {
   gemini: {
@@ -103,7 +109,8 @@ function detectProviderFromKey(apiKey: string): string | null {
 }
 async function callProvider(name: string, apiKey: string, prompt: string): Promise<ProviderResult> {
   const provider = String(name || '').toLowerCase();
-  if (!apiKey) return null;
+  const keylessAllowed = (provider === 'rss' || provider === 'feeds' || provider === 'noai');
+  if (!apiKey && !keylessAllowed) return null;
 
   // Common system message to enforce strict JSON
   const system = `You are a strict JSON generator. Respond ONLY with valid minified JSON matching this schema:
@@ -117,6 +124,175 @@ async function callProvider(name: string, apiKey: string, prompt: string): Promi
       if (detected) {
         return await callProvider(detected, apiKey, prompt);
       }
+    }
+
+    // RSS/Feeds based generator (non-AI path)
+    if (provider === 'rss' || provider === 'feeds' || provider === 'noai') {
+      // This path ignores apiKey & prompt and synthesizes a quiz using public data sources
+      // Categories supported: opinion (AskReddit RSS), gk/sports/movies (Wikipedia summaries)
+
+      // Helpers
+      async function translateENtoHI(text: string): Promise<string> {
+        const key = `en:hi:${text}`;
+        if (__TRANS_CACHE.has(key)) return __TRANS_CACHE.get(key)!;
+        try {
+          const res = await fetch(`${LIBRE_TRANSLATE_URL}/translate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ q: text, source: 'en', target: 'hi', format: 'text' }),
+          });
+          if (!res.ok) throw new Error(`lt_http_${res.status}`);
+          const data = await res.json().catch(() => ({} as any));
+          const out = String(data?.translatedText || '').trim();
+          if (out) { __TRANS_CACHE.set(key, out); return out; }
+        } catch (_) { /* ignore */ }
+        return text; // fallback to English if translation fails
+      }
+
+      async function toBilingual(enText: string): Promise<string> {
+        const hi = await translateENtoHI(enText);
+        // if translation equals english (fallback), still wrap for consistency
+        return `${hi} (${enText})`;
+      }
+
+      async function fetchRSSItems(url: string, maxItems = 40): Promise<string[]> {
+        try {
+          const resp = await fetch(url, { headers: { 'Accept': 'application/rss+xml, application/xml;q=0.9, */*;q=0.8' } });
+          if (!resp.ok) return [];
+          const xml = await resp.text();
+          const titles: string[] = [];
+          const itemRegex = /<item[\s\S]*?<\/item>/gi;
+          const titleRegex = /<title>([\s\S]*?)<\/title>/i;
+          let m: RegExpExecArray | null;
+          while ((m = itemRegex.exec(xml)) && titles.length < maxItems) {
+            const block = m[0];
+            const t = titleRegex.exec(block);
+            const raw = t?.[1] || '';
+            const cleaned = raw.replace(/<!\[CDATA\[/g, '').replace(/\]\]>/g, '').replace(/\s+/g, ' ').trim();
+            if (cleaned) titles.push(cleaned);
+          }
+          return titles;
+        } catch { return []; }
+      }
+
+      function pickN<T>(arr: T[], n: number): T[] { const a = [...arr]; for (let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a.slice(0, n); }
+
+      async function fetchWikiSummary(title: string): Promise<{ title: string; extract: string } | null> {
+        try {
+          const resp = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`);
+          if (!resp.ok) return null;
+          const data = await resp.json();
+          const t = String(data?.title || '').trim();
+          const ex = String(data?.extract || '').trim();
+          if (!t || !ex) return null;
+          return { title: t, extract: ex };
+        } catch { return null; }
+      }
+
+      async function fetchWikiRandomTitles(count: number): Promise<string[]> {
+        try {
+          const resp = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=random&rnnamespace=0&rnlimit=${Math.min(50, Math.max(10, count*4))}&format=json&origin=*`);
+          if (!resp.ok) return [];
+          const data = await resp.json();
+          const arr = Array.isArray(data?.query?.random) ? data.query.random : [];
+          return arr.map((r: any) => String(r?.title || '').trim()).filter(Boolean);
+        } catch { return []; }
+      }
+
+      async function fetchWikiCategoryTitles(category: string, count: number): Promise<string[]> {
+        try {
+          const resp = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=categorymembers&cmtitle=${encodeURIComponent('Category:' + category)}&cmnamespace=0&cmlimit=${Math.min(100, Math.max(20, count*8))}&format=json&origin=*`);
+          if (!resp.ok) return [];
+          const data = await resp.json();
+          const arr = Array.isArray(data?.query?.categorymembers) ? data.query.categorymembers : [];
+          return arr.map((r: any) => String(r?.title || '').trim()).filter(Boolean);
+        } catch { return []; }
+      }
+
+      async function buildGKStyleQuiz(fromTitles: string[], desired = 10): Promise<QuizPayload> {
+        const picked = pickN(fromTitles.filter(Boolean), desired * 4); // extra pool for distractors
+        const items: any[] = [];
+        const used = new Set<string>();
+        while (items.length < desired && picked.length > 0) {
+          const base = picked.shift()!;
+          if (!base || used.has(base.toLowerCase())) continue;
+          const sum = await fetchWikiSummary(base);
+          if (!sum) continue;
+          used.add(base.toLowerCase());
+          const distractors = [] as string[];
+          for (const t of picked) {
+            if (t && t.toLowerCase() !== base.toLowerCase() && !distractors.includes(t)) distractors.push(t);
+            if (distractors.length >= 8) break; // collect pool
+          }
+          const optionsPool = pickN(distractors, 3);
+          if (optionsPool.length < 3) continue;
+          const qEn = 'Which topic is being described?';
+          const qBi = await toBilingual(qEn);
+          const correct = base.trim();
+          const wrongs = optionsPool.map((o) => o.trim());
+          const opts = pickN([ { txt: correct, correct: true }, ...wrongs.map(w => ({ txt: w, correct: false })) ], 4);
+          const options = [] as { option_text: string; is_correct: boolean }[];
+          for (const op of opts) {
+            const bi = await toBilingual(op.txt);
+            options.push({ option_text: bi, is_correct: op.correct });
+          }
+          items.push({ question_text: `${qBi}`, options });
+        }
+        const titleBi = await toBilingual('Daily GK Challenge');
+        return { title: titleBi, items } as QuizPayload;
+      }
+
+      async function buildOpinionQuizFromRSS(rssUrl: string, desired = 10): Promise<QuizPayload> {
+        const titles = await fetchRSSItems(rssUrl, 60);
+        const qs = pickN(titles, desired);
+        const items: any[] = [];
+        for (const t of qs) {
+          const qBi = await toBilingual(String(t));
+          // Fixed neutral opinion options (no correct)
+          const optEn = [ 'Love it', 'Good', 'Neutral', 'Dislike' ];
+          const opts = [] as { option_text: string; is_correct: boolean }[];
+          for (const en of optEn) {
+            const bi = await toBilingual(en);
+            opts.push({ option_text: bi, is_correct: false });
+          }
+          items.push({ question_text: qBi, options: opts });
+        }
+        const titleBi = await toBilingual('Today\'s Opinion Poll');
+        return { title: titleBi, items } as QuizPayload;
+      }
+
+      // Determine category from prompt hint if present; default to gk
+      const lowerPrompt = String(prompt || '').toLowerCase();
+      let category: string = 'gk';
+      if (/opinion/.test(lowerPrompt)) category = 'opinion';
+      else if (/sports?/.test(lowerPrompt)) category = 'sports';
+      else if (/movies?|film/.test(lowerPrompt)) category = 'movies';
+
+      if (category === 'opinion') {
+        const payload = await buildOpinionQuizFromRSS('https://www.reddit.com/r/AskReddit/.rss');
+        // Validate min items; if fewer, try Guardian as fallback
+        if (!payload.items || payload.items.length < 5) {
+          const alt = await buildOpinionQuizFromRSS('https://www.theguardian.com/uk/rss');
+          if (alt.items?.length > (payload.items?.length || 0)) return { ok: true, payload: alt, status: 200 } as any;
+        }
+        return { ok: true, payload, status: 200 } as any;
+      }
+
+      // GK/Sports/Movies — use Wikipedia
+      let titles: string[] = [];
+      if (category === 'sports') titles = await fetchWikiCategoryTitles('Sports', 40);
+      else if (category === 'movies') titles = await fetchWikiCategoryTitles('Films', 40);
+      else titles = await fetchWikiRandomTitles(40);
+      if (titles.length < 10) {
+        // fallback to random
+        const extra = await fetchWikiRandomTitles(50);
+        titles = Array.from(new Set([ ...titles, ...extra ]));
+      }
+      const payload = await buildGKStyleQuiz(titles, 10);
+      if (!payload.items || payload.items.length < 10) {
+        return { ok: false, error: 'insufficient_items_from_sources', status: 503 } as any;
+      }
+      return { ok: true, payload, status: 200 } as any;
     }
 
     // Google Gemini (Generative Language API)
@@ -837,14 +1013,20 @@ serve(async (req: Request) => {
       // Count this as an attempted job when we successfully claim it
       runSummary.attempted += 1;
 
-      // Provider selection: enabled, not quota_exhausted, lowest priority, then id
+      // Provider selection: enabled, not quota_exhausted, restricted to non-AI providers (rss), lowest priority, then id
       const { data: providers } = await supabase
         .from('ai_providers')
         .select('*')
         .eq('enabled', true)
         .eq('quota_exhausted', false)
+        .in('name', ['rss','feeds','noai'])
         .order('priority', { ascending: true })
         .order('id', { ascending: true });
+
+      // Fallback: if no providers configured, use a virtual keyless 'rss' provider
+      const providerList = (providers && providers.length > 0)
+        ? providers
+        : [{ id: null, name: 'rss', api_key_enc: '', enabled: true, quota_exhausted: false, priority: 1 } as any];
 
       let success = false;
       let lastErr: string | null = null;
@@ -889,7 +1071,7 @@ serve(async (req: Request) => {
       ].join('\n');
       let prompt = basePrompt;
 
-      for (const p of providers || []) {
+      for (const p of providerList || []) {
         const apiKey = p.api_key_enc || '';
         try {
           let attempt = 0;
@@ -904,11 +1086,15 @@ serve(async (req: Request) => {
             if (!resp?.ok) {
               // Detect quota/unauthorized for provider
               if (resp?.status === 429 || /rate.?limit|quota/i.test(resp?.error || '')) {
-                await supabase.from('ai_providers').update({ last_error: 'rate_limited', last_error_at: new Date().toISOString(), quota_exhausted: true }).eq('id', p.id);
+                if (p?.id) {
+                  await supabase.from('ai_providers').update({ last_error: 'rate_limited', last_error_at: new Date().toISOString(), quota_exhausted: true }).eq('id', p.id);
+                }
                 await sendAlert(supabase, settings.alert_emails || [], `AI provider quota exhausted (${p.name})`, `Provider ${p.name} returned 429/rate limit. Marked as quota_exhausted.`);
               } else if (resp?.status === 401 || resp?.status === 403 || /unauthorized|invalid api/i.test(resp?.error || '')) {
                 // Disable this provider to avoid repeated failures; require admin to re-enable after fixing key
-                await supabase.from('ai_providers').update({ last_error: 'unauthorized', last_error_at: new Date().toISOString(), enabled: false }).eq('id', p.id);
+                if (p?.id) {
+                  await supabase.from('ai_providers').update({ last_error: 'unauthorized', last_error_at: new Date().toISOString(), enabled: false }).eq('id', p.id);
+                }
                 await sendAlert(
                   supabase,
                   settings.alert_emails || [],
@@ -1031,7 +1217,9 @@ serve(async (req: Request) => {
             .from('ai_generation_logs')
             .insert({ job_id: job.id, level: 'error', message: `Provider ${p.name} failed`, context: { error: lastErr } });
           // Mark provider error but don't disable automatically; operators can toggle
-          await supabase.from('ai_providers').update({ last_error: lastErr, last_error_at: new Date().toISOString() }).eq('id', p.id);
+          if (p?.id) {
+            await supabase.from('ai_providers').update({ last_error: lastErr, last_error_at: new Date().toISOString() }).eq('id', p.id);
+          }
           continue; // try next provider
         }
       }

@@ -54,19 +54,19 @@ async function main() {
     const { data, error } = await sb.from('ai_settings').select('*').eq('id', 1).maybeSingle();
     if (error) throw error;
     if (!data) {
-      log('ai_settings row', 'FAIL', 'missing. Apply migrations supabase/migrations/*ai_quiz_automation.sql');
+      log('automation settings (ai_settings)', 'FAIL', 'missing. Apply migrations supabase/migrations/*ai_quiz_automation.sql');
     } else {
       const cats = Array.isArray(data.categories) ? data.categories.join(',') : String(data.categories);
-      log('ai_settings', data.is_enabled ? 'PASS' : 'WARN', `enabled=${data.is_enabled}, cadence=${data.cadence_min}m, live=${data.live_window_min}m, cats=[${cats}]`);
+      log('automation settings', data.is_enabled ? 'PASS' : 'WARN', `enabled=${data.is_enabled}, cadence=${data.cadence_min}m, live=${data.live_window_min}m, cats=[${cats}]`);
       if (Number(data.live_window_min) > Number(data.cadence_min)) {
         log('schedule sanity', 'WARN', 'live_window_min > cadence_min (quizzes may overlap or be skipped)');
       }
     }
   } catch (e) {
-    log('ai_settings', 'FAIL', e.message);
+    log('automation settings', 'FAIL', e.message);
   }
 
-  // 2) Providers
+  // 2) Providers (non-AI)
   try {
     const { data, error } = await sb
       .from('ai_providers')
@@ -74,14 +74,13 @@ async function main() {
       .order('priority', { ascending: true });
     if (error) throw error;
     const enabled = (data || []).filter(p => p.enabled && !p.quota_exhausted);
-    if (!enabled.length) log('providers', 'WARN', 'No enabled providers (or all quota_exhausted)');
+    if (!enabled.length) log('providers', 'WARN', 'No enabled providers');
     else log('providers', 'PASS', enabled.map(p => `${p.name}#${p.id}(p${p.priority})`).join(', '));
-    // Show last_error summary if present
     const errs = (data || []).filter(p => p.last_error);
     if (errs.length) {
       console.log('\nProvider last_error:');
       for (const p of errs) {
-        console.log(`- ${p.name}#${p.id}: ${p.last_error} @ ${p.last_error_at || '-'}${p.quota_exhausted ? ' (quota_exhausted)' : ''}`);
+        console.log(`- ${p.name}#${p.id}: ${p.last_error} @ ${p.last_error_at || '-'}`);
       }
     }
   } catch (e) {
@@ -180,9 +179,9 @@ async function main() {
     if (error) throw error;
     const all = data || [];
     const ai = all.filter(q => q.is_ai_generated);
-    log('quizzes (2h)', all.length ? 'PASS' : 'WARN', `${all.length} total, ${ai.length} AI-flagged`);
+    log('quizzes (2h)', all.length ? 'PASS' : 'WARN', `${all.length} total, ${ai.length} auto-flagged`);
     for (const q of all) {
-      console.log(`- ${q.created_at} [${q.is_ai_generated ? 'AI' : 'manual'}] ${q.category} ${q.title} (${q.id})`);
+      console.log(`- ${q.created_at} [${q.is_ai_generated ? 'auto' : 'manual'}] ${q.category} ${q.title} (${q.id})`);
     }
   } catch (e) {
     log('quizzes (2h)', 'FAIL', e.message);
