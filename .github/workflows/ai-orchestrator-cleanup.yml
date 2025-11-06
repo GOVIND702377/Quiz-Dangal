@@ -1,4 +1,4 @@
-name: AI Orchestrator - Cleanup (manual)
+name: Automation Orchestrator - Cleanup (manual)
 
 on:
   # Keep this manual to avoid duplicate cleanup with ai-orchestrator.yml
@@ -17,7 +17,7 @@ jobs:
       deployments: none
       security-events: none
     concurrency:
-      group: ai-orchestrator-cleanup
+  group: automation-orchestrator-cleanup
       cancel-in-progress: true
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

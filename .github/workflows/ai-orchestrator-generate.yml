@@ -1,4 +1,4 @@
-name: AI Orchestrator - Generate (manual)
+name: Automation Orchestrator - Generate (manual)
 
 on:
   # Keep this manual to avoid double-triggering alongside ai-orchestrator.yml
@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
-      group: ai-orchestrator-generate
+  group: automation-orchestrator-generate
       cancel-in-progress: true
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

@@ -1,4 +1,4 @@
-name: AI Orchestrator Scheduler
+name: Automation Orchestrator Scheduler
 
 on:
   schedule:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
-      group: ai-orchestrator-generate
+  group: automation-orchestrator-generate
       cancel-in-progress: true
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -77,7 +77,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     concurrency:
-      group: ai-orchestrator-cleanup
+  group: automation-orchestrator-cleanup
       cancel-in-progress: true
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

@@ -1,4 +1,4 @@
-name: AI Orchestrator - Report & Notify
+name: Automation Orchestrator - Report & Notify
 
 on:
   schedule:
@@ -63,7 +63,7 @@ jobs:
 
       - name: Add job summary
         run: |
-          echo "### AI Orchestrator run" >> $GITHUB_STEP_SUMMARY
+          echo "### Automation Orchestrator run" >> $GITHUB_STEP_SUMMARY
           echo "HTTP: ${{ steps.call.outputs.http }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo '\n````\n' >> $GITHUB_STEP_SUMMARY
@@ -82,17 +82,17 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const title = `AI Orchestrator failures detected`;
+            const title = `Automation Orchestrator failures detected`;
             const body = `Automated run detected failures.\n\n` +
               `HTTP: ${context.payload?.http || ''}\n\n` +
               'Summary:\n' +
               '```\n' + require('fs').readFileSync('summary.txt','utf8') + '\n```\n' +
               `Run: https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             // Search open issues with same title
-            const { data: issues } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: 'ai-orchestrator' });
+            const { data: issues } = await github.rest.issues.listForRepo({ owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: 'automation-orchestrator' });
             const existing = issues.find(i => i.title === title);
             if (existing) {
               await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body });
             } else {
-              await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ['ai-orchestrator'] });
+              await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ['automation-orchestrator'] });
             }

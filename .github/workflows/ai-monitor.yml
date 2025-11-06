@@ -1,4 +1,4 @@
-name: AI Monitor
+name: Automation Monitor
 
 on:
   schedule:
@@ -25,7 +25,7 @@ jobs:
           cache: 'npm'
       - name: Install deps
         run: npm ci
-      - name: Run AI verification (summary)
-        run: node ./scripts/verify-ai-automation.mjs || true
+      - name: Run automation verification (summary)
+        run: node ./scripts/verify-automation.mjs || true
       - name: Monitor and alert (email)
-        run: node ./scripts/monitor-ai.mjs
+        run: node ./scripts/monitor-automation.mjs
