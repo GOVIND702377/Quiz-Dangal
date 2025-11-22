@@ -1,0 +1,13 @@
+name: Automation Monitor
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Automation monitor workflow retired; manual monitoring only."
