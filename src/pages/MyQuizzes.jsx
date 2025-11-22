@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useRealtimeChannel } from '@/hooks/useRealtimeChannel';
 import { m } from '@/lib/motion-lite';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -158,83 +159,6 @@ const MyQuizzes = () => {
       return;
     }
 
-    // Create realtime channel only when allowed and conditions are healthy
-    // Realtime is disabled by default to avoid noisy WS errors; enable via VITE_ENABLE_REALTIME=1
-    const enableRealtime = (() => {
-      try {
-        const runtimeEnv = (typeof window !== 'undefined' && window.__QUIZ_DANGAL_ENV__) ? window.__QUIZ_DANGAL_ENV__ : {};
-        const raw = import.meta.env.VITE_ENABLE_REALTIME ?? runtimeEnv.VITE_ENABLE_REALTIME ?? (import.meta.env.DEV ? '0' : '0');
-        const v = String(raw).toLowerCase();
-        return v === '1' || v === 'true' || v === 'yes';
-      } catch { return false; }
-    })();
-
-    const shouldUseRealtime = () => {
-      try {
-        if (!enableRealtime) return false;
-        if (!hasSupabaseConfig || !supabase || !user) return false;
-        if (typeof window === 'undefined') return false;
-        if (!window.isSecureContext) return false; // required by many browsers for stable WS in PWAs
-        if (!('WebSocket' in window)) return false;
-        if (navigator && navigator.onLine === false) return false;
-        // Avoid starting WS when tab is hidden to reduce transient closures
-        if (document && document.visibilityState === 'hidden') return false;
-        // If connection info indicates data saver or 2g, skip
-        const conn = (navigator && (navigator.connection || navigator.mozConnection || navigator.webkitConnection)) || null;
-        if (conn) {
-          if (conn.saveData) return false;
-          if (typeof conn.effectiveType === 'string' && /(^|\b)2g(\b|$)/i.test(conn.effectiveType)) return false;
-        }
-        return true;
-      } catch { return true; }
-    };
-
-    let resultsChannel = null;
-    if (shouldUseRealtime()) {
-      try {
-        resultsChannel = supabase
-          .channel('quiz-results-channel', { config: { broadcast: { ack: true } } })
-          .on(
-            'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'quiz_results' },
-            () => {
-              fetchMyQuizzes();
-              // Notify user when results are out
-              if (
-                typeof window !== 'undefined' &&
-                'Notification' in window &&
-                Notification.permission === 'granted'
-              ) {
-                try {
-                  new Notification('Quiz Result Ready', {
-                    body: 'Your quiz results are available. Tap to view.',
-                  });
-                } catch (e) { /* join quiz fail */ }
-              }
-            }
-          )
-          .subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-              // connected
-            } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
-              // polling fallback below handles refresh
-            }
-          });
-        setTimeout(() => {
-          try {
-            if (resultsChannel && resultsChannel.state !== 'joined') {
-              supabase.removeChannel(resultsChannel);
-            }
-          } catch (e) {
-            if (import.meta.env.DEV) {
-              console.debug('Cleanup: removeChannel failed (ignored)', e);
-            }
-          }
-        }, 5000);
-      } catch {
-        // ignore realtime setup errors; polling below will still refresh data
-      }
-    }
 
     const initialFetch = async () => {
       setLoading(true);
@@ -248,13 +172,48 @@ const MyQuizzes = () => {
 
     const interval = setInterval(fetchMyQuizzes, 120000); // Poll every 2 minutes (realtime will push sooner)
 
-    return () => {
-      try {
-        if (resultsChannel) supabase.removeChannel(resultsChannel);
-      } catch (e) { /* load quizzes fail */ }
-      clearInterval(interval);
-    };
+    return () => { clearInterval(interval); };
   }, [user, fetchMyQuizzes]);
+
+  // Realtime replaced with centralized hook (only for INSERT quiz_results)
+  const realtimeEnabled = (() => {
+    try {
+      const runtimeEnv = (typeof window !== 'undefined' && window.__QUIZ_DANGAL_ENV__) ? window.__QUIZ_DANGAL_ENV__ : {};
+      const raw = import.meta.env.VITE_ENABLE_REALTIME ?? runtimeEnv.VITE_ENABLE_REALTIME ?? (import.meta.env.DEV ? '0' : '0');
+      const v = String(raw).toLowerCase();
+      return v === '1' || v === 'true' || v === 'yes';
+    } catch { return false; }
+  })();
+  const realtimeConditionsOk = (() => {
+    try {
+      if (typeof window === 'undefined') return false;
+      if (!window.isSecureContext) return false;
+      if (!('WebSocket' in window)) return false;
+      if (navigator && navigator.onLine === false) return false;
+      if (document && document.visibilityState === 'hidden') return false;
+      const conn = (navigator && (navigator.connection || navigator.mozConnection || navigator.webkitConnection)) || null;
+      if (conn) {
+        if (conn.saveData) return false;
+        if (typeof conn.effectiveType === 'string' && /(^|\b)2g(\b|$)/i.test(conn.effectiveType)) return false;
+      }
+      return true;
+    } catch { return false; }
+  })();
+  useRealtimeChannel({
+    enabled: realtimeEnabled && realtimeConditionsOk && !!user && !!hasSupabaseConfig && !!supabase,
+    channelName: 'quiz-results-channel',
+    event: 'INSERT',
+    table: 'quiz_results',
+    onChange: () => {
+      fetchMyQuizzes();
+      try {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification('Quiz Result Ready', { body: 'Your quiz results are available. Tap to view.' });
+        }
+      } catch { /* ignore */ }
+    },
+    joinTimeoutMs: 5000,
+  });
 
   useEffect(() => {
     let tickId = null;

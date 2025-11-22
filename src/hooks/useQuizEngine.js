@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/customSupabaseClient';
+import { smartJoinQuiz } from '@/lib/smartJoinQuiz';
 import { logger } from '@/lib/logger';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -343,64 +345,59 @@ export function useQuizEngine(quizId, navigate) {
     };
   }, [quiz, quizId, quizState, navigate]);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleJoinOrPrejoin = useCallback(async () => {
     if (!quiz) return;
-    if (!user) { 
-      toast({ title: 'Login required', description: 'Please sign in to join the quiz.', variant: 'destructive' }); 
-      navigate('/login'); 
-      return; 
+    if (!user) {
+      toast({ title: 'Login required', description: 'Please sign in to join the quiz.', variant: 'destructive' });
+      navigate('/login');
+      return;
     }
     if (participantStatus === 'completed') {
-      // Silently return - user will see timer screen, no error
       logger.info('User already completed this quiz');
       return;
     }
-    
+
     try {
       if (typeof Notification !== 'undefined' && Notification.permission !== 'granted' && !isSubscribed) {
         await subscribeToPush();
       }
     } catch { /* ignore */ }
-    
-    const now = new Date();
-    const st = quiz.start_time ? new Date(quiz.start_time) : null;
-    const et = quiz.end_time ? new Date(quiz.end_time) : null;
-    const isActive = quiz.status === 'active' && st && et && now >= st && now < et;
-    const rpc = isActive ? 'join_quiz' : 'pre_join_quiz';
-    
+
     try {
-      const { error } = await supabase.rpc(rpc, { p_quiz_id: quizId });
-      if (error) {
-        // Silently handle if already joined
-        if (error.message?.includes('already') || error.message?.includes('completed')) {
-          logger.info('User already joined this quiz');
-          setJoined(true);
-          setParticipantStatus(isActive ? 'joined' : 'pre_joined');
-          if (isActive) { 
-            await loadQuestions(); 
-            setQuizState('active'); 
-          }
-          return;
-        }
-        throw error;
+      const result = await smartJoinQuiz({ supabase, quiz, user });
+      if (result.status === 'error') throw result.error;
+      if (result.status === 'already') {
+        setJoined(true);
+        setParticipantStatus('joined');
+        toast({ title: 'Already Joined', description: 'Starting shortly.' });
+      } else if (result.status === 'joined') {
+        setJoined(true);
+        setParticipantStatus('joined');
+        toast({ title: 'Joined!', description: 'Starting now.' });
+      } else if (result.status === 'pre_joined') {
+        setJoined(true);
+        setParticipantStatus('pre_joined');
+        toast({ title: 'Pre-joined!', description: 'We will remind you before start.' });
+      } else if (result.status === 'scheduled_retry') {
+        setJoined(true);
+        setParticipantStatus('pre_joined');
+        toast({ title: 'Pre-joined!', description: 'Auto join near start time.' });
       }
-      
-      setJoined(true);
+      if (quiz.status === 'active' && (result.status === 'joined' || result.status === 'already')) {
+        await loadQuestions();
+        setQuizState('active');
+      }
       refreshEngagement();
-      setParticipantStatus(isActive ? 'joined' : 'pre_joined');
-      toast({ title: isActive ? 'Joined!' : 'Pre-joined!', description: isActive ? 'Starting now.' : 'We will remind you before start.' });
-      if (isActive) { 
-        await loadQuestions(); 
-        setQuizState('active'); 
-      }
     } catch (err) {
-      // Only show error if it's not a duplicate join
       if (!err?.message?.includes('already') && !err?.message?.includes('completed')) {
         console.error('Join quiz error:', err);
         toast({ title: 'Error', description: 'Could not join quiz. Please try again.', variant: 'destructive' });
       }
     }
-  }, [quiz, user, participantStatus, isSubscribed, subscribeToPush, quizId, toast, navigate, refreshEngagement, loadQuestions, setQuizState]);
+  // quizId intentionally excluded (stable id used inside smartJoinQuiz via quiz object); supabase stable
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quiz, user, participantStatus, isSubscribed, subscribeToPush, toast, navigate, refreshEngagement, loadQuestions, setQuizState]);
 
   const handleAnswerSelect = useCallback(async (questionId, optionId) => {
     if (submitting || quizState !== 'active' || participantStatus === 'completed') return;

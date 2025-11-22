@@ -1,0 +1,21 @@
+HTTP/1.1 200 OK
+Date: Tue, 18 Nov 2025 12:59:53 GMT
+Content-Type: application/json
+Transfer-Encoding: chunked
+Connection: keep-alive
+Server: cloudflare
+CF-Ray: 9a07a446cc9a8aee-DEL
+CF-Cache-Status: DYNAMIC
+Access-Control-Allow-Origin: *
+Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
+Vary: Accept-Encoding, Origin
+access-control-allow-headers: authorization, x-client-info, apikey, content-type
+access-control-allow-methods: GET, POST, OPTIONS
+sb-project-ref: gcheopiqayyptfxowulv
+sb-request-id: 019a970b-e846-7388-b80c-2a192d00583b
+x-deno-execution-id: 5ab6da66-bef2-4ec3-9843-7f3f46634109
+x-sb-edge-region: ap-south-1
+x-served-by: supabase-edge-runtime
+Set-Cookie: __cf_bm=FFSlAA5PeN38syLH8mmG4D9q0bBnnOcwT1iZUY5IP.c-1763470793-1.0.1.1-7WBNnHE6CmJT1jtSMVFNuMkSKLQgRXoMvdEwIBK8QNZGS0f17gmVas05_RNvZKlSFf01_urLsXhy2IrMe5lR6eAzjsHu1BDuUQe7.qyGM3U; path=/; expires=Tue, 18-Nov-25 13:29:53 GMT; domain=.supabase.co; HttpOnly; Secure; SameSite=None
+alt-svc: h3=":443"; ma=86400
+

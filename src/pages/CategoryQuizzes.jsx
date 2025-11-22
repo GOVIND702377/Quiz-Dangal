@@ -2,8 +2,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { m } from '@/lib/motion-lite';
 import { supabase } from '@/lib/customSupabaseClient';
+import { smartJoinQuiz } from '@/lib/smartJoinQuiz';
 import { rateLimit } from '@/lib/security';
 import { formatDateOnly, formatTimeOnly, getPrizeDisplay, prefetchRoute } from '@/lib/utils';
+import { RECENT_COMPLETED_GRACE_MIN } from '@/constants';
 import { useToast } from '@/components/ui/use-toast';
 import { Users, MessageSquare, Brain, Clapperboard, Clock, Trophy } from 'lucide-react';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
@@ -131,49 +133,35 @@ const CategoryQuizzes = () => {
       }
     } catch { /* ignore push errors */ }
     try {
-      // Determine by time window, not stored status
-      const now = Date.now();
-      const st = q.start_time ? new Date(q.start_time).getTime() : 0;
-      const et = q.end_time ? new Date(q.end_time).getTime() : 0;
-      const isActive = st && et && now >= st && now < et;
-      const isUpcoming = st && now < st;
-      const rpc = isUpcoming ? 'pre_join_quiz' : (isActive ? 'join_quiz' : 'pre_join_quiz');
-      const { error } = await supabase.rpc(rpc, { p_quiz_id: q.id });
-      if (error) {
-        const msg = String(error.message || '').toLowerCase();
-        if (rpc === 'join_quiz' && (msg.includes('not active') || msg.includes('bad request') || msg.includes('400'))) {
-          // Grace fallback: pre-join so user is registered and reminded
-          const { error: pjErr } = await supabase.rpc('pre_join_quiz', { p_quiz_id: q.id });
-          if (!pjErr) {
-            setJoinedMap(prev => ({ ...prev, [q.id]: 'pre' }));
-            toast({ title: 'Pre-joined!', description: 'We will remind you before start.' });
-            return;
-          }
+      const result = await smartJoinQuiz({ supabase, quiz: q, user });
+      if (result.status === 'error') throw result.error;
+      if (result.status === 'already') {
+        setJoinedMap(prev => ({ ...prev, [q.id]: 'joined' }));
+        toast({ title: 'Already Joined', description: 'You are in this quiz.' });
+      } else if (result.status === 'joined') {
+        setJoinedMap(prev => ({ ...prev, [q.id]: 'joined' }));
+        const rl = rateLimit(`join_${user?.id || 'anon'}`, { max: 4, windowMs: 8000 });
+        if (!rl.allowed) {
+          toast({ title: 'Slow down', description: 'Please wait a moment before trying again.', variant: 'destructive' });
+        } else {
+          toast({ title: 'Joined!', description: 'Taking you to the quiz.' });
+          navigate(`/quiz/${q.id}`);
         }
-        throw error; // other errors
-      }
-      // Update UI state immediately so button shows JOINED without refresh
-      setJoinedMap(prev => ({ ...prev, [q.id]: isActive ? 'joined' : 'pre' }));
-      if (isUpcoming) {
+      } else if (result.status === 'pre_joined') {
+        setJoinedMap(prev => ({ ...prev, [q.id]: 'pre' }));
         toast({ title: 'Pre-joined!', description: 'We will remind you before start.' });
-      } else {
-            // Basic client-side rate limiting (defense-in-depth; backend still authoritative)
-            const rl = rateLimit(`join_${user?.id || 'anon'}`, { max: 4, windowMs: 8000 });
-            if (!rl.allowed) {
-              toast({ title: 'Slow down', description: 'Please wait a moment before trying again.', variant: 'destructive' });
-              return;
-            }
-        toast({ title: 'Joined!', description: 'Taking you to the quiz.' });
-        navigate(`/quiz/${q.id}`);
+      } else if (result.status === 'scheduled_retry') {
+        setJoinedMap(prev => ({ ...prev, [q.id]: 'pre' }));
+        toast({ title: 'Pre-joined!', description: 'Auto joining at start time.' });
       }
     } catch (err) {
-      toast({ title: 'Error', description: err.message || 'Could not join quiz.', variant: 'destructive' });
+      toast({ title: 'Error', description: err?.message || 'Could not join quiz.', variant: 'destructive' });
     } finally {
       setJoiningId(null);
     }
   };
 
-  // Always show Active + Upcoming (hide finished)
+  // Show ONLY Active + Upcoming quizzes (exclude recently finished)
   const filtered = quizzes.filter(q => {
     const now = Date.now();
     const st = q.start_time ? new Date(q.start_time).getTime() : 0;
@@ -201,15 +189,19 @@ const CategoryQuizzes = () => {
     .filter(ts => ts && ts > nowHeader)
     .sort((a,b) => a - b)[0] || null;
 
+  // Removed recent finished inclusion from display; do not mention in description
+
   const canonical = typeof window !== 'undefined'
     ? `${window.location.origin}/category/${slug}/`
     : `https://quizdangal.com/category/${slug}/`;
+  // Ensures legacy SEO template referencing hasRecent does not break lint; we deliberately exclude recent finished quizzes now.
+  const hasRecent = false;
 
   return (
     <div className="container mx-auto px-4 py-3 text-foreground">
       <SEO
         title={`${meta.title} – Quiz Dangal`}
-        description={`Active and upcoming quizzes in ${meta.title}.`}
+        description={`Active and upcoming quizzes${hasRecent ? ' + recent results' : ''} in ${meta.title}.`}
         canonical={canonical}
         robots="index, follow"
       />
@@ -260,6 +252,7 @@ const CategoryQuizzes = () => {
             const et = q.end_time ? new Date(q.end_time).getTime() : null;
             const isActive = st && et && now >= st && now < et;
             const isUpcoming = st && now < st;
+            const isRecentCompleted = et && now >= et && (now - et) <= (RECENT_COMPLETED_GRACE_MIN * 60 * 1000);
             const canJoin = isActive || isUpcoming;
             const secs = isUpcoming && st ? Math.max(0, Math.floor((st - now)/1000)) : (isActive && et ? Math.max(0, Math.floor((et - now)/1000)) : null);
                   const prizes = Array.isArray(q.prizes) ? q.prizes : [];
@@ -276,7 +269,6 @@ const CategoryQuizzes = () => {
             const myStatus = joinedMap[q.id];
             // unified UX: show only JOIN/JOINED; treat pre-joined as Joined in UI
             const already = !!myStatus; // 'pre' or 'joined' both count as joined for display
-            const btnDisabled = joiningId === q.id || already || !canJoin;
             const totalWindow = (st && et) ? Math.max(1, et - st) : null;
             const progressed = isActive && totalWindow ? Math.min(100, Math.max(0, Math.round(((now - st) / totalWindow) * 100))) : null;
             return (
@@ -302,6 +294,9 @@ const CategoryQuizzes = () => {
                   {isUpcoming && (
                     <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-widest bg-sky-600 text-white ring-1 ring-sky-300/50 shadow">SOON</span>
                   )}
+                  {!isActive && !isUpcoming && isRecentCompleted && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-widest bg-slate-700 text-white ring-1 ring-slate-400/40 shadow">RECENT</span>
+                  )}
                 </div>
                 <div className="p-4 sm:p-5">
                   <div className="flex items-center justify-between gap-3">
@@ -309,7 +304,7 @@ const CategoryQuizzes = () => {
                       {/* Title Row */}
                       <div className="flex items-center gap-2 flex-wrap">
                         <div className="w-full font-semibold text-slate-100 text-base sm:text-lg whitespace-normal break-words leading-snug pr-12 sm:pr-16">{q.title}</div>
-                        <span className={statusBadge(isActive ? 'active' : (isUpcoming ? 'upcoming' : 'finished'))}>{isActive ? 'active' : (isUpcoming ? 'upcoming' : 'finished')}</span>
+                        <span className={statusBadge(isActive ? 'active' : (isUpcoming ? 'upcoming' : 'finished'))}>{isActive ? 'active' : (isUpcoming ? 'upcoming' : 'finished')}{(!isActive && !isUpcoming && isRecentCompleted) ? ' (recent)' : ''}</span>
                         {myStatus && (
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${isActive ? 'bg-emerald-500/15 text-emerald-300 border-emerald-700/40' : 'bg-indigo-500/15 text-indigo-300 border-indigo-700/40'}`}>
                             Joined
@@ -363,17 +358,17 @@ const CategoryQuizzes = () => {
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (already) navigate(`/quiz/${q.id}`);
+                        if (already || !canJoin) navigate(`/quiz/${q.id}`);
                         else handleJoin(q);
                       }}
                       onMouseEnter={() => prefetchRoute('/quiz')}
                       onFocus={() => prefetchRoute('/quiz')}
-                      disabled={joiningId === q.id || !canJoin}
-                      aria-disabled={btnDisabled}
-                      className={`relative z-20 pointer-events-auto w-full px-4 py-2.5 rounded-lg text-sm sm:text-base font-extrabold border text-white transition focus:outline-none focus:ring-2 focus:ring-fuchsia-300 overflow-hidden ${btnDisabled ? 'opacity-80 cursor-not-allowed' : 'hover:scale-[1.015] active:scale-[0.99] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)]'} shadow-[0_8px_18px_rgba(139,92,246,0.4)] border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)]`}
+                      disabled={joiningId === q.id}
+                      aria-disabled={joiningId === q.id}
+                      className={`relative z-20 pointer-events-auto w-full px-4 py-2.5 rounded-lg text-sm sm:text-base font-extrabold border text-white transition focus:outline-none focus:ring-2 focus:ring-fuchsia-300 overflow-hidden ${joiningId === q.id ? 'opacity-80 cursor-wait' : 'hover:scale-[1.015] active:scale-[0.99] hover:shadow-[0_12px_24px_rgba(139,92,246,0.55)]'} shadow-[0_8px_18px_rgba(139,92,246,0.4)] border-violet-500/40 bg-[linear-gradient(90deg,#4f46e5,#7c3aed,#9333ea,#c026d3)]`}
                     >
                       <span className="inline-flex items-center justify-center gap-2">
-                        {already ? 'JOINED' : (joiningId === q.id ? 'JOINING…' : 'JOIN')}
+                        {already ? 'JOINED' : (!canJoin ? 'VIEW' : (joiningId === q.id ? 'JOINING…' : 'JOIN'))}
                       </span>
                     </button>
                   </div>

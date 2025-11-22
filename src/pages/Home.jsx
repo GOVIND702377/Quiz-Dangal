@@ -4,6 +4,7 @@ import SEO from '@/components/SEO';
 import { useToast } from '@/components/ui/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/customSupabaseClient';
+import { smartJoinQuiz } from '@/lib/smartJoinQuiz';
 import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { MessageSquare, Brain, Trophy, Clapperboard } from 'lucide-react';
 import StreakModal from '@/components/StreakModal';
@@ -228,32 +229,21 @@ const Home = () => {
     }
     setJoiningId(quiz.id);
     try {
-      // Allow pre-join if upcoming; otherwise normal join
-      const rpc = quiz.status === 'upcoming' ? 'pre_join_quiz' : 'join_quiz';
-      const { data, error } = await supabase.rpc(rpc, { p_quiz_id: quiz.id });
-      if (error) throw error;
-      if (quiz.status === 'upcoming') {
-        toast({ title: 'Pre-joined!', description: 'We will remind you 1 minute before start.' });
-      } else {
-        if (data && data !== 'Joined Successfully') throw new Error(data);
+      const result = await smartJoinQuiz({ supabase, quiz, user });
+      if (result.status === 'error') throw result.error;
+      if (result.status === 'already') {
+        toast({ title: 'Already Joined', description: 'You are in this quiz.' });
+        navigate(`/quiz/${quiz.id}`);
+      } else if (result.status === 'joined') {
         toast({ title: 'Joined!', description: 'Redirecting you to the quiz.' });
         navigate(`/quiz/${quiz.id}`);
+      } else if (result.status === 'pre_joined') {
+        toast({ title: 'Pre-joined!', description: 'We will remind you 1 minute before start.' });
+      } else if (result.status === 'scheduled_retry') {
+        toast({ title: 'Pre-joined!', description: 'Auto joining at start boundary.' });
       }
     } catch (err) {
-      const msg = String(err?.message || '').toLowerCase();
-      let description = err?.message || 'Could not join quiz.';
-      let title = 'Error';
-      if (msg.includes('not authenticated')) {
-        title = 'Login required';
-        description = 'Please sign in to join the quiz.';
-      } else if (msg.includes('insufficient balance')) {
-        title = 'Insufficient balance';
-        description = 'You do not have enough coins to join this quiz.';
-      } else if (msg.includes('quiz not active')) {
-        title = 'Quiz not active';
-        description = 'This quiz is not active right now.';
-      }
-      toast({ title, description, variant: 'destructive' });
+      toast({ title: 'Error', description: err?.message || 'Could not join quiz.', variant: 'destructive' });
     } finally {
       setJoiningId(null);
     }

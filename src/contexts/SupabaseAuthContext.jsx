@@ -4,6 +4,7 @@
 // ========================================================================
 
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import { useRealtimeChannel } from '@/hooks/useRealtimeChannel';
 import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
 import { loadReferralCode, clearReferralCode, normalizeReferralCode } from '@/lib/referralStorage';
 
@@ -122,29 +123,25 @@ function AuthProviderInner({ children }) {
         };
     }, []);
 
-    // Realtime: watch my profile row for wallet_balance and other updates; refresh locally on change
-    useEffect(() => {
-        if (!hasSupabaseConfig || !supabase) return;
-        if (!user?.id) return;
-        if (typeof window === 'undefined') return;
-
-        let channel = null;
+    // Realtime: profile row watch via shared hook (single removal + timeout logic abstracted)
+    const profileRealtimeEnabled = (() => {
         try {
-            channel = supabase
-                .channel(`profile-updates-${user.id}`, { config: { broadcast: { ack: false } } })
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `id=eq.${user.id}` }, async () => {
-                    try { await refreshUserProfile(user); } catch { /* ignore */ }
-                })
-                .subscribe((status) => {
-                    if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-                        try { if (channel) supabase.removeChannel(channel); } catch { /* ignore */ }
-                    }
-                });
-        } catch {
-            // ignore realtime setup failures
-        }
-        return () => { try { if (channel) supabase.removeChannel(channel); } catch { /* ignore */ } };
-    }, [user?.id, user]);
+            if (typeof window === 'undefined') return false;
+            if (!('WebSocket' in window)) return false;
+            if (navigator && navigator.onLine === false) return false;
+            if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+            if (typeof window !== 'undefined' && window.isSecureContext === false) return false;
+            return true;
+        } catch { return false; }
+    })();
+    useRealtimeChannel({
+        enabled: !!user?.id && !!hasSupabaseConfig && !!supabase && profileRealtimeEnabled,
+        channelName: user?.id ? `profile-updates-${user.id}` : undefined,
+        table: 'profiles',
+        filter: user?.id ? `id=eq.${user.id}` : undefined,
+        onChange: () => { try { if (user) refreshUserProfile(user); } catch { /* ignore */ } },
+        joinTimeoutMs: 5000,
+    });
 
     // Safety net: periodic session validation to recover from invalid/expired refresh tokens
     useEffect(() => {

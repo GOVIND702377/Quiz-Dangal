@@ -1,6 +1,6 @@
 # Security Remediation Checklist
 
-This repository previously included sensitive Supabase data exports and automation gaps. Use the checklist below to complete the clean-up.
+This repository previously included sensitive Supabase data exports. Use the checklist below to complete the clean-up.
 
 ## 1. Credentials
 - [ ] Rotate the Supabase service-role key exposed in the old `backups/supabase_backup.sql` dump.
@@ -12,10 +12,8 @@ This repository previously included sensitive Supabase data exports and automati
 - [ ] Use `git filter-repo` or BFG to delete the file from the entire history, then force-push to the remote.
 - [ ] Share the force-push notice with collaborators so they can re-clone or run the same filter.
 
-## 3. Database automation
-- [ ] Apply the migration `20251009173000_fix_finalize_due_quizzes.sql` and confirm cron job **finalize-due-quizzes** processes pending quizzes.
-- [ ] Run `SELECT public.run_finalize_due_quizzes(100);` manually once after deployment and verify logs for any `NOTICE` lines.
-- [ ] Review job history (`cron.job_run_details`) to ensure no recurring errors remain.
+## 3. Scheduled jobs
+- [ ] Confirm that your finalize-due-quizzes job runs `SELECT public.run_finalize_due_quizzes(100);` and check `cron.job_run_details` for any recurring errors.
 
 ## 4. RLS & policies
 - [ ] Audit Supabase policies for `referrals`, `reward_catalog`, `transactions`, and `job_runs`, ensuring only the intended roles can read/write sensitive tables.

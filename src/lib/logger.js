@@ -15,6 +15,12 @@ function format(level, args) {
 }
 
 export const logger = {
+  debug: (...args) => {
+    // ultra-verbose realtime / internal instrumentation (dev only)
+    if (!isDev) return;
+    // eslint-disable-next-line no-console
+    console.debug(...format('debug', args));
+  },
   info: (...args) => {
     if (!isDev) return; // info only in dev
     // eslint-disable-next-line no-console

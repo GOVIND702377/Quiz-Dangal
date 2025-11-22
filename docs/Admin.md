@@ -69,23 +69,13 @@ Edge Function expectations:
 { "title": "Win Big", "message": "Daily quiz starts now", "segment": "all" }
 
 Targeting participants of a specific quiz
-### Setup and Scheduling (Required for Auto Push)
+### Setup
 
-- You can now target only the users who joined a quiz by using a segment string of the form `participants:<quiz_uuid>`.
-- Example body:
-
-
-- Deploy Edge Functions:
-	- `send-notifications`
-	- `auto-push` (optional if you use the Node cron script instead)
-- Set env vars for both functions:
+- Deploy Edge Function: `send-notifications`.
+- Set env vars:
 	- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY`
 	- `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `CONTACT_EMAIL` (or `VAPID_CONTACT_EMAIL`)
-	- `CRON_SECRET` (same value in both functions and any external cron)
 	- `ALLOWED_ORIGINS` (include prod and localhost for testing)
-- Schedule every minute:
-	- Option A (recommended): Supabase Function Schedule → call `auto-push`
-	- Option B: External cron (GitHub Actions/VM) → run `node scripts/auto-push.mjs`
 
 ### Targeting Rules
 
@@ -102,8 +92,6 @@ Targeting participants of a specific quiz
 
 1) Subscribe: Login → after 10s prompt, allow notifications. Ensure `push_subscriptions` row exists and `profiles.notifications_enabled = true`.
 2) Admin broadcast: Send a test from this panel (segment `all`) → push should arrive; row appears in `notifications`.
-3) Start soon: Create quiz starting in ~2 minutes, join it → within 1 minute before start, start push should arrive; `quizzes.start_push_sent_at` set.
-4) Result: Let quiz end → compute results → result push should arrive; `quiz_results.result_push_sent_at` set.
 ```
 { "title": "Quiz starts soon", "message": "Join now!", "type": "start_soon", "segment": "participants:00000000-0000-0000-0000-000000000000", "quizId": "00000000-0000-0000-0000-000000000000" }
 ```
@@ -113,17 +101,6 @@ Notes
 - When `segment` is of the form `participants:<quiz_uuid>`, only those users' push subscriptions are targeted.
 - The Edge Function will include `quizId` in the push payload (either from the body or derived from the segment), and the service worker already handles `type: 'start_soon' | 'result'` for better UX.
 - Leaving `segment` empty or set to `all` sends to all subscribers (broadcast).
-
-Automation (no admin action)
-
-- DB adds idempotency columns: `quizzes.start_push_sent_at`, `quiz_results.result_push_sent_at`.
-- Views:
-	- `v_start_soon_due`: quizzes starting within 1 minute and not pushed yet.
-	- `v_result_push_due`: results visible and not pushed yet.
-- Marking idempotency: The automation marks `quizzes.start_push_sent_at` and `quiz_results.result_push_sent_at` directly after sending.
-- External scheduler: run `scripts/auto-push.mjs` every minute with env:
-	- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET` (also set same `CRON_SECRET` in Edge Function env).
-	- Script calls Edge `send-notifications` in `mode: 'cron'` with `X-Cron-Secret` for auth and uses `participants:<quiz_id>` targeting.
 
 Quiz finalization cron
 

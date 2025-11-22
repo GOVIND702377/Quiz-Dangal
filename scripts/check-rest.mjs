@@ -34,8 +34,8 @@ if (!URL) {
 }
 
 const endpoints = [
-  `${URL}/rest/v1/ai_settings?select=*\u0026id=eq.1`,
-  `${URL}/rest/v1/ai_providers?select=*&order=enabled.desc,priority.asc,id.asc`,
+  `${URL}/rest/v1/quizzes?select=id,title&limit=1`,
+  `${URL}/rest/v1/reward_catalog?select=id,reward_type&limit=1`,
 ];
 
 async function hit(url, headers, label) {

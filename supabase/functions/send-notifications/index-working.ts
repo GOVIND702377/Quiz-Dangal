@@ -7,7 +7,6 @@ let webpush: any | null = null;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_SERVICE_ROLE") || "";
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("VITE_SUPABASE_ANON_KEY") || "";
-const CRON_SECRET = Deno.env.get("CRON_SECRET") || "";
 
 const VAPID_PUBLIC_KEY = Deno.env.get("VAPID_PUBLIC_KEY") || Deno.env.get("VITE_VAPID_PUBLIC_KEY");
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") || Deno.env.get("VITE_VAPID_PRIVATE_KEY");
@@ -56,13 +55,13 @@ serve(async (req) => {
     if (req.method !== 'POST') {
       return new Response("Method Not Allowed", { status: 405, headers: { ...makeCorsHeaders(req) } });
     }
-    const { message, title, type, url, segment, quizId, mode } = await req.json();
+    const { message, title, type, url, segment, quizId } = await req.json();
 
     const missingCoreConfig: string[] = [];
     if (!SUPABASE_URL) missingCoreConfig.push('SUPABASE_URL');
     if (!SUPABASE_SERVICE_ROLE) missingCoreConfig.push('SUPABASE_SERVICE_ROLE_KEY');
     if (!HAS_VAPID) missingCoreConfig.push('VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY');
-    if (!SUPABASE_ANON_KEY && mode !== 'cron') missingCoreConfig.push('SUPABASE_ANON_KEY');
+    if (!SUPABASE_ANON_KEY) missingCoreConfig.push('SUPABASE_ANON_KEY');
 
     if (missingCoreConfig.length > 0) {
       const detail = `Missing required environment variables: ${missingCoreConfig.join(', ')}`;
@@ -74,26 +73,17 @@ serve(async (req) => {
       );
     }
 
-    // Two modes:
-    //  - user: default; requires Authorization of an admin user
-    //  - cron: requires X-Cron-Secret header matching env CRON_SECRET; skips user admin check
-    const cronSecretHeader = req.headers.get('X-Cron-Secret') || req.headers.get('x-cron-secret');
-    const isCronMode = mode === 'cron' && CRON_SECRET && cronSecretHeader && cronSecretHeader === CRON_SECRET;
-
-    let user: { id: string } | null = null;
-    if (!isCronMode) {
-      // Authenticate caller and ensure they are admin
-      const authHeader = req.headers.get('Authorization');
-      const supabaseUserClient = createClient(
-        SUPABASE_URL,
-        SUPABASE_ANON_KEY,
-        { global: { headers: { Authorization: authHeader ?? '' } } }
-      );
-      const userResp = await supabaseUserClient.auth.getUser();
-      const userErr = userResp.error; user = userResp.data?.user || null;
-      if (userErr || !user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json', ...makeCorsHeaders(req) } });
-      }
+    // Authenticate caller and ensure they are admin
+    const authHeader = req.headers.get('Authorization');
+    const supabaseUserClient = createClient(
+      SUPABASE_URL,
+      SUPABASE_ANON_KEY,
+      { global: { headers: { Authorization: authHeader ?? '' } } }
+    );
+    const userResp = await supabaseUserClient.auth.getUser();
+    const userErr = userResp.error; const user = userResp.data?.user || null;
+    if (userErr || !user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json', ...makeCorsHeaders(req) } });
     }
 
     if (!message || !title) {
@@ -109,15 +99,13 @@ serve(async (req) => {
     );
 
     // Verify admin role from profiles table
-    if (!isCronMode) {
-      const { data: profile, error: profErr } = await supabaseAdmin
-        .from('profiles')
-        .select('role')
-        .eq('id', user!.id)
-        .single();
-      if (profErr || !profile || profile.role !== 'admin') {
-        return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json', ...makeCorsHeaders(req) } });
-      }
+    const { data: profile, error: profErr } = await supabaseAdmin
+      .from('profiles')
+      .select('role')
+      .eq('id', user!.id)
+      .single();
+    if (profErr || !profile || profile.role !== 'admin') {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json', ...makeCorsHeaders(req) } });
     }
 
     // Determine audience based on optional segment value.
@@ -205,17 +193,16 @@ serve(async (req) => {
 
     await Promise.all(sendPromises);
 
-    // Log this broadcast once for admin activity view
-    // Log this push once for admin activity view (label by mode)
+    // Log this push once for admin activity view
     try {
       await supabaseAdmin
         .from('notifications')
         .insert({
           title: title,
           message: message,
-          type: isCronMode ? (typeof type === 'string' ? type : 'auto_push') : 'broadcast_push',
+          type: typeof type === 'string' ? type : 'broadcast_push',
           segment: typeof segment === 'string' ? segment : null,
-          created_by: isCronMode ? null : user?.id ?? null,
+          created_by: user?.id ?? null,
         });
     } catch (logErr) {
       console.error('Failed to log push:', logErr);

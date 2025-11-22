@@ -80,13 +80,15 @@ const Header = () => {
         className="fixed top-0 left-0 right-0 z-[60] px-2 pt-2 animate-slide-down"
         data-mute-click-sound
         style={{ '--slide-delay': '40ms' }}
+        role="banner"
+        aria-label="Quiz Dangal site header"
       >
         <div className="qd-card rounded-3xl overflow-hidden">
 
   <div className="container mx-auto px-2 sm:px-5 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             {/* Brand */}
-            <Link to="/" className="flex items-center gap-2 group" onMouseEnter={() => prefetchRoute('/')} onFocus={() => prefetchRoute('/')}>
+            <Link to="/" className="flex items-center gap-2 group" onMouseEnter={() => prefetchRoute('/')} onFocus={() => prefetchRoute('/')} aria-label="Go to home page">
               <img
                 src="/android-chrome-192x192.png"
                 alt="Quiz Dangal Logo"
@@ -98,7 +100,7 @@ const Header = () => {
                 style={{ imageRendering: 'auto' }}
               />
               <div className="leading-tight whitespace-nowrap select-none">
-                <div className="text-xl sm:text-2xl font-extrabold qd-gradient-text drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)] tracking-tight">
+                <div className="text-xl sm:text-2xl font-extrabold qd-gradient-text drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)] tracking-tight" aria-hidden="true">
                   Quiz Dangal
                 </div>
                 <div className="text-[11px] sm:text-xs text-white/70 -mt-0.5 font-medium">Where Minds Clash</div>
@@ -126,7 +128,8 @@ const Header = () => {
               {/* When logged in: show coins and streak */}
               {user && (
                 <>
-                  <div className="hidden sm:inline-flex hd-badge hd-badge-gold" title="Coins" aria-label={`Coins: ${walletLabel}`}>
+                  <div className="hidden sm:inline-flex hd-badge hd-badge-gold" title="Coins" aria-label={`Coins balance: ${walletLabel}`}
+                    role="status">
                     <div className="hd-badge-icon" aria-hidden="true">
                       <div className="hd-badge-coin">
                         <div className="hd-badge-coin-front">
@@ -149,7 +152,8 @@ const Header = () => {
                     }}
                     className="hd-badge hd-badge-streak -ml-1 sm:-ml-2"
                     title="Daily Streak"
-                    aria-label={`Streak: ${streak} days`}
+                    aria-label={`Daily streak ${streak} days. Open details.`}
+                    aria-haspopup="dialog"
                   >
                     <div className="hd-badge-icon hd-badge-icon-streak-full" aria-hidden="true">
                       <div className="streak-orb" />

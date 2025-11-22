@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { m } from '@/lib/motion-lite';
 // removed Button import; using Link for consistency across actions
 import { useAuth } from '@/contexts/SupabaseAuthContext';
-import { supabase } from '@/lib/customSupabaseClient';
+import { supabase, hasSupabaseConfig } from '@/lib/customSupabaseClient';
+import { useRealtimeChannel } from '@/hooks/useRealtimeChannel';
 import { Coins, Share2, Gift, Trophy, ArrowDownRight, ArrowUpRight, UserPlus, RefreshCcw, ShoppingBag, LogOut, Wallet as WalletIcon, Gamepad2 } from 'lucide-react';
 import SEO from '@/components/SEO';
 // useNavigate not needed; using Link for navigation
@@ -22,65 +23,54 @@ const Wallet = () => {
   const allowedTypes = useMemo(() => ['credit','reward','bonus','referral','daily_login','quiz_reward','purchase','debit','refund','join_fee','prize'], []);
   const positiveTypes = useMemo(() => ['reward','bonus','credit','referral','refund','daily_login','quiz_reward','prize'], []);
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      if (!user) {
-        setTransactions([]);
-        setLoading(false);
-        return;
-      }
-      try {
-        const { data, error } = await supabase
-          .from('transactions')
-          .select('*')
-          .eq('user_id', user.id)
-          .in('type', allowedTypes)
-          .not('type', 'is', null)
-          .not('amount', 'is', null)
-          .neq('amount', 0)
-          .order('created_at', { ascending: false })
-          .limit(10);
-        if (error) console.error(error);
-        setTransactions(data || []);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchTransactions();
-    // Realtime: update recent list when new transactions for this user arrive
-    if (user) {
-      let channel = null;
-      try {
-        channel = supabase
-          .channel(`tx-updates-${user.id}`, { config: { broadcast: { ack: false } } })
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` }, async () => {
-            try {
-              const { data } = await supabase
-                .from('transactions')
-                .select('*')
-                .eq('user_id', user.id)
-                .in('type', allowedTypes)
-                .not('type', 'is', null)
-                .not('amount', 'is', null)
-                .neq('amount', 0)
-                .order('created_at', { ascending: false })
-                .limit(10);
-              setTransactions(data || []);
-            } catch { /* ignore */ }
-          })
-          .subscribe((status) => {
-            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-              try { if (channel) supabase.removeChannel(channel); } catch { /* ignore */ }
-            }
-          });
-      } catch {
-        // ignore realtime subscription errors
-      }
-      return () => { try { if (channel) supabase.removeChannel(channel); } catch { /* ignore */ } };
+  const fetchTransactions = useCallback(async () => {
+    if (!user || !hasSupabaseConfig || !supabase) {
+      setTransactions([]);
+      setLoading(false);
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('type', allowedTypes)
+        .not('type', 'is', null)
+        .not('amount', 'is', null)
+        .neq('amount', 0)
+        .order('created_at', { ascending: false })
+        .limit(10);
+      if (error) console.error(error);
+      setTransactions(data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
   }, [user, allowedTypes]);
+
+  useEffect(() => { fetchTransactions(); }, [fetchTransactions]);
+
+  // Realtime updates via shared hook (insert only)
+  const txRealtimeEnabled = (() => {
+    try {
+      if (typeof window === 'undefined') return false;
+      if (!('WebSocket' in window)) return false;
+      if (navigator && navigator.onLine === false) return false;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+      if (typeof window !== 'undefined' && window.isSecureContext === false) return false;
+      return true;
+    } catch { return false; }
+  })();
+  useRealtimeChannel({
+    enabled: !!user?.id && txRealtimeEnabled && hasSupabaseConfig && !!supabase,
+    channelName: user?.id ? `tx-updates-${user.id}` : undefined,
+    event: 'INSERT',
+    table: 'transactions',
+    filter: user?.id ? `user_id=eq.${user.id}` : undefined,
+    onChange: fetchTransactions,
+    joinTimeoutMs: 5000,
+  });
 
   const walletBalance = Number(userProfile?.wallet_balance || 0);
   const prevBalanceRef = useRef(walletBalance);

@@ -8,7 +8,8 @@ import { useAuth } from '@/contexts/SupabaseAuthContext';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Trophy, Users, ArrowLeft, Share2, Sparkles, ListChecks, BookOpenCheck } from 'lucide-react';
-import { normalizeReferralCode, saveReferralCode } from '@/lib/referralStorage';
+import { normalizeReferralCode, saveReferralCode, loadReferralCode } from '@/lib/referralStorage';
+import { useRealtimeChannel } from '@/hooks/useRealtimeChannel';
 import SEO from '@/components/SEO';
 
 const Results = () => {
@@ -53,9 +54,9 @@ const Results = () => {
         .eq('id', quizId)
         .single();
       if (quizError) throw quizError;
-  setQuiz(quizData || null);
+      setQuiz(quizData || null);
 
-      // Participation check (non-blocking): we still show public results if available
+      // Participation check
       let amParticipant = false;
       if (user?.id) {
         try {
@@ -63,94 +64,51 @@ const Results = () => {
             .from('quiz_participants')
             .select('status')
             .eq('quiz_id', quizId)
-            .eq('user_id', user?.id)
+            .eq('user_id', user.id)
             .maybeSingle();
           amParticipant = !!meRow;
-        } catch {
-          amParticipant = false;
-        }
+        } catch { amParticipant = false; }
       }
 
       const allowClientCompute = isAdmin || amParticipant || shouldAllowClientCompute({ defaultValue: true });
 
-      // Load leaderboard from quiz_results (RLS-safe)
+      // Fetch existing results row
       const { data: resRow, error: resErr } = await supabase
         .from('quiz_results')
         .select('leaderboard')
         .eq('quiz_id', quizId)
         .maybeSingle();
       if (resErr) throw resErr;
-
       let leaderboard = Array.isArray(resRow?.leaderboard) ? resRow.leaderboard : [];
 
-      // If results aren't published yet
-      if (!resRow || leaderboard.length === 0) {
-        setResults([]);
-        // Initialize countdown to end_time (results are computed at end_time)
-        if (quizData?.end_time) {
-          const target = new Date(quizData.end_time).getTime();
-          const diff = target - Date.now();
-          setTimeLeftMs(diff > 0 ? diff : 0);
-
-          // If end time has passed but results row is missing, try JIT compute
-          if (diff <= 0 && allowClientCompute) {
-            try {
-              await safeComputeResultsIfDue(supabase, quizId, { throttleMs: 150 });
-              // Brief delay and refetch
-              await new Promise(r => setTimeout(r, 400));
-              const { data: rr2 } = await supabase
-                .from('quiz_results')
-                .select('leaderboard')
-                .eq('quiz_id', quizId)
-                .maybeSingle();
-              const lb2 = Array.isArray(rr2?.leaderboard) ? rr2.leaderboard : [];
-              if (lb2.length > 0) {
-                leaderboard = lb2;
-              }
-            } catch (computeError) {
-              if (import.meta.env.DEV) {
-                console.debug('compute_results_if_due failed; continuing with original data', computeError);
-              }
-            }
-            // End time passed: treat as published even if leaderboard empty
-            // Do not return; continue to render Results with empty list
-          } else if (diff > 0) {
-            // Before end: show waiting UI
-            return;
-          }
-        } else {
-          setTimeLeftMs(null);
-          // No end_time meta; treat as unpublished and show waiting UI
-          return;
+      // If missing leaderboard and quiz ended, attempt compute once
+      if ((!resRow || leaderboard.length === 0) && quizData?.end_time) {
+        const endTs = new Date(quizData.end_time).getTime();
+        const diff = endTs - Date.now();
+        setTimeLeftMs(diff > 0 ? diff : 0);
+        if (diff <= 0 && allowClientCompute) {
+          try {
+            await safeComputeResultsIfDue(supabase, quizId, { throttleMs: 200 });
+            const { data: resRow2 } = await supabase
+              .from('quiz_results')
+              .select('leaderboard')
+              .eq('quiz_id', quizId)
+              .maybeSingle();
+            const lb2 = Array.isArray(resRow2?.leaderboard) ? resRow2.leaderboard : [];
+            if (lb2.length) leaderboard = lb2;
+          } catch { /* compute failure ignored */ }
         }
-        // Past end: continue and render Results with empty list
-      } else {
-        setTimeLeftMs(null);
       }
 
-  // Normalize structure to what UI expects: rank, score, profiles
-      // leaderboard items: { user_id, display_name, score, rank }
-      const normalized = (Array.isArray(leaderboard) ? leaderboard : [])
-        .map((entry, idx) => ({
-          id: `${quizId}-${entry.user_id}`,
-          user_id: entry.user_id,
-          score: Number(entry.score) || 0,
-          rank: Number(entry.rank) || idx + 1,
-          profiles: {
-            username: entry.display_name?.startsWith('@') ? entry.display_name.slice(1) : undefined,
-            full_name: entry.display_name,
-            avatar_url: undefined,
-          },
-        }))
-        .sort((a, b) => b.score - a.score);
-
+      const normalized = Array.isArray(leaderboard)
+        ? leaderboard.map((row, idx) => ({
+            ...row,
+            rank: row.rank ?? (idx + 1),
+          }))
+        : [];
       setResults(normalized);
-      // Prize wallet refresh is handled by a separate effect once rank/prize are known
-      if (normalized.length > 0 && didRefetchAfterCountdown) {
-        setDidRefetchAfterCountdown(false);
-      }
 
-      // Fetch participants count for header via engagement RPC (non-blocking)
+      // Participants count (non-blocking)
       try {
         const { data: ec } = await supabase.rpc('get_engagement_counts', { p_quiz_id: quizId });
         const rec = Array.isArray(ec) ? ec[0] : ec;
@@ -159,29 +117,24 @@ const Results = () => {
         setParticipantsCount(joined + pre);
       } catch { /* ignore */ }
 
-      // Fetch Q&A review for non-opinion categories (publicly visible after end)
+      // Q&A review for non-opinion quizzes (after end)
       try {
         const category = (quizData?.category || '').toLowerCase();
-        const isOpinion = category === 'opinion';
-        if (!isOpinion && quizId) {
-          // Load all questions with options and correctness
-          const { data: qrows, error: qerr } = await supabase
+        if (category !== 'opinion' && quizId && normalized.length) {
+          const { data: qrows } = await supabase
             .from('questions')
             .select('id, question_text, options ( id, option_text, is_correct )')
             .eq('quiz_id', quizId)
             .order('id');
-          if (qerr) throw qerr;
           let selectionsMap = new Map();
-          if (user?.id && Array.isArray(qrows) && qrows.length > 0) {
+          if (user?.id && Array.isArray(qrows) && qrows.length) {
             const qids = qrows.map(q => q.id);
             const { data: uans } = await supabase
               .from('user_answers')
               .select('question_id, selected_option_id')
               .in('question_id', qids)
               .eq('user_id', user.id);
-            if (Array.isArray(uans)) {
-              selectionsMap = new Map(uans.map(r => [r.question_id, r.selected_option_id]));
-            }
+            if (Array.isArray(uans)) selectionsMap = new Map(uans.map(r => [r.question_id, r.selected_option_id]));
           }
           const mapped = (qrows || []).map(q => ({
             id: q.id,
@@ -194,52 +147,37 @@ const Results = () => {
             })),
           }));
           setQaItems(mapped);
-        } else {
-          setQaItems([]);
-        }
-      } catch (e) {
-        // If RLS prevents reading correctness, just skip Q&A review
-        if (import.meta.env.DEV) console.debug('Q&A review unavailable:', e?.message || e);
-        setQaItems([]);
-      }
+        } else { setQaItems([]); }
+      } catch { setQaItems([]); }
 
-      // Enrich top entries with avatar/username from profiles (non-blocking)
+      // Enrich top leaderboard profiles
       try {
         const topIds = normalized.slice(0, 10).map(e => e.user_id);
         if (topIds.length) {
-          const { data: profs, error: profError } = await supabase
-              .rpc('profiles_public_by_ids', { p_ids: topIds });
-            if (profError) {
-              console.warn('Public profile fetch failed:', profError);
-            }
-            if (Array.isArray(profs) && profs.length) {
-              const profileMap = new Map(profs.map(p => [p.id, p]));
-              const signedMap = await getSignedAvatarUrls(profs.map(p => p.avatar_url).filter(Boolean));
-              setResults(prev => prev.map(item => {
-                const p = profileMap.get(item.user_id);
-                if (!p) return item;
-                const signedUrl = p.avatar_url ? (signedMap.get(p.avatar_url) || '') : '';
-                return {
-                  ...item,
-                  profiles: {
-                    username: p.username,
-                    full_name: p.full_name,
-                    avatar_url: signedUrl,
-                  },
-                };
-              }));
+          const { data: profs } = await supabase.rpc('profiles_public_by_ids', { p_ids: topIds });
+          if (Array.isArray(profs) && profs.length) {
+            const profileMap = new Map(profs.map(p => [p.id, p]));
+            const signedMap = await getSignedAvatarUrls(profs.map(p => p.avatar_url).filter(Boolean));
+            setResults(prev => prev.map(item => {
+              const p = profileMap.get(item.user_id);
+              if (!p) return item;
+              const signedUrl = p.avatar_url ? (signedMap.get(p.avatar_url) || '') : '';
+              return {
+                ...item,
+                profiles: {
+                  username: p.username,
+                  full_name: p.full_name,
+                  avatar_url: signedUrl,
+                },
+              };
+            }));
           }
         }
-      } catch {
-        // Non-critical: avatar enrichment failed; continue with base leaderboard
-      }
+      } catch { /* ignore avatar enrichment */ }
 
-      // Find user's rank
       const me = normalized.find(p => p.user_id === user?.id);
       if (me) setUserRank(me);
-      if (!amParticipant) {
-        // If viewer is not a participant, still allow viewing. Do not set error.
-      }
+      // Non-participant users still allowed to view public leaderboard
 
     } catch (error) {
       console.error('Error fetching results:', error);
@@ -247,7 +185,7 @@ const Results = () => {
     } finally {
       setLoading(false);
     }
-  }, [quizId, user?.id, isAdmin, didRefetchAfterCountdown]);
+  }, [quizId, user?.id, isAdmin]);
 
   useEffect(() => {
     fetchResults();
@@ -258,6 +196,10 @@ const Results = () => {
     setErrorMessage('');
     fetchResults();
   };
+  // Prize related derived values (needed before poster effect dependencies)
+  const prizeType = quiz?.prize_type || 'coins';
+  const userPrizeVal = (userRank?.rank && Array.isArray(quiz?.prizes) && quiz.prizes[userRank.rank - 1]) ? quiz.prizes[userRank.rank - 1] : 0;
+  const userPrizeDisplay = getPrizeDisplay(prizeType, userPrizeVal, { fallback: 0 });
   // Prepare poster in the background once results are available
   useEffect(() => {
     let cancelled = false;
@@ -273,13 +215,9 @@ const Results = () => {
     prep();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [results.length, quizId, userRank?.rank, userRank?.score]);
+  }, [results.length, quizId, userRank?.rank, userRank?.score, userProfile?.full_name, userProfile?.username, user?.id, userProfile?.referral_code, userPrizeVal]);
 
   // Removed static background poster; we render a clean gradient background only.
-
-  const prizeType = quiz?.prize_type || 'coins';
-  const userPrizeVal = (userRank?.rank && Array.isArray(quiz?.prizes) && quiz.prizes[userRank.rank - 1]) ? quiz.prizes[userRank.rank - 1] : 0;
-  const userPrizeDisplay = getPrizeDisplay(prizeType, userPrizeVal, { fallback: 0 });
 
   // As soon as user has a prize decided, refresh profile so wallet updates without manual refresh
   useEffect(() => {
@@ -295,8 +233,8 @@ const Results = () => {
     } catch { /* ignore */ }
   }, [user, userRank?.rank, quiz?.prizes, refreshUserProfile]);
 
-  // Compose a dynamic Results poster (portrait-only) with strict flow and QR footer
-  const generateComposedResultsPoster = async () => {
+  // Compose a dynamic Results poster (portrait-only) with strict flow and QR footer (memoized)
+  const generateComposedResultsPoster = useCallback(async () => {
     try {
       const W = 1080, H = 1920;
       const canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
@@ -363,7 +301,12 @@ const Results = () => {
   const siteBase = (import.meta.env.VITE_PUBLIC_SITE_URL || 'https://www.quizdangal.com').replace(/\/$/, '');
   const referralUrl = `${siteBase}/?ref=${encodeURIComponent(refCode)}`;
   if (refCode) {
-    saveReferralCode(refCode);
+    try {
+      const existing = loadReferralCode();
+      if (!existing || existing !== refCode) {
+        saveReferralCode(refCode);
+      }
+    } catch { /* ignore */ }
   }
   const qrSize = Math.min(220, footerH - 72); const cardW = qrSize + 32; const cardH = qrSize + 40; const cardX = boxX + boxW - cardW - 36; const cardY = footerY + Math.max(24, Math.round((footerH - cardH)/2)); roundRect(cardX, cardY, cardW, cardH, 18); ctx.fillStyle='#ffffff'; ctx.fill(); try { const { default: QRCode } = await import('qrcode'); const qrCanvas=document.createElement('canvas'); await QRCode.toCanvas(qrCanvas, referralUrl, { width: qrSize, margin: 1, color: { dark:'#000000', light:'#ffffff' } }); ctx.drawImage(qrCanvas, cardX+16, cardY+16, qrSize, qrSize); } catch { /* QR generation failed: leave blank */ }
   const leftX = boxX + 36; const maxLeft = (cardX - 24) - leftX; ctx.fillStyle='rgba(255,255,255,0.96)'; setFont('900',48); ctx.fillText(trimToWidth('🧠 Play & Win', maxLeft), leftX, footerY + 36);
@@ -376,7 +319,7 @@ const Results = () => {
     } catch {
       try { const c=document.createElement('canvas'); c.width=8; c.height=8; const ctx=c.getContext('2d'); const g=ctx.createLinearGradient(0,0,8,8); g.addColorStop(0,'#130531'); g.addColorStop(1,'#1e0b4b'); ctx.fillStyle=g; ctx.fillRect(0,0,8,8); const jpg=await new Promise((res)=>c.toBlob(res,'image/jpeg',0.9)); return jpg; } catch { return null; }
     }
-  };
+  }, [user?.id, userProfile?.full_name, userProfile?.username, userProfile?.referral_code, userRank?.rank, userRank?.score, prizeType, userPrizeVal]);
 
   // Live countdown updater when results aren't available yet
   useEffect(() => {
@@ -405,91 +348,40 @@ const Results = () => {
     return () => clearInterval(id);
   }, [quiz?.end_time, results.length, didRefetchAfterCountdown, fetchResults]);
 
-  useEffect(() => {
-    if (results.length > 0) return;
-    if (!hasSupabaseConfig || !supabase) return;
-    if (!quizId) return;
-    if (typeof window === 'undefined') return;
-
-    // Realtime enable flag (can be disabled via env)
-    const enableRealtime = (() => {
-      try {
-        const runtimeEnv = (typeof window !== 'undefined' && window.__QUIZ_DANGAL_ENV__) ? window.__QUIZ_DANGAL_ENV__ : {};
-        // Default ON so results and prizes reflect without manual refresh
-        const raw = import.meta.env.VITE_ENABLE_REALTIME ?? runtimeEnv.VITE_ENABLE_REALTIME ?? '1';
-        const v = String(raw).toLowerCase();
-        return v === '1' || v === 'true' || v === 'yes';
-      } catch { return false; }
-    })();
-
-    const shouldUseRealtime = () => {
-      try {
-        if (!enableRealtime) return false;
-        if (!hasSupabaseConfig || !supabase || !quizId) return false;
-        if (typeof window === 'undefined') return false;
-        if (!('WebSocket' in window)) return false;
-        if (navigator && navigator.onLine === false) return false;
-        // Avoid WS on hidden tabs to reduce transient closures
-        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
-        // Heuristic: on insecure contexts some browsers can be stricter
-        if (typeof window !== 'undefined' && window.isSecureContext === false) return false;
-        const conn = (navigator && (navigator.connection || navigator.mozConnection || navigator.webkitConnection)) || null;
-        if (conn) {
-          if (conn.saveData) return false;
-          if (typeof conn.effectiveType === 'string' && /(^|\b)2g(\b|$)/i.test(conn.effectiveType)) return false;
-        }
-        return true;
-      } catch { return true; }
-    };
-
-    if (!shouldUseRealtime()) {
-      return; // rely on polling/fetchResults from other effects
-    }
-
-    let channel = null;
-    let cleanupTimer = null;
+  // Realtime subscription via hook (only while leaderboard empty)
+  const realtimeEnabled = (() => {
     try {
-      channel = supabase
-        .channel(`quiz-results-${quizId}`, { config: { broadcast: { ack: false } } })
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'quiz_results', filter: `quiz_id=eq.${quizId}` },
-          () => {
-            fetchResults();
-          },
-        )
-        .subscribe((status) => {
-          // Silently handle subscription status
-          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
-            // Cleanup failed channel to prevent console errors
-            try {
-              if (channel) supabase.removeChannel(channel);
-            } catch { /* ignore */ }
-          }
-        });
-
-      // If the channel didn't join promptly, clean it up to avoid noisy console errors
-      cleanupTimer = setTimeout(() => {
-        try {
-          if (channel && channel.state !== 'joined') {
-            supabase.removeChannel(channel);
-            channel = null;
-          }
-        } catch { /* ignore */ }
-      }, 5000);
-    } catch {
-      // ignore realtime setup errors; fetch fallback will cover
-    }
-
-    return () => {
-      try {
-        if (cleanupTimer) clearTimeout(cleanupTimer);
-        if (channel) supabase.removeChannel(channel);
-      } catch {
-        /* ignore */
+      const runtimeEnv = (typeof window !== 'undefined' && window.__QUIZ_DANGAL_ENV__) ? window.__QUIZ_DANGAL_ENV__ : {};
+      const raw = import.meta.env.VITE_ENABLE_REALTIME ?? runtimeEnv.VITE_ENABLE_REALTIME ?? '1';
+      const v = String(raw).toLowerCase();
+      return v === '1' || v === 'true' || v === 'yes';
+    } catch { return false; }
+  })();
+  const canUseRealtime = (() => {
+    try {
+      if (!realtimeEnabled) return false;
+      if (!hasSupabaseConfig || !supabase || !quizId) return false;
+      if (typeof window === 'undefined') return false;
+      if (!('WebSocket' in window)) return false;
+      if (navigator && navigator.onLine === false) return false;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false;
+      if (typeof window !== 'undefined' && window.isSecureContext === false) return false;
+      const conn = (navigator && (navigator.connection || navigator.mozConnection || navigator.webkitConnection)) || null;
+      if (conn) {
+        if (conn.saveData) return false;
+        if (typeof conn.effectiveType === 'string' && /(^|\b)2g(\b|$)/i.test(conn.effectiveType)) return false;
       }
-    };
-  }, [quizId, results.length, fetchResults]);
+      return true;
+    } catch { return true; }
+  })();
+  useRealtimeChannel({
+    enabled: results.length === 0 && canUseRealtime,
+    channelName: `quiz-results-${quizId}`,
+    table: 'quiz_results',
+    filter: `quiz_id=eq.${quizId}`,
+    onChange: fetchResults,
+    joinTimeoutMs: 5000,
+  });
 
   const formatTimeParts = (ms) => {
     const total = Math.max(0, Math.floor((ms ?? 0) / 1000));
@@ -825,7 +717,7 @@ const Results = () => {
               const prizeDisplay = getPrizeDisplay(prizeType, prizeVal, { fallback: 0 });
               const isMe = participant.user_id === user?.id;
               return (
-                <m.div key={participant.id} variants={itemVariants} initial="hidden" animate="show" className={`flex items-center justify-between gap-3 p-2.5 rounded-lg border transition-colors ${isMe ? 'bg-indigo-950/40 border-indigo-700/40 ring-1 ring-indigo-500/20' : index<3 ? 'bg-slate-900/70 border-slate-700/60' : 'bg-slate-950/30 border-slate-800 hover:bg-slate-900/60'}`}>
+                <m.div key={`${participant.id}-${index}`} variants={itemVariants} initial="hidden" animate="show" className={`flex items-center justify-between gap-3 p-2.5 rounded-lg border transition-colors ${isMe ? 'bg-indigo-950/40 border-indigo-700/40 ring-1 ring-indigo-500/20' : index<3 ? 'bg-slate-900/70 border-slate-700/60' : 'bg-slate-950/30 border-slate-800 hover:bg-slate-900/60'}`}>
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-8 h-8 rounded-md grid place-items-center text-xs font-bold bg-slate-800 text-slate-100 ring-1 ring-white/10">
                       <span>{participant.rank || index + 1}</span>

@@ -9,3 +9,7 @@ export const SESSION_VALIDATION_INTERVAL_MS = 60000; // Auth session periodic va
 
 // Grace period for auto redirect after quiz completion
 export const QUIZ_COMPLETION_REDIRECT_DELAY_MS = 3000;
+
+// Grace period to still show recently finished quizzes in listings (e.g., category pages)
+// Helps users discover fresh results even if they open a bit late.
+export const RECENT_COMPLETED_GRACE_MIN = 20;

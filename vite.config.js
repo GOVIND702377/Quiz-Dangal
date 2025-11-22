@@ -12,10 +12,9 @@ const analyze = process.env.ANALYZE === 'true';
 
 export default defineConfig({
 	plugins: [react(), analyze && visualizer({ filename: 'dist/stats.html', gzipSize: true, brotliSize: true, open: false })].filter(Boolean),
-	// Using a custom domain for this project repo; site is served at domain root.
-	// Base must be '/' so assets resolve under https://quizdangal.com/.
-			// Using custom domain (public/CNAME). Keep base at root.
-			base: '/',
+	// Using a custom domain (quizdangal.com) from public/CNAME; site is served at domain root.
+	// Base must be '/' so assets resolve correctly under https://quizdangal.com/.
+	base: '/',
 	server: {
 		cors: true,
 		host: true,     // Allow both localhost and network access
@@ -36,8 +35,9 @@ export default defineConfig({
 		cssTarget: 'es2018',
 		brotliSize: false,
 		sourcemap: false,
-		// Remove manualChunks to avoid circular imports between vendor/react-vendor that can break React at runtime.
-		// Vite/Rollup will choose safe defaults.
+		// Keep a simple manualChunks split for major libs to improve cacheability.
+		// If you ever see strange React runtime issues, you can remove manualChunks
+		// entirely and let Vite/Rollup pick safe defaults automatically.
 		rollupOptions: {
 			external: [
 				'@babel/parser',
