@@ -209,7 +209,8 @@ const Home = () => {
               alt="Quiz Dangal"
               width={44}
               height={44}
-              fetchPriority="high"
+              // eslint-disable-next-line react/no-unknown-property
+              fetchpriority="high"
               className="h-11 w-11 sm:h-10 sm:w-10 rounded-[12px] transition-transform duration-300 group-hover:scale-[1.05]"
             />
             <div className="text-[1.35rem] md:text-[1.55rem] font-black tracking-tight bg-gradient-to-r from-violet-200 via-fuchsia-200 to-amber-200 bg-clip-text text-transparent">
