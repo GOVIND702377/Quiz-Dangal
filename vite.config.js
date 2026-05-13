@@ -14,7 +14,10 @@ export default defineConfig({
 	define: {
 		__BUILD_DATE__: JSON.stringify(new Date().toISOString().split('T')[0]),
 	},
-	plugins: [react(), analyze && visualizer({ filename: 'dist/stats.html', gzipSize: true, brotliSize: true, open: false })].filter(Boolean),
+	plugins: [
+		react(),
+		analyze ? visualizer({ filename: 'dist/stats.html', gzipSize: true, brotliSize: true, open: false }) : null,
+	].filter(Boolean),
 	// Using a custom domain (quizdangal.com) from public/CNAME; site is served at domain root.
 	// Base must be '/' so assets resolve correctly under https://quizdangal.com/.
 	base: '/',
@@ -41,20 +44,6 @@ export default defineConfig({
 		cssTarget: 'es2018',
 		reportCompressedSize: false,
 		sourcemap: false,
-		// Keep a simple manualChunks split for major libs to improve cacheability.
-		// If you ever see strange React runtime issues, you can remove manualChunks
-		// entirely and let Vite/Rollup pick safe defaults automatically.
-		rollupOptions: {
-			output: {
-				manualChunks: {
-					react: ['react', 'react-dom'],
-					router: ['react-router-dom'],
-					motion: ['framer-motion'],
-					icons: ['lucide-react'],
-					supabase: ['@supabase/supabase-js'],
-				},
-			},
-		},
 		chunkSizeWarningLimit: 768,
 	},
 });

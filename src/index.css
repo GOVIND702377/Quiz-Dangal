@@ -1,4 +1,4 @@
-﻿/* @config "../tailwind.config.js" */
+/* @config "../tailwind.config.js" */
 /* 
  * WCAG Contrast Note: This is a dark-theme app with dark backgrounds (#0a0a12, #1e1b4b, etc.)
  * All text colors are designed for dark backgrounds and meet WCAG AA contrast requirements.
@@ -56,9 +56,7 @@ html,
   --qd-success: #33d69f;
   --qd-warning: #ffce3d;
 
-  /* Background theme variables (minimal 2-color: Dark Navy -> Deep Royal Blue) */
-  --bg-base-start: 6, 10, 20; /* darker navy: #060a14 */
-  --bg-base-end: 40, 70, 150; /* deeper royal: #284696 */
+  /* Accent color channels (used by .text-accent-*, .bg-accent-*, .chip-accent-*, footer home button) */
   --bg-accent-a: 236, 72, 153; /* fuchsia */
   --bg-accent-b: 99, 102, 241; /* indigo */
   --bg-accent-c: 139, 92, 246; /* purple */
@@ -67,34 +65,6 @@ html,
 
   /* Layout metrics */
   --qd-footer-h: 56px;
-}
-
-/* Theme presets (set on <html> or <body> via data-bg-theme) */
-:root[data-bg-theme='aurora'] {
-  --bg-base-start: 27, 38, 67; /* #1b2643 */
-  --bg-base-end: 58, 39, 81; /* #3a2751 */
-  --bg-accent-a: 236, 72, 153;
-  --bg-accent-b: 99, 102, 241;
-  --bg-accent-c: 139, 92, 246;
-  --bg-accent-d: 59, 130, 246;
-}
-
-:root[data-bg-theme='sunset'] {
-  --bg-base-start: 255, 126, 95; /* #ff7e5f */
-  --bg-base-end: 255, 163, 102; /* #ffa366 */
-  --bg-accent-a: 255, 99, 132; /* warm pink */
-  --bg-accent-b: 255, 159, 64; /* orange */
-  --bg-accent-c: 255, 205, 86; /* amber */
-  --bg-accent-d: 255, 140, 66; /* tangerine */
-}
-
-:root[data-bg-theme='ocean'] {
-  --bg-base-start: 0, 198, 255; /* #00c6ff */
-  --bg-base-end: 0, 114, 255; /* #0072ff */
-  --bg-accent-a: 34, 197, 94; /* emerald */
-  --bg-accent-b: 20, 184, 166; /* teal */
-  --bg-accent-c: 59, 130, 246; /* blue */
-  --bg-accent-d: 6, 182, 212; /* cyan */
 }
 
 * {
@@ -107,7 +77,6 @@ html,
   min-height: 100vh;
   margin: 0;
   padding: 0;
-  overflow-x: hidden;
   background: transparent;
 }
 
@@ -119,7 +88,6 @@ html,
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  contain: strict;
 }
 
 .app-bg-base {
@@ -131,23 +99,6 @@ html,
     linear-gradient(180deg, #050508 0%, #0a0a12 50%, #08080f 100%);
 }
 
-.app-bg-scan {
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent 0px,
-    transparent 2px,
-    rgba(255,255,255,0.01) 2px,
-    rgba(255,255,255,0.01) 4px
-  );
-  /* Static — removing infinite animation to prevent continuous full-screen compositing */
-}
-
-@keyframes appBgScan {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(20px); }
-}
 
 .app-bg-grid {
   position: absolute;
@@ -169,16 +120,9 @@ html,
 @media (max-width: 1024px), (pointer: coarse), (prefers-reduced-motion: reduce) {
   .app-bg,
   .app-bg-base,
-  .app-bg-scan,
   .app-bg-grid,
   .app-bg-vignette {
     display: none !important;
-  }
-  .app-bg-scan {
-    animation: none;
-  }
-  .app-bg-grid {
-    display: none;
   }
 }
 
@@ -194,7 +138,6 @@ body {
   padding: 0;
   min-height: 100vh;
   min-height: 100dvh;
-  overflow-x: hidden;
 }
 
 /* On mobile/tablet/coarse-pointer devices - simpler base */
@@ -230,7 +173,8 @@ html {
   .page-transition,
   .animate-fade-up,
   .animate-fade-scale,
-  .animate-slide-down {
+  .animate-slide-down,
+  .animate-fade-left {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
@@ -343,15 +287,7 @@ html {
   }
 }
 
-/* Shimmer animation for progress bars */
-@keyframes shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
-  100% {
-    transform: translateX(100%);
-  }
-}
+/* Removed unused shimmer animation */
 
 @keyframes shimmer-glow {
   0% { filter: drop-shadow(0 0 18px rgba(251,191,36,0.5)); }
@@ -359,25 +295,13 @@ html {
 }
 
 /* Hero classes (moved from inline styles so mobile media query can disable them) */
-.hero-wave { animation: heroWave 1.8s ease-in-out infinite; }
-.hero-pill-fade { animation: heroPillFade 0.55s ease-out 0.1s both; }
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-8px); }
+}
 .hero-crown-anim { animation: float 4s ease-in-out infinite, shimmer-glow 2.5s ease-in-out infinite alternate; }
 
-@keyframes heroWave {
-  0%, 100% { transform: rotate(0deg); }
-  15% { transform: rotate(14deg); }
-  30% { transform: rotate(-8deg); }
-  45% { transform: rotate(14deg); }
-  60% { transform: rotate(-4deg); }
-  75% { transform: rotate(10deg); }
-  85% { transform: rotate(0deg); }
-}
-
-@keyframes heroPillFade {
-  0% { opacity: 0; transform: translateY(8px) scale(0.9); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
+/* Removed dead @keyframes heroWave and heroPillFade — no JSX consumers */
 /* Smooth hover effects */
 .hover-lift {
   transition:
@@ -424,7 +348,6 @@ select:focus {
 /* Hide outline on mouse focus, show on keyboard focus */
 *:focus:not(:focus-visible) {
   outline: none !important;
-  box-shadow: none !important;
 }
 
 /* Enhanced focus for buttons and links */
@@ -458,23 +381,7 @@ div:focus-visible:not([tabindex]) {
   z-index: 9999;
 }
 
-.skip-link:focus {
-  position: fixed;
-  top: 8px;
-  left: 8px;
-  width: auto;
-  height: auto;
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  color: #ffffff;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.5);
-  outline: 2px solid #ffffff;
-  outline-offset: 2px;
-}
+/* .skip-link:focus — defined once below (line ~999), this duplicate removed */
 
 /* =============================================================
    REDUCED MOTION - WCAG 2.1 Level AAA Compliance
@@ -498,11 +405,7 @@ div:focus-visible:not([tabindex]) {
     transform: none !important;
   }
   
-  /* Disable background animations */
-  .app-bg-scan {
-    animation: none !important;
-  }
-  
+
   /* Keep content visible but static */
   .animate-fade-up,
   .animate-fade-scale,
@@ -701,8 +604,8 @@ div:focus-visible:not([tabindex]) {
 /* Main app surface styles - unified definition */
 .app-surface {
   background: linear-gradient(140deg, rgba(255, 255, 255, 0.26), rgba(255, 255, 255, 0.1));
-  backdrop-filter: blur(30px) saturate(170%);
   -webkit-backdrop-filter: blur(30px) saturate(170%);
+  backdrop-filter: blur(30px) saturate(170%);
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 1.5rem;
   box-shadow:
@@ -1061,12 +964,7 @@ div:focus-visible:not([tabindex]) {
 .btn-fire.rounded-full {
   box-shadow: 0 12px 26px rgba(249, 115, 22, 0.45);
 }
-.pill-glass:active {
-  transform: translateY(1px) scale(0.97);
-  box-shadow:
-    0 3px 10px -4px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(255, 255, 255, 0.22) inset;
-}
+/* Removed unused pill-glass:active */
 
 /* Skip link (accessible keyboard jump) */
 .skip-link:focus {
@@ -1084,23 +982,7 @@ div:focus-visible:not([tabindex]) {
   outline: 2px solid #6366f1;
   box-shadow: 0 6px 18px -6px rgba(0, 0, 0, 0.6);
 }
-@keyframes pillSheen {
-  0% {
-    left: -55px;
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-  }
-  55% {
-    left: 120%;
-    opacity: 0.85;
-  }
-  100% {
-    left: 140%;
-    opacity: 0;
-  }
-}
+/* Removed dead @keyframes pillSheen — no selector uses it */
 
 /* ===================== Unified Header Badges (Coin & Streak) ===================== */
 .hd-badge {
@@ -1110,8 +992,8 @@ div:focus-visible:not([tabindex]) {
   gap: 5px;
   padding: 2px 8px 2px 6px;
   border-radius: 999px;
-  backdrop-filter: blur(20px) saturate(150%);
   -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid rgba(255, 255, 255, 0.55);
   background: linear-gradient(150deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.06));
   box-shadow:
@@ -1696,13 +1578,13 @@ div:focus-visible:not([tabindex]) {
     rgba(16, 185, 129, 0.4) 100%);
   padding: 2px;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
+  background-size: 200% 200%;
   animation: cardBorderShift 8s ease-in-out infinite;
-  contain: layout style paint;
 }
 
 @keyframes cardBorderShift {
   0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+  50%       { background-position: 100% 50%; }
 }
 
 .quiz-slot-card:hover {
@@ -1982,11 +1864,11 @@ div:focus-visible:not([tabindex]) {
   background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(251, 146, 60, 0.12) 100%);
   border-color: rgba(239, 68, 68, 0.35);
   color: #fca5a5;
-  animation: timerPulse 2s ease-in-out infinite;
+  animation: slotTimerPulse 2s ease-in-out infinite;
   box-shadow: 0 2px 12px -2px rgba(239, 68, 68, 0.3);
 }
 
-@keyframes timerPulse {
+@keyframes slotTimerPulse {
   0%, 100% { 
     box-shadow: 0 2px 12px -2px rgba(239, 68, 68, 0.3);
     transform: scale(1);
@@ -2339,8 +2221,7 @@ div:focus-visible:not([tabindex]) {
   display: inline-flex;
   align-items: center;
 }
-.ipl-cta-ring  { display: none; }
-.ipl-cta-spark { display: none; }
+/* Removed dead .ipl-cta-ring / .ipl-cta-spark — always display:none, not in JSX */
 
 /* soft glow bloom under the button */
 .ipl-cta-wrap::before {
@@ -2640,8 +2521,12 @@ div:focus-visible:not([tabindex]) {
   outline: none;
   -webkit-tap-highlight-color: transparent;
   backface-visibility: hidden;
-  /* depth via inset — no overflow needed */
+  /* Tailwind ring + shadow vars must come first so JSX ring-1/shadow-[...] classes work.
+     Without this, the hardcoded box-shadow below would override --tw-ring-shadow entirely. */
   box-shadow:
+    var(--tw-ring-offset-shadow, 0 0 #0000),
+    var(--tw-ring-shadow, 0 0 #0000),
+    var(--tw-shadow, 0 0 #0000),
     inset 0 1px 0 rgba(255,255,255,0.18),
     inset 0 -1px 0 rgba(0,0,0,0.15);
 }
@@ -2710,20 +2595,20 @@ div:focus-visible:not([tabindex]) {
    Category SEO Panel - Collapsible Content
    ============================================================= */
 .cat-seo-panel {
-  max-height: 0;
-  overflow: hidden;
+  display: grid;
+  grid-template-rows: 0fr;
   opacity: 0;
-  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+  transition: grid-template-rows 0.4s cubic-bezier(0.4, 0, 0.2, 1),
               opacity 0.3s ease;
 }
 
 .cat-seo-panel--open {
-  max-height: 2000px; /* Large enough to accommodate content */
+  grid-template-rows: 1fr;
   opacity: 1;
 }
 
 .cat-seo-panel__body {
-  /* Ensure content is visible when expanded */
+  overflow: hidden;
   visibility: visible;
 }
 

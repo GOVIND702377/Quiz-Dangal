@@ -28,7 +28,7 @@ const QUICK_ARENAS = [
     subtitle: 'GK & Trivia',
     Icon: Brain,
     bg: 'from-violet-600 to-fuchsia-700',
-    ring: 'ring-fuchsia-500/30',
+    ring: 'ring-1 ring-fuchsia-500/30',
     shadow: 'shadow-[0_10px_40px_rgba(192,38,211,0.25)]'
   },
   {
@@ -37,7 +37,7 @@ const QUICK_ARENAS = [
     subtitle: 'Share views',
     Icon: MessageCircle,
     bg: 'from-emerald-500 to-teal-700',
-    ring: 'ring-teal-500/30',
+    ring: 'ring-1 ring-teal-500/30',
     shadow: 'shadow-[0_10px_40px_rgba(20,184,166,0.25)]'
   },
   {
@@ -46,7 +46,7 @@ const QUICK_ARENAS = [
     subtitle: 'Current Affairs',
     Icon: Newspaper,
     bg: 'from-blue-600 to-indigo-800',
-    ring: 'ring-indigo-500/30',
+    ring: 'ring-1 ring-indigo-500/30',
     shadow: 'shadow-[0_10px_40px_rgba(79,70,229,0.25)]'
   },
   {
@@ -55,13 +55,13 @@ const QUICK_ARENAS = [
     subtitle: 'Movie Magic',
     Icon: Film,
     bg: 'from-rose-500 to-pink-700',
-    ring: 'ring-pink-500/30',
+    ring: 'ring-1 ring-pink-500/30',
     shadow: 'shadow-[0_10px_40px_rgba(236,72,153,0.25)]'
   }
 ];
 
 const shouldSkipStartupPrefetch = () => {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') return true;
   try {
     const isCoarse = window.matchMedia?.('(pointer: coarse)').matches;
     const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
@@ -75,7 +75,7 @@ const shouldSkipStartupPrefetch = () => {
       || effectiveType === '3g'
     );
   } catch {
-    return false;
+    return true;
   }
 };
 
@@ -86,7 +86,10 @@ const Home = () => {
 
   const coins = useMemo(() => Number(userProfile?.wallet_balance || 0), [userProfile?.wallet_balance]);
   const streak = useMemo(() => Number(userProfile?.current_streak || 0), [userProfile?.current_streak]);
-  const nextStreakReward = useMemo(() => Math.min(50, 10 + Math.max(0, streak - 1) * 5), [streak]);
+  const nextStreakReward = useMemo(
+    () => streak === 0 ? 0 : Math.min(25, 10 + Math.max(0, streak - 1) * 5),
+    [streak]
+  );
 
   const displayName = useMemo(() => {
     const raw = userProfile?.full_name || userProfile?.name || user?.email || '';
@@ -95,6 +98,9 @@ const Home = () => {
     const first = s.split(/\s+/)[0];
     return first.length > 14 ? `${first.slice(0, 14)}…` : first;
   }, [userProfile?.full_name, userProfile?.name, user?.email]);
+
+  // Memoize skip check — same result on every mount, no need to call twice
+  const skipPrefetch = useMemo(() => shouldSkipStartupPrefetch(), []);
 
   // Show streak modal — AuthContext claims the streak after profile upsert.
   // We listen for the qd:streak CustomEvent dispatched from AuthContext.
@@ -112,15 +118,15 @@ const Home = () => {
 
   // Warm Supabase in background on Home mount so it's ready when user taps a category
   useEffect(() => {
-    if (shouldSkipStartupPrefetch()) return;
+    if (skipPrefetch) return;
     const timeoutId = window.setTimeout(() => {
       getSupabase().catch(() => {});
     }, 1200);
     return () => window.clearTimeout(timeoutId);
-  }, []);
+  }, [skipPrefetch]);
 
   useEffect(() => {
-    if (shouldSkipStartupPrefetch()) return;
+    if (skipPrefetch) return;
 
     let timeoutId = null;
     let idleId = null;
@@ -154,7 +160,7 @@ const Home = () => {
       window.removeEventListener('touchstart', startWarmup);
       window.removeEventListener('keydown', startWarmup);
     };
-  }, []);
+  }, [skipPrefetch]);
 
   const go = useCallback((id) => {
     prefetchSlotData(id);
@@ -203,11 +209,10 @@ const Home = () => {
               alt="Quiz Dangal"
               width={44}
               height={44}
-              // eslint-disable-next-line react/no-unknown-property
-              fetchpriority="high"
+              fetchPriority="high"
               className="h-11 w-11 sm:h-10 sm:w-10 rounded-[12px] transition-transform duration-300 group-hover:scale-[1.05]"
             />
-            <div className="text-[1.35rem] sm:text-[1.35rem] md:text-[1.55rem] font-black tracking-tight bg-gradient-to-r from-violet-200 via-fuchsia-200 to-amber-200 bg-clip-text text-transparent">
+            <div className="text-[1.35rem] md:text-[1.55rem] font-black tracking-tight bg-gradient-to-r from-violet-200 via-fuchsia-200 to-amber-200 bg-clip-text text-transparent">
               Quiz Dangal
             </div>
           </Link>
@@ -216,7 +221,14 @@ const Home = () => {
             <div className="ml-auto flex items-center justify-end gap-1.5 shrink-0">
               <button
                 type="button"
-                onClick={() => setModal({ open: true, day: streak, coins: nextStreakReward })}
+                onClick={async () => {
+                  await refreshUserProfile(user);
+                  setModal({
+                    open: true,
+                    day: streak,
+                    coins: nextStreakReward
+                  });
+                }}
                 className="home-shine flex items-center gap-1.5 rounded-full px-2.5 py-2 sm:px-3.5 sm:py-2 text-sm sm:text-sm md:text-base font-extrabold border border-orange-500/30 bg-gradient-to-br from-orange-600 to-red-700 shadow-[0_4px_15px_rgba(249,115,22,0.3)] transition-all hover:scale-[1.05] active:scale-95"
                 aria-label="Open streak rewards"
               >
@@ -253,7 +265,7 @@ const Home = () => {
             <h1 className="flex items-center gap-2 text-[1.4rem] sm:text-[1.6rem] font-black tracking-tight">
               <span className="text-white">Hey!</span>
               <span className="bg-gradient-to-r from-violet-300 via-fuchsia-300 to-amber-200 bg-clip-text text-transparent">
-                {user ? displayName : 'Player'}
+                {displayName}
               </span>
             </h1>
           </div>
@@ -312,7 +324,6 @@ const Home = () => {
 
                 {/* CTA button */}
                 <div className="ipl-cta-wrap">
-                  <div className="ipl-cta-ring" />
                   <div className="ipl-cta-btn" aria-hidden="true">
                     <Trophy size={13} className="ipl-cta-trophy" strokeWidth={2.5} />
                     <span className="ipl-cta-label">PLAY NOW</span>
@@ -324,7 +335,7 @@ const Home = () => {
               </div>
 
               {/* Right: Emblem (desktop only) */}
-              <div className="flex ipl-emblem-wrap ipl-emblem-wrap--resp" aria-hidden="true">
+              <div className="flex ipl-emblem-wrap" aria-hidden="true">
                 <div className="ipl-emblem-halo" />
                 <div className="ipl-emblem-ring ipl-emblem-ring-outer" />
                 <div className="ipl-emblem-ring ipl-emblem-ring-mid" />
@@ -357,13 +368,13 @@ const Home = () => {
 
           {/* Mobile: horizontal scroll | Desktop: 4-col grid */}
           <div className="qa-scroll-track">
-            {QUICK_ARENAS.map(({ id, Icon, title, subtitle, bg }) => (
+            {QUICK_ARENAS.map(({ id, Icon, title, subtitle, bg, ring, shadow }) => (
               <button
                 key={title}
                 type="button"
                 onClick={() => go(id)}
                 onPointerEnter={() => warmCategory(id)}
-                className={`qa-card group bg-gradient-to-br ${bg}`}
+                className={`qa-card group bg-gradient-to-br ${bg} ${ring} ${shadow}`}
                 aria-label={`Play ${title}: ${subtitle}`}
               >
                 {/* Radial shine */}

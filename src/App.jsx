@@ -272,7 +272,6 @@ function App() {
         {/* Global Cyberpunk Background - Same as Home page */}
         <div className="app-bg" aria-hidden="true">
           <div className="app-bg-base" />
-          <div className="app-bg-scan" />
           <div className="app-bg-grid" />
           <div className="app-bg-vignette" />
         </div>
